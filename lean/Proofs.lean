@@ -2,3 +2,8 @@ import Proofs.Reference
 import Proofs.ARM64.Constants
 import Proofs.ARM64.Round
 import Proofs.Repeated
+import Proofs.ARM64.Machine
+import Proofs.ARM64.Memory
+import Proofs.ARM64.Statement
+import Proofs.ARM64.Decode
+import Proofs.ARM64.Execution

@@ -42,7 +42,18 @@ run_cmd do
     ``Crypto.ARM64.Round.narrow_shift,
     ``Crypto.ARM64.Round.code_length,
     ``Crypto.ARM64.Round.round_computes,
-    ``Crypto.ARM64.Round.round_observations]
+    ``Crypto.ARM64.Round.round_observations,
+    ``Crypto.ARM64.Machine.program_vocabulary,
+    ``Crypto.ARM64.Machine.storeLE_outside,
+    ``Crypto.ARM64.Machine.storeLE_inside,
+    ``Crypto.ARM64.Machine.addresses_length,
+    ``Crypto.ARM64.Machine.read32_loadLE,
+    ``Crypto.ARM64.Machine.add_offset_sub,
+    ``Crypto.ARM64.Machine.read32_storeLE,
+    ``Crypto.ARM64.Imported.all_instructions_decode,
+    ``Crypto.ARM64.Imported.all_instructions_permitted,
+    ``Crypto.ARM64.Imported.program_no_hooks,
+    ``Crypto.ARM64.Imported.runToReturn_steps]
   let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
   for name in names do
     let axioms ← collectAxioms name

@@ -11,7 +11,7 @@ def main():
     root = Path(__file__).resolve().parents[2]
     output = root / "build/verification"
     source_paths = sorted(set(
-        list((root / "lean").rglob("*.lean"))
+        [p for p in (root / "lean").rglob("*.lean") if "Imports" not in p.relative_to(root / "lean").parts]
         + list((root / "tests/runner").rglob("*.lean"))
         + list((root / "tests/runner").glob("*.py"))
         + list((root / "tests/runner").glob("*.sh"))
@@ -35,6 +35,7 @@ def main():
         "axiom_audit": (output / "axioms.log").read_text().splitlines(),
         "kernel_replay": "fresh kernel; successful exit",
         "reference_vectors": (output / "reference-vectors.log").read_text().splitlines(),
+        "arm64_model_checks": (output / "arm64-model-check.log").read_text().splitlines(),
         "arm64_artifact_identity": json.loads((output / "arm64-artifacts.json").read_text()),
         "equal_status": "in progress",
         "checked_equal_targets": [],

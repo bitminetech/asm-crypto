@@ -8,6 +8,12 @@ git = "https://github.com/remix7531/fips-180-4-lean"
 rev = "0018b08f3458553ad511e92a96336979c1e0c45a"
 
 [[lean_lib]]
+name = "ImportedARM64"
+srcDir = "lean/Imports/arm64/arm64-semantics"
+roots = ["Arm64"]
+globs = ["Arm64.Trusted.ISA.*", "Arm64.Trusted.Syscalls.*", "Arm64.Trusted.Syscalls"]
+
+[[lean_lib]]
 name = "Reference"
 srcDir = "lean"
 
@@ -22,4 +28,9 @@ srcDir = "lean"
 [[lean_exe]]
 name = "reference-vectors"
 root = "SHA256Vectors"
+srcDir = "tests/runner/lean"
+
+[[lean_exe]]
+name = "arm64-model-check"
+root = "ARM64ModelCheck"
 srcDir = "tests/runner/lean"

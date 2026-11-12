@@ -12,7 +12,8 @@ esac
 mkdir -p build/verification
 rm -f build/verification/status.json
 python3 -I tests/runner/check_lean_dependencies.py > build/verification/dependencies.json
-lake build Reference Proofs reference-vectors
+lake build Reference Proofs reference-vectors arm64-model-check
+.lake/build/bin/arm64-model-check > build/verification/arm64-model-check.log
 python3 -I tests/runner/test_reference_vectors.py "$vectors"
 lake env lean tests/runner/lean/CheckProofs.lean > build/verification/axioms.log
 python3 -I tests/runner/test_proof_audit.py
