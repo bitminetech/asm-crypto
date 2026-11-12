@@ -1,0 +1,25 @@
+name = "asm-crypto"
+version = "0.1.0"
+defaultTargets = ["Reference", "Proofs"]
+
+[[require]]
+name = "fips-pub-180-4"
+git = "https://github.com/remix7531/fips-180-4-lean"
+rev = "0018b08f3458553ad511e92a96336979c1e0c45a"
+
+[[lean_lib]]
+name = "Reference"
+srcDir = "lean"
+
+[[lean_lib]]
+name = "Proofs"
+srcDir = "lean"
+
+[[lean_lib]]
+name = "Models"
+srcDir = "lean"
+
+[[lean_exe]]
+name = "reference-vectors"
+root = "SHA256Vectors"
+srcDir = "tests/runner/lean"

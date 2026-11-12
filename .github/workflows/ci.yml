@@ -10,6 +10,36 @@ permissions:
   contents: read
 
 jobs:
+  supporting-proofs:
+    # This job checks supporting Lean lemmas and ARM64 artifact identity.
+    # Its success is not a checked equal / fully verified library claim.
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with: { name: build, path: build }
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with: { name: vectors, path: vectors }
+      - name: Install pinned Lean
+        run: |
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/lean.tar.zst" https://github.com/leanprover/lean4/releases/download/v4.29.1/lean-4.29.1-linux.tar.zst
+          echo "bf062d29556d655685fb287563c249ad6a8fde34352c18b5e32568a595c1aec1  $RUNNER_TEMP/lean.tar.zst" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/lean"
+          tar --zstd -xf "$RUNNER_TEMP/lean.tar.zst" -C "$RUNNER_TEMP/lean" --strip-components=1
+          echo "$RUNNER_TEMP/lean/bin" >> "$GITHUB_PATH"
+      - name: Fetch pinned proof dependencies
+        run: |
+          lake exe cache get Mathlib.Data.List.Induction Mathlib.Data.List.Range Mathlib.Data.Nat.Find Mathlib.Data.Nat.ModEq Mathlib.Logic.Basic Mathlib.Tactic.IntervalCases Mathlib.Tactic.Linarith Mathlib.Tactic.NormNum Mathlib.Tactic.Ring
+      - name: Check supporting statements, axioms, kernel replay, vectors and objects
+        run: tests/runner/check_supporting_proofs.sh "$PWD/vectors"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        if: always()
+        with:
+          name: supporting-proof-checks
+          path: build/verification/
+
   build:
     runs-on: ubuntu-24.04
     steps:

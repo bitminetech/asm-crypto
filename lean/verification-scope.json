@@ -1,0 +1,67 @@
+{
+  "standard": {
+    "repository": "https://github.com/bitminetech/asm-standard",
+    "commit": "dc3b2a75755f502828c0d6060ff655a9dcfea20a",
+    "sections": [3, 8, 10]
+  },
+  "reference": {
+    "repository": "https://github.com/remix7531/fips-180-4-lean",
+    "commit": "0018b08f3458553ad511e92a96336979c1e0c45a",
+    "lean": "leanprover/lean4:v4.29.1",
+    "license": "GPL-3.0-or-later",
+    "dependencies": "lake-manifest.json",
+    "entry": "SHS.SHA256.sha256",
+    "byte_entry": "SHS.SHA256.Impl.sha256",
+    "bridge": "SHS.Equiv.SHA256.sha256_correct"
+  },
+  "supporting_claims": [
+    {
+      "claim": "The portable reference result matches the imported bit-oriented FIPS transcription.",
+      "theorem": "Crypto.Reference.sha256_matches_fips",
+      "scope": "Lean values only; message length below 2^61 bytes; no assembly execution"
+    },
+    {
+      "claim": "The recorded ARM64 image contains the imported reference's initial hash and round constants.",
+      "theorems": ["Crypto.ARM64.image_round_constants", "Crypto.ARM64.image_initial_hash"],
+      "scope": "All constants in the 896-byte text image; loading is not proved"
+    },
+    {
+      "claim": "The 30 recorded ARM64 round instructions compute one FIPS-shaped round in the restricted local model.",
+      "theorem": "Crypto.ARM64.Round.round_computes",
+      "scope": "Offsets 0x124 through 0x198; not the loop update, branch or complete function"
+    },
+    {
+      "claim": "The round fragment preserves memory and SP and reads only its two four-byte words.",
+      "theorem": "Crypto.ARM64.Round.round_observations",
+      "scope": "Restricted local model; advancing PC by 120 bytes; not a physical timing claim"
+    },
+    {
+      "claim": "The bounded-memory repeated-block evaluator equals the imported reference for its stated domain.",
+      "theorem": "Crypto.Reference.repeatedAlignedDigest_eq_reference",
+      "scope": "The repetition period divides 64, the byte length is a multiple of 64 and below 2^61; used for the official large-data vectors"
+    }
+  ],
+  "equal": {
+    "status": "in progress",
+    "checked_targets": [],
+    "theorems": [],
+    "remaining": [
+      "Independently reviewed and pinned full baseline statement and semantic dependency closure",
+      "Independently reviewed ISA model covering the complete callable ARM64 implementation",
+      "Machine-level ByteList decoding, independently established accessible extents and layout bridge",
+      "Padding, schedule, round-loop, block-loop, entry, exit and digest-store proofs",
+      "Whole-function memory safety, ABI preservation, termination, instruction/stack bounds and confidentiality",
+      "Proof connection to linked artifacts, relocation/load mapping and runtime binding assumptions",
+      "Equivalent complete proofs and artifact validation for x86-64 and RISC-V"
+    ]
+  },
+  "trust_inventory": [
+    "Review correspondence between the imported Lean FIPS transcription and the English FIPS document",
+    "Pinned Lean kernel and release distribution",
+    "Local restricted ARM64 instruction semantics/decoder, pending independent ISA review",
+    "Python ELF/Mach-O/COFF/archive extraction and comparison code",
+    "Pinned LLVM assembler, archiver, linker and platform unwind metadata",
+    "Caller establishes valid, aligned, separated memory and stack; full entry predicate remains unproved",
+    "Loaded code, immutable constants, ISA implementation and hardware obey the declared model; not yet bound by a full equal claim"
+  ]
+}

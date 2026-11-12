@@ -1,2 +1,6 @@
 build/
 .DS_Store
+
+# Optional Lean verification build/cache files.
+.lake/
+__pycache__/
