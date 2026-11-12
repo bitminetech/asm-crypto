@@ -53,7 +53,11 @@ run_cmd do
     ``Crypto.ARM64.Imported.all_instructions_decode,
     ``Crypto.ARM64.Imported.all_instructions_permitted,
     ``Crypto.ARM64.Imported.program_no_hooks,
-    ``Crypto.ARM64.Imported.runToReturn_steps]
+    ``Crypto.ARM64.Imported.runToReturn_steps,
+    ``Crypto.ARM64.Imported.runWords_decode,
+    ``Crypto.ARM64.Imported.round_computes,
+    ``Crypto.ARM64.Imported.round_frame,
+    ``Crypto.ARM64.Imported.round_matches_spec]
   let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
   for name in names do
     let axioms ← collectAxioms name

@@ -59,6 +59,19 @@
       "claim": "Every successful bounded evaluator result is an execution in the imported small-step semantics.",
       "theorem": "Crypto.ARM64.Imported.runToReturn_steps",
       "scope": "Conditional evaluator soundness; does not prove that any SHA-256 invocation succeeds or establish its result"
+    },
+    {
+      "claim": "The recorded 30-instruction round computes exactly the imported SHA-256 sequential round under upstream AArch64 semantics.",
+      "theorems": [
+        "Crypto.ARM64.Imported.round_computes",
+        "Crypto.ARM64.Imported.round_matches_spec"
+      ],
+      "scope": "Straight-line execution of the recorded words, assuming SP alignment, the two four-byte read permissions and the specified K/W values. Fetching, loops and whole-call equal are not established."
+    },
+    {
+      "claim": "The same imported-model round preserves memory, SP, nonvolatile registers and all non-GPR/PC state, preserves X0-X6, and advances PC by 120 bytes.",
+      "theorem": "Crypto.ARM64.Imported.round_frame",
+      "scope": "The 30-word fragment only, under its actual read/alignment guards; architectural trace confidentiality and whole-call ABI remain pending."
     }
   ],
   "equal": {
