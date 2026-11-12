@@ -21,3 +21,5 @@ import Proofs.ARM64.ImportedMemoryRange
 import Proofs.ARM64.ImportedInitialLoad
 import Proofs.ARM64.ImportedFeedForward
 import Proofs.ARM64.ImportedCompression
+import Proofs.ARM64.ImportedWordLoad
+import Proofs.ARM64.ImportedWordLoops

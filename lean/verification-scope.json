@@ -156,6 +156,25 @@
         "Crypto.ARM64.Imported.compression"
       ],
       "scope": "Execution of the recorded word path from 0x10c through 0x1e8; assumes the correct stack schedule, K values, SP alignment and stated read/write permissions. Proves the RAM hash result, PC/counter and non-memory state frame. Message loading, fetching, outer loops, full-call bounds and equal remain separate."
+    },
+    {
+      "claim": "The recorded message-word cycle reads four bytes in big-endian order, stores one workspace word and advances its 16-word loop counter correctly.",
+      "theorems": [
+        "Crypto.ARM64.Imported.word_load",
+        "Crypto.ARM64.Imported.reverseWord_bytes",
+        "Crypto.ARM64.Imported.loadedWord_bytes",
+        "Crypto.ARM64.Imported.word_control_step",
+        "Crypto.ARM64.Imported.word_cycle"
+      ],
+      "scope": "Six recorded words at 0xac-0xc0, index 0..15, actual read/write and SP guards; exact one-word memory update and state frame. The complete load loop, ByteList encoding and instruction fetching remain separate."
+    },
+    {
+      "claim": "All 16 recorded message-word cycles initialize the first schedule words to the big-endian input block and preserve the input and stated frame.",
+      "theorems": [
+        "Crypto.ARM64.Imported.word_loop_prefix",
+        "Crypto.ARM64.Imported.word_loop"
+      ],
+      "scope": "16 copies of the six recorded words; initial X5=0, aligned SP, actual input read/workspace write permissions, the stated source-word values and source/workspace disjointness. Proves initialized words, preserved source words and permissions, cells outside the workspace, PC/counter and non-memory frame. ByteList decoding, fetching and full-call equal remain separate."
     }
   ],
   "equal": {
