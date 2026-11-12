@@ -45,3 +45,11 @@ import Proofs.ARM64.ImportedFetchBinding
 import Proofs.ARM64.ImportedOuterComplete
 import Proofs.ARM64.ImportedHashInitWords
 import Proofs.ARM64.ImportedHashBody
+import Proofs.ARM64.ImportedLoadedWords
+import Proofs.ARM64.ImportedBlockReference
+import Proofs.ARM64.ImportedReferenceFold
+import Proofs.ARM64.ImportedReferenceLayout
+import Proofs.ARM64.ImportedHashInitFrame
+import Proofs.ARM64.ImportedHeaderPadding
+import Proofs.ARM64.ImportedCallBounds
+import Proofs.ARM64.ImportedWholeCall

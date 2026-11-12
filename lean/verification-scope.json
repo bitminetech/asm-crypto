@@ -362,6 +362,92 @@
         "Crypto.ARM64.Imported.hash_body"
       ],
       "scope": "Word-list execution from word 41 through RET, under actual block/padding/output permissions, separation, initial counters/phase and alignment. Proves stored digest bytes, zero status, SP restoration and original link-register return, with modeled nonvolatile/state preservation. Header/preparation composition, complete byte-array reference bridge, fetched execution, whole-call trace/safety/bounds and equal remain separate."
+    },
+    {
+      "claim": "The imported CodeLoaded memory matches every recorded image word, including the actual FIPS initial-hash and round-constant pools.",
+      "theorems": [
+        "Crypto.ARM64.Imported.loaded_readWord",
+        "Crypto.ARM64.Imported.image_word_offsets",
+        "Crypto.ARM64.Imported.loaded_image_word",
+        "Crypto.ARM64.Imported.image_fetch",
+        "Crypto.ARM64.Imported.image_initial_spec",
+        "Crypto.ARM64.Imported.image_round_spec",
+        "Crypto.ARM64.Imported.loaded_initial_pool",
+        "Crypto.ARM64.Imported.initialHashMemory_fips",
+        "Crypto.ARM64.Imported.loaded_round_pool"
+      ],
+      "scope": "All 224 words of the 896-byte image under the imported CodeLoaded predicate. Static fetch and initial-memory pool decoding are bound; preservation/loading along the complete callable execution and runtime artifact binding remain separate."
+    },
+    {
+      "claim": "The native-memory block decoder, two compression folds and emitted digest match the pinned byte-oriented FIPS implementation.",
+      "theorems": [
+        "Crypto.ARM64.Imported.beU32_bytes",
+        "Crypto.ARM64.Imported.memoryBlock_reference",
+        "Crypto.ARM64.Imported.reference_state_fold",
+        "Crypto.ARM64.Imported.reference_word_byte",
+        "Crypto.ARM64.Imported.digestBytes_toSpecState",
+        "Crypto.ARM64.Imported.reference_digest_bytes",
+        "Crypto.ARM64.Imported.padded_block_count",
+        "Crypto.ARM64.Imported.phasesHash_reference"
+      ],
+      "scope": "Value/layout and fold bridges only; SHA-256 byte length below 2^61 for the complete reference digest. Function-entry preparation and full equal remain separate."
+    },
+    {
+      "claim": "The complete recorded hash body through RET produces exactly the imported SHA-256 digest from the original bytes and prepared padding.",
+      "theorems": [
+        "Crypto.ARM64.Imported.paddingBlockCount_bytes",
+        "Crypto.ARM64.Imported.paddingBlockCount_bounds",
+        "Crypto.ARM64.Imported.memoryBlock_complete_reference",
+        "Crypto.ARM64.Imported.memoryBlock_padding_reference",
+        "Crypto.ARM64.Imported.phasesHash_reference_bytes",
+        "Crypto.ARM64.Imported.hash_body_sha256"
+      ],
+      "scope": "Recorded word-list execution from word 41 through RET for all byte lengths below 2^61, under the explicit prepared-state IV, original-input/padding mappings, actual permissions, separation and counter/phase facts. Includes exact 32 output bytes, zero status, restored SP, original return address and modeled nonvolatile/state frame. Full entry/preparation composition, fetched execution, complete safety/confidentiality/bounds, independently reviewed baseline and equal remain separate."
+    },
+    {
+      "claim": "The recorded initialization produces the FIPS IV from loaded image bytes and preserves the frame/permissions needed by the body.",
+      "theorems": [
+        "Crypto.ARM64.Imported.region_store_delta",
+        "Crypto.ARM64.Imported.initialHashMemory_outside",
+        "Crypto.ARM64.Imported.initialHashMemory_readable",
+        "Crypto.ARM64.Imported.initialHashMemory_writable",
+        "Crypto.ARM64.Imported.initialize_hash_fips"
+      ],
+      "scope": "Eight recorded words at 33..40, actual pool/hash guards, imported CodeLoaded and entry PC. Sets K pointer/phase and initializes IV without constraining old workspace. Complete entry composition, fetching and equal remain separate."
+    },
+    {
+      "claim": "The recorded header decoder composes with complete FIPS padding from actual entry memory and the supplied byte-count/source mapping.",
+      "theorems": [
+        "Crypto.ARM64.Imported.ofNat_full_blocks",
+        "Crypto.ARM64.Imported.ofNat_tail_offset",
+        "Crypto.ARM64.Imported.header_padding"
+      ],
+      "scope": "Words 0..32 along the selected tail/count paths, byte counts below 2^61, actual header/padding/source guards and separation. Proves the FIPS padding bytes, new SP, PC, registers and memory/permission frame. Complete independently established ByteList layout, initialization/body composition, fetched execution and equal remain separate."
+    },
+    {
+      "claim": "The complete proposed recorded-word call path has an exact length and satisfies the declared conservative instruction budget.",
+      "theorems": [
+        "Crypto.ARM64.Imported.tail_copy_code_length",
+        "Crypto.ARM64.Imported.prepare_tail_code_length",
+        "Crypto.ARM64.Imported.padding_count_code_length",
+        "Crypto.ARM64.Imported.padding_suffix_code_length",
+        "Crypto.ARM64.Imported.prepare_padding_code_length",
+        "Crypto.ARM64.Imported.hash_phases_code_length",
+        "Crypto.ARM64.Imported.hash_body_code_length",
+        "Crypto.ARM64.Imported.whole_call_code_length",
+        "Crypto.ARM64.Imported.instruction_budget",
+        "Crypto.ARM64.Imported.whole_call_code_bound"
+      ],
+      "scope": "Static word-list length only: 64 + 6*(n%64) + 3100*(n/64 + padding blocks) + the large-tail branch word. Full-call existence, memory-fetched execution and the baseline must be connected before claiming a callable instruction bound."
+    },
+    {
+      "claim": "The complete recorded-word call, from header decoding through RET, produces exactly the pinned SHA-256 digest under operational initial-state requirements.",
+      "theorems": [
+        "Crypto.ARM64.Imported.program_code_length",
+        "Crypto.ARM64.Imported.codeLoaded_of_cells",
+        "Crypto.ARM64.Imported.whole_call_sha256"
+      ],
+      "scope": "All byte counts below 2^61, arbitrary old stack/output contents, actual initial header/count/data mappings, imported CodeLoaded, read/write grant families, alignment and stack separation. Proves exact output bytes, zero status, Running final state, restored SP, original link-register return and modeled nonvolatile/state frame. CallInputs does not replace the independently established typed ByteList/extent/ownership caller contract. Whole-path memory-fetched execution, full architecture baseline guarantees, independent statement review and runtime build binding remain separate; equal is not checked."
     }
   ],
   "equal": {
@@ -374,7 +460,7 @@
       "Bind proved recorded-word paths to memory-fetched imported executions",
       "Independent review and pinning of the complete function-specific entry, baseline, timing model and disclosure policy",
       "Machine-level ByteList decoding, independently established accessible extents and layout bridge",
-      "Whole-function entry/preparation composition and connection of the combined block/phase/digest path to the complete padded-byte reference fold",
+      "Bridge the independently established typed ByteList extents/ownership and full baseline caller entry to the operational CallInputs of the complete word-list SHA-256 theorem",
       "Whole-function memory safety, ABI preservation, termination, instruction/stack bounds and confidentiality",
       "Proof connection to linked artifacts, relocation/load mapping and runtime binding assumptions",
       "Equivalent complete proofs and artifact validation for x86-64 and RISC-V"
