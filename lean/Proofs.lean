@@ -8,3 +8,8 @@ import Proofs.ARM64.Statement
 import Proofs.ARM64.Decode
 import Proofs.ARM64.Execution
 import Proofs.ARM64.ImportedRound
+import Proofs.ARM64.ImportedSchedule
+import Proofs.ARM64.ImportedMemory
+import Proofs.ARM64.ImportedScheduleRAM
+import Proofs.ARM64.ImportedCounter
+import Proofs.ARM64.ImportedCycles

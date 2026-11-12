@@ -72,6 +72,39 @@
       "claim": "The same imported-model round preserves memory, SP, nonvolatile registers and all non-GPR/PC state, preserves X0-X6, and advances PC by 120 bytes.",
       "theorem": "Crypto.ARM64.Imported.round_frame",
       "scope": "The 30-word fragment only, under its actual read/alignment guards; architectural trace confidentiality and whole-call ABI remain pending."
+    },
+    {
+      "claim": "One recorded 15-instruction schedule expansion updates the actual stack-word vector exactly as the imported FIPS schedule step.",
+      "theorems": [
+        "Crypto.ARM64.Imported.schedule_computes",
+        "Crypto.ARM64.Imported.schedule_frame",
+        "Crypto.ARM64.Imported.schedule_update_matches_spec",
+        "Crypto.ARM64.Imported.schedule_ram_step"
+      ],
+      "scope": "Offsets 0xc4-0xfc; index 16..63 and the stated 256-byte workspace permissions. Counter/branch, full schedule loop, fetching and equal remain separate."
+    },
+    {
+      "claim": "Imported-model 32-bit stores preserve normalized permissions, preserve cells outside their four-byte modular interval and update exactly one word-vector slot.",
+      "theorems": [
+        "Crypto.ARM64.Imported.perm_write32",
+        "Crypto.ARM64.Imported.read32_write32",
+        "Crypto.ARM64.Imported.write32_cells_outside",
+        "Crypto.ARM64.Imported.wordVector_store64",
+        "Crypto.ARM64.Imported.canRead_write32",
+        "Crypto.ARM64.Imported.canWrite_write32",
+        "Crypto.ARM64.Imported.canExec_write32"
+      ],
+      "scope": "Memory/layout helper lemmas only; no whole-call bounds or memory-safety conclusion."
+    },
+    {
+      "claim": "The recorded ADD/CMP/B.LO controls increment each counter and branch back exactly until the final iteration.",
+      "theorems": [
+        "Crypto.ARM64.Imported.counter64_carry",
+        "Crypto.ARM64.Imported.round_control_step",
+        "Crypto.ARM64.Imported.schedule_control_step",
+        "Crypto.ARM64.Imported.round_cycle"
+      ],
+      "scope": "Counters 0..63; the 33-word round cycle composes the FIPS round with its control and state frame. Fetching and complete loops remain separate."
     }
   ],
   "equal": {

@@ -61,6 +61,7 @@ Standard: [asm-standard@90ddb72](https://github.com/bitminetech/asm-standard/blo
 | Imported proofs | [fips-180-4-lean@0018b08](https://github.com/remix7531/fips-180-4-lean/tree/0018b08f3458553ad511e92a96336979c1e0c45a), GPL-3.0-or-later |
 | ARM64 ISA | [code-verification@b0f729a](https://github.com/google-deepmind/code-verification/tree/b0f729accbc21a0413e7ca4e1da43fa45b5f2e1b/arm64-semantics/Arm64/Trusted/ISA), Apache-2.0; pinned submodule at [lean/Imports/arm64](lean/Imports/arm64), unchanged ISA source imported by the `ImportedARM64` library |
 | Transitive dependencies | Exact commits in [lake-manifest.json](lake-manifest.json) |
+| Imported ARM64 model | [docs/models/arm64-imported.md](docs/models/arm64-imported.md) |
 | ARM64 round model | [docs/models/arm64-round.md](docs/models/arm64-round.md) |
 | Supporting proof checks | [tests/runner/check_supporting_proofs.sh](tests/runner/check_supporting_proofs.sh) |
 | Verification scope | [lean/verification-scope.json](lean/verification-scope.json) |
