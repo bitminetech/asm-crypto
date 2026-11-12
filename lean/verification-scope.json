@@ -214,6 +214,23 @@
         "Crypto.ARM64.Imported.carry64_sub_ge"
       ],
       "scope": "All 64-bit operand pairs; arithmetic helper lemmas only, with no whole-function or hardware claim."
+    },
+    {
+      "claim": "The recorded padding-tail copy cycle and terminating branch implement the stated byte update and counter/PC transition.",
+      "theorems": [
+        "Crypto.ARM64.Imported.tail_copy_cycle",
+        "Crypto.ARM64.Imported.tail_copy_end",
+        "Crypto.ARM64.Imported.byte128_store_outside"
+      ],
+      "scope": "The six words at 0x44-0x58 and terminating two-word prefix, under their counter relation and actual byte permissions. Preserves the modeled state frame and all GPRs except X6/X7. The full copy loop, initialized padding, fetching and equal remain separate."
+    },
+    {
+      "claim": "The complete recorded padding-tail copy loop copies every source byte and exits correctly for every remainder below 64.",
+      "theorems": [
+        "Crypto.ARM64.Imported.tail_copy_prefix",
+        "Crypto.ARM64.Imported.tail_copy_loop"
+      ],
+      "scope": "All 0..63-byte tails, assuming the stated initial counter/remainder, source/padding permissions and disjointness. Proves copied bytes, source/permission preservation, cells outside the 128-byte padding area, PC/counter and the modeled frame. Padding initialization, marker/length encoding, fetching and full-call equal remain separate."
     }
   ],
   "equal": {

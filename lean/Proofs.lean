@@ -27,3 +27,5 @@ import Proofs.ARM64.ImportedCellFrame
 import Proofs.ARM64.ImportedBlock
 import Proofs.ARM64.ImportedExit
 import Proofs.ARM64.ImportedArithmetic
+import Proofs.ARM64.ImportedTailCopy
+import Proofs.ARM64.ImportedTailLoops

@@ -112,7 +112,12 @@ run_cmd do
     ``Crypto.ARM64.Imported.bytes_of_reversed_words,
     ``Crypto.ARM64.Imported.exit_stores_bytes,
     ``Crypto.ARM64.Imported.addWithCarry64_sub,
-    ``Crypto.ARM64.Imported.carry64_sub_ge]
+    ``Crypto.ARM64.Imported.carry64_sub_ge,
+    ``Crypto.ARM64.Imported.tail_copy_cycle,
+    ``Crypto.ARM64.Imported.tail_copy_end,
+    ``Crypto.ARM64.Imported.byte128_store_outside,
+    ``Crypto.ARM64.Imported.tail_copy_prefix,
+    ``Crypto.ARM64.Imported.tail_copy_loop]
   let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
   for name in names do
     let axioms ← collectAxioms name
