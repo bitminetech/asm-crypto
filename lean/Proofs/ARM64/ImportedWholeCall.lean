@@ -67,14 +67,39 @@ theorem padding_byte_outside (sp : BitVec 64) (i : Fin 128) :
   rw [address, address_delta, BitVec.toNat_ofNat, Nat.mod_eq_of_lt bound]
   omega
 
+def prologueCode (count : BitVec 64) := headerPaddingCode count ++ hashInitCode
+
+structure PreparedBody (base : BitVec 64) (s : Arm64.State) (data : ByteArray) (body : Arm64.State) : Prop where
+  executed : runWords (prologueCode (BitVec.ofNat 64 data.size)) s = some body
+  state : returnStable body = returnStable s
+  nonvolatile : Crypto.ARM64.Imported.nonvolatile body = Crypto.ARM64.Imported.nonvolatile s
+  stack : body.sp = entryStack s
+  pc : body.pc = base + 164#64
+  loaded : (program base).CodeLoaded body.mem
+  output : body.readReg64 .x1 = s.readReg64 .x1
+  ready : BlockReady body
+  count : body.readReg64 .x3 = BitVec.ofNat 64 (data.size / 64)
+  phase : body.readReg64 .x4 = 0#64
+  padCount : body.readReg64 .x6 = BitVec.ofNat 64 (paddingBlockCount data)
+  fullReads : ∀ (i : Fin (data.size / 64)) (j : Fin 16), body.mem.canRead
+    (body.readReg64 .x2 + BitVec.ofNat 64 (64 * i.val + 4 * j.val)) 4 = true
+  fullSep : ∀ (i : Fin (data.size / 64)) (j : Fin 16) (b : Fin 4),
+    288 ≤ (body.readReg64 .x2 + BitVec.ofNat 64 (64 * i.val + 4 * j.val) + BitVec.ofNat 64 b.val - body.sp).toNat
+  padRead : ∀ i : Fin 32, body.mem.canRead (body.sp + 288#64 + BitVec.ofNat 64 (4 * i.val)) 4 = true
+  outWrite : ∀ i : Fin 8, body.mem.canWrite (body.readReg64 .x1 + BitVec.ofNat 64 (4 * i.val)) 4 = true
+  outSep : ∀ (i : Fin 8) (b : Fin 4),
+    288 ≤ (body.readReg64 .x1 + BitVec.ofNat 64 (4 * i.val) + BitVec.ofNat 64 b.val - body.sp).toNat
+  initial : savedHash body = SHS.SHA256.H0_256
+  input : ∀ i : Fin data.size, body.mem.read8 (body.readReg64 .x2 + BitVec.ofNat 64 i.val) = (data.get! i.val).toBitVec
+  padding : ∀ i : Fin (lengthOffset (data.size % 64) + 8),
+    body.mem.read8 (body.sp + 288#64 + BitVec.ofNat 64 i.val) =
+      ((SHS.Equiv.SHA256.Padding.Layout.implPaddedBytes data).get! (data.size / 64 * 64 + i.val)).toBitVec
+  outside : ∀ p, 416 ≤ (p - entryStack s).toNat → body.mem.cells p = s.mem.cells p
+
 set_option maxRecDepth 16384 in
 set_option maxHeartbeats 4000000 in
-theorem whole_call_sha256 (base : BitVec 64) (s : Arm64.State) (data : ByteArray)
-    (entry : CallInputs base s data) :
-    ∃ out, runWords (wholeCallCode (BitVec.ofNat 64 data.size)) s = some out ∧
-      returnStable out = returnStable s ∧ nonvolatile out = nonvolatile s ∧
-      out.sp = s.sp ∧ out.pc = s.readReg64 .x30 ∧ out.readReg64 .x0 = 0#64 ∧
-      out.status = .Running ∧ memoryBytes32 out.mem (s.readReg64 .x1) = (SHS.SHA256.Impl.sha256 data).map UInt8.toBitVec := by
+theorem prepare_whole_call (base : BitVec 64) (s : Arm64.State) (data : ByteArray)
+    (entry : CallInputs base s data) : ∃ body, PreparedBody base s data body := by
   have hn : data.size < 2 ^ 64 := by have := entry.bound; omega
   have tailIndex (i : Fin (data.size % 64)) : data.size / 64 * 64 + i.val < data.size := by
     have ih := i.isLt
@@ -113,7 +138,7 @@ theorem whole_call_sha256 (base : BitVec 64) (s : Arm64.State) (data : ByteArray
   have ivWrite (i : Fin 4) : padded.mem.canWrite (padded.sp + 256#64 + BitVec.ofNat 64 (8 * i.val)) 8 = true := by
     rw [psp, pwrite]
     simpa only [BitVec.ofNat_add, BitVec.add_assoc] using entry.stackWrite (256 + 8 * i.val) 8 (by have := i.isLt; omega)
-  obtain ⟨body, hi, initial, inm, inv, _, i0, i1, i2, i3, i4, i6, iframe, iread, iwrite⟩ :=
+  obtain ⟨body, hi, initial, inm, inv, ipc, i0, i1, i2, i3, i4, i6, iframe, iread, iwrite⟩ :=
     initialize_hash_fips base padded codePadded pcPadded ivRead ivWrite
   have isp := congrArg Arm64.State.sp inm
   change body.sp = padded.sp at isp
@@ -219,23 +244,41 @@ theorem whole_call_sha256 (base : BitVec 64) (s : Arm64.State) (data : ByteArray
     rw [i6, p6]
     unfold paddingBlockCount
     split <;> rfl
-  obtain ⟨out, ho, ostate, onv, osp, opc, status, _, bytes⟩ :=
-    hash_body_sha256 body data ready entry.bound count i4 padCount fullReads fullSep padRead outWrite outSep initial input padValues
   have erase := congrArg (fun st : Arm64.State => { st with sp := 0#64 }) inm
   change returnStable body = returnStable padded at erase
-  have nv := inv.trans pnv
-  have lr := congrFun nv ⟨12, by decide⟩
+  have prologue := runWords_append_success hp hi
+  refine ⟨body, ?_, erase.trans pstate, inv.trans pnv, stack, ?_, codeBody, output,
+    ready, count, i4, padCount, fullReads, fullSep, padRead, outWrite, outSep, initial, input, padValues, frame⟩
+  · simpa only [prologueCode] using prologue
+  · rw [ipc, pcPadded, BitVec.add_assoc]
+    rfl
+
+set_option maxRecDepth 16384 in
+set_option maxHeartbeats 4000000 in
+theorem whole_call_sha256 (base : BitVec 64) (s : Arm64.State) (data : ByteArray)
+    (entry : CallInputs base s data) :
+    ∃ out, runWords (wholeCallCode (BitVec.ofNat 64 data.size)) s = some out ∧
+      returnStable out = returnStable s ∧ nonvolatile out = nonvolatile s ∧
+      out.sp = s.sp ∧ out.pc = s.readReg64 .x30 ∧ out.readReg64 .x0 = 0#64 ∧
+      out.status = .Running ∧ memoryBytes32 out.mem (s.readReg64 .x1) = (SHS.SHA256.Impl.sha256 data).map UInt8.toBitVec := by
+  have hn : data.size < 2 ^ 64 := by have := entry.bound; omega
+  obtain ⟨body, prepared⟩ := prepare_whole_call base s data entry
+  obtain ⟨out, ho, ostate, onv, osp, opc, status, _, bytes⟩ :=
+    hash_body_sha256 body data prepared.ready entry.bound prepared.count prepared.phase prepared.padCount
+      prepared.fullReads prepared.fullSep prepared.padRead prepared.outWrite prepared.outSep
+      prepared.initial prepared.input prepared.padding
+  have lr := congrFun prepared.nonvolatile ⟨12, by decide⟩
   change body.readReg64 .x30 = s.readReg64 .x30 at lr
-  have suffix := runWords_append_success hi ho
-  have whole := runWords_append_success hp suffix
-  have state := ostate.trans (erase.trans pstate)
+  have whole := runWords_append_success prepared.executed ho
+  have state := ostate.trans prepared.state
   have running := congrArg Arm64.State.status state
   change out.status = s.status at running
-  refine ⟨out, ?_, state, onv.trans nv, ?_, opc.trans lr, status, running.trans entry.running, ?_⟩
-  · simpa only [wholeCallCode, headerPaddingCode, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hn,
-      paddingBlockCount, List.append_assoc] using whole
-  · rw [osp, stack]
+  refine ⟨out, ?_, state, onv.trans prepared.nonvolatile, ?_, opc.trans lr, status,
+    running.trans entry.running, ?_⟩
+  · simpa only [wholeCallCode, prologueCode, headerPaddingCode, BitVec.toNat_ofNat,
+      Nat.mod_eq_of_lt hn, paddingBlockCount, List.append_assoc] using whole
+  · rw [osp, prepared.stack]
     exact BitVec.sub_add_cancel _ _
-  · simpa only [output] using bytes
+  · simpa only [prepared.output] using bytes
 
 end Crypto.ARM64.Imported
