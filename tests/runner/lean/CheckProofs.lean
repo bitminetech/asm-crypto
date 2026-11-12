@@ -73,7 +73,18 @@ run_cmd do
     ``Crypto.ARM64.Imported.counter64_carry,
     ``Crypto.ARM64.Imported.round_control_step,
     ``Crypto.ARM64.Imported.schedule_control_step,
-    ``Crypto.ARM64.Imported.round_cycle]
+    ``Crypto.ARM64.Imported.round_cycle,
+    ``Crypto.ARM64.Imported.iterateStep_invariant,
+    ``Crypto.ARM64.Imported.runCycles_words,
+    ``Crypto.ARM64.Imported.round_loop_prefix,
+    ``Crypto.ARM64.Imported.round_loop,
+    ``Crypto.ARM64.Imported.schedule_cycle,
+    ``Crypto.ARM64.Imported.schedule_step_prefix,
+    ``Crypto.ARM64.Imported.expanded_prefix,
+    ``Crypto.ARM64.Imported.expanded_eq_schedule,
+    ``Crypto.ARM64.Imported.schedule_loop_prefix,
+    ``Crypto.ARM64.Imported.schedule_loop,
+    ``Crypto.ARM64.Imported.schedule_loop_matches_spec]
   let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
   for name in names do
     let axioms ← collectAxioms name

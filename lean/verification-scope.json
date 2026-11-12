@@ -105,6 +105,31 @@
         "Crypto.ARM64.Imported.round_cycle"
       ],
       "scope": "Counters 0..63; the 33-word round cycle composes the FIPS round with its control and state frame. Fetching and complete loops remain separate."
+    },
+    {
+      "claim": "All 64 recorded round cycles compute the imported FIPS round fold and maintain the counter, loop PC and state frame.",
+      "theorems": [
+        "Crypto.ARM64.Imported.iterateStep_invariant",
+        "Crypto.ARM64.Imported.runCycles_words",
+        "Crypto.ARM64.Imported.round_loop_prefix",
+        "Crypto.ARM64.Imported.round_loop"
+      ],
+      "scope": "Execution of 64 copies of the 33 recorded words; initial X5=0, SP alignment and specified K/W read permissions and values. Loaded instruction fetching, H feed-forward, full-call safety and equal remain separate."
+    },
+    {
+      "claim": "One recorded schedule cycle updates the stack-word vector as the imported FIPS step and performs exactly its stated word store.",
+      "theorem": "Crypto.ARM64.Imported.schedule_cycle",
+      "scope": "18 recorded words, including ADD/CMP/B.LO; indices 16..63, 256-byte workspace permissions and the stated register/state frame. Fetching and the complete loop remain separate."
+    },
+    {
+      "claim": "All 48 recorded schedule-expansion cycles produce the imported FIPS schedule regardless of the old workspace contents beyond the message words.",
+      "theorems": [
+        "Crypto.ARM64.Imported.expanded_eq_schedule",
+        "Crypto.ARM64.Imported.schedule_loop_prefix",
+        "Crypto.ARM64.Imported.schedule_loop",
+        "Crypto.ARM64.Imported.schedule_loop_matches_spec"
+      ],
+      "scope": "48 copies of the 18 recorded words; initial X5=16, first 16 stack words equal the message block and all 64 workspace words have the stated permissions. The proof maintains the register/state frame and workspace permissions. Source-word loading, fetching, full-call bounds and equal remain separate."
     }
   ],
   "equal": {
