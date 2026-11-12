@@ -2,8 +2,6 @@
 
 Cryptographic primitives for Ethereum, in assembly.
 
-Only what a production consensus client needs.
-
 Standard: [asm-standard@dc3b2a7](https://github.com/bitminetech/asm-standard/blob/dc3b2a75755f502828c0d6060ff655a9dcfea20a/ARCHITECTURE.md)
 
 ## Reference
