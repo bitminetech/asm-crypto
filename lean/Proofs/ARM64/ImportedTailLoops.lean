@@ -28,7 +28,8 @@ theorem tail_copy_prefix (s : Arm64.State) (rem : Nat) (hrem : rem < 64)
       (∀ j : Fin rem, out.mem.read8 (s.readReg64 .x5 + BitVec.ofNat 64 j.val) =
         s.mem.read8 (s.readReg64 .x5 + BitVec.ofNat 64 j.val)) ∧
       (∀ p, n ≤ (p - s.readReg64 .x16).toNat → out.mem.cells p = s.mem.cells p) ∧
-      (∀ a count, s.mem.canRead a count = true → out.mem.canRead a count = true) := by
+      (∀ a count, s.mem.canRead a count = true → out.mem.canRead a count = true) ∧
+      (∀ a count, out.mem.canWrite a count = s.mem.canWrite a count) := by
   let P (i : Nat) (mid : Arm64.State) : Prop :=
     nonMemory mid = nonMemory s ∧ copyRegisters mid = copyRegisters s ∧
     nonvolatile mid = nonvolatile s ∧ mid.pc = s.pc ∧
@@ -40,12 +41,13 @@ theorem tail_copy_prefix (s : Arm64.State) (rem : Nat) (hrem : rem < 64)
     (∀ j : Fin rem, mid.mem.read8 (s.readReg64 .x5 + BitVec.ofNat 64 j.val) =
       s.mem.read8 (s.readReg64 .x5 + BitVec.ofNat 64 j.val)) ∧
     (∀ p, i ≤ (p - s.readReg64 .x16).toNat → mid.mem.cells p = s.mem.cells p) ∧
-    (∀ a count, s.mem.canRead a count = true → mid.mem.canRead a count = true)
+    (∀ a count, s.mem.canRead a count = true → mid.mem.canRead a count = true) ∧
+    (∀ a count, mid.mem.canWrite a count = s.mem.canWrite a count)
   have h0 : P 0 s := ⟨rfl, rfl, rfl, rfl, hc, by intro j hj; omega,
-    hr, hw, by intro j; rfl, by intro p hp; rfl, by intro a count read; exact read⟩
+    hr, hw, by intro j; rfl, by intro p hp; rfl, by intro a count read; exact read, by intro a count; rfl⟩
   have hs (i : Nat) (hi : i < n) (mid : Arm64.State) (hp : P i mid) :
       ∃ out, runWords tailCopyCycleCode mid = some out ∧ P (i + 1) out := by
-    obtain ⟨hm, hregs, hnv, hpc, hc', initialized, hr', hw', source, outside, readable⟩ := hp
+    obtain ⟨hm, hregs, hnv, hpc, hc', initialized, hr', hw', source, outside, readable, writable⟩ := hp
     let t : Fin rem := ⟨i, by omega⟩
     let t128 : Fin 128 := ⟨i, by omega⟩
     have src : mid.readReg64 .x5 = s.readReg64 .x5 := copyRegisters_read hregs 5#5 (by decide)
@@ -71,7 +73,7 @@ theorem tail_copy_prefix (s : Arm64.State) (rem : Nat) (hrem : rem < 64)
         (mid.mem.read8 (s.readReg64 .x5 + BitVec.ofNat 64 i)) := by
       simpa only [dst, src, hc'] using fmem
     refine ⟨out, ho, fm.trans hm, fregs.trans hregs, fnv.trans hnv,
-      fpc.trans hpc, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+      fpc.trans hpc, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
     · simpa only [hc', BitVec.ofNat_add] using fcount
     · intro j hj
       have j128 : j < 128 := by omega
@@ -108,6 +110,9 @@ theorem tail_copy_prefix (s : Arm64.State) (rem : Nat) (hrem : rem < 64)
     · intro a count read
       rw [byteMem]
       exact canRead_write8 _ _ _ _ _ (readable a count read)
+    · intro a count
+      rw [byteMem, canWrite_write8]
+      exact writable a count
   exact iterateStep_invariant (runWords tailCopyCycleCode) P n s h0 hs
 
 def tailCopyCode (rem : Nat) : List (BitVec 32) :=
@@ -129,9 +134,10 @@ theorem tail_copy_loop (s : Arm64.State) (rem : Nat) (hrem : rem < 64)
       (∀ j : Fin rem, out.mem.read8 (s.readReg64 .x5 + BitVec.ofNat 64 j.val) =
         s.mem.read8 (s.readReg64 .x5 + BitVec.ofNat 64 j.val)) ∧
       (∀ p, rem ≤ (p - s.readReg64 .x16).toNat → out.mem.cells p = s.mem.cells p) ∧
-      (∀ a count, s.mem.canRead a count = true → out.mem.canRead a count = true) := by
+      (∀ a count, s.mem.canRead a count = true → out.mem.canRead a count = true) ∧
+      (∀ a count, out.mem.canWrite a count = s.mem.canWrite a count) := by
   obtain ⟨mid, he, hm, hregs, hnv, hpc, count, initialized,
-    reads, writes, values, outside, readable⟩ := tail_copy_prefix s rem hrem hc hrm hr hw hout rem (by omega)
+    reads, writes, values, outside, readable, writable⟩ := tail_copy_prefix s rem hrem hc hrm hr hw hout rem (by omega)
   have remaining : mid.readReg64 .x17 = BitVec.ofNat 64 rem :=
     (copyRegisters_read hregs 17#5 (by decide)).trans hrm
   have ge : (mid.readReg64 .x17).toNat ≤ (mid.readReg64 .x6).toNat := by
@@ -142,7 +148,7 @@ theorem tail_copy_loop (s : Arm64.State) (rem : Nat) (hrem : rem < 64)
   have cycles := (runCycles_words tailCopyCycleCode rem s).symm.trans he
   have whole := runWords_append_success cycles ho
   refine ⟨out, whole, fm.trans hm, fregs.trans hregs, fnv.trans hnv,
-    ?_, fcount.trans count, ?_, ?_, ?_, ?_, ?_, ?_⟩
+    ?_, fcount.trans count, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
   · exact fpc.trans (congrArg (· + 24#64) hpc)
   · simpa only [fmem] using initialized
   · simpa only [fmem] using reads
@@ -150,5 +156,6 @@ theorem tail_copy_loop (s : Arm64.State) (rem : Nat) (hrem : rem < 64)
   · simpa only [fmem] using values
   · simpa only [fmem] using outside
   · simpa only [fmem] using readable
+  · simpa only [fmem] using writable
 
 end Crypto.ARM64.Imported

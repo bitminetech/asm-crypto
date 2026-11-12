@@ -37,3 +37,11 @@ import Proofs.ARM64.ImportedHashInit
 import Proofs.ARM64.ImportedHashFrame
 import Proofs.ARM64.ImportedOuterControl
 import Proofs.ARM64.ImportedOuterLoop
+import Proofs.ARM64.ImportedPrepareTail
+import Proofs.ARM64.ImportedPaddingSuffix
+import Proofs.ARM64.ImportedPreparePadding
+import Proofs.ARM64.ImportedPaddingReference
+import Proofs.ARM64.ImportedFetchBinding
+import Proofs.ARM64.ImportedOuterComplete
+import Proofs.ARM64.ImportedHashInitWords
+import Proofs.ARM64.ImportedHashBody

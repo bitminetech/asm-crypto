@@ -305,6 +305,63 @@
         "Crypto.ARM64.Imported.outer_loop_prefix"
       ],
       "scope": "Every block count below 2^64 and every prefix up to that count, under initial read/write permissions, source/constants separation, alignment and register facts. Includes source memory preservation, pointer/count transitions and the modeled state frame. Full padding/reference, fetched execution, whole-call safety/bounds/confidentiality and equal remain separate."
+    },
+    {
+      "claim": "The complete recorded padding path writes exactly the message tail, separator, zeros and big-endian bit length for every remainder and both padding-block cases.",
+      "theorems": [
+        "Crypto.ARM64.Imported.prepare_tail",
+        "Crypto.ARM64.Imported.padding_suffix",
+        "Crypto.ARM64.Imported.suffixMemory_byte",
+        "Crypto.ARM64.Imported.suffixMemory_outside",
+        "Crypto.ARM64.Imported.suffixMemory_readable",
+        "Crypto.ARM64.Imported.suffixMemory_writable",
+        "Crypto.ARM64.Imported.prepare_padding"
+      ],
+      "scope": "Word-list execution from word 4 to word 33, all 64-bit counts and arbitrary previous stack bytes, under the actual padding-write/source-read guards and source separation. Includes all 128 bytes, registers, PC and modeled state/outside/permission frames. FIPS non-overflow requires count below 2^61. Padding/reference equality, fetched execution and full equal remain separate."
+    },
+    {
+      "claim": "The padding bytes written by the complete recorded path match the pinned FIPS implementation padded-byte definition for the tail block(s).",
+      "theorems": [
+        "Crypto.ARM64.Imported.reference_length_byte",
+        "Crypto.ARM64.Imported.padded_tail_length_start",
+        "Crypto.ARM64.Imported.padded_tail_size",
+        "Crypto.ARM64.Imported.count_length_bits",
+        "Crypto.ARM64.Imported.paddingByte_matches_reference",
+        "Crypto.ARM64.Imported.prepare_padding_reference"
+      ],
+      "scope": "Under the actual memory guards, separation, count and original-tail byte mapping; proves each byte of the one/two tail blocks. Full ByteList decoding, all-block reference fold, fetched execution and equal remain separate."
+    },
+    {
+      "claim": "Loaded-code fetching agrees with static fetching, and permitted recorded instructions execute through the actual imported Step relation without hooks or semantic substitutions.",
+      "theorems": [
+        "Crypto.ARM64.Imported.loaded_fetch_of_fetch",
+        "Crypto.ARM64.Imported.evalInst_permitted",
+        "Crypto.ARM64.Imported.recorded_step"
+      ],
+      "scope": "Generic fetch/one-step glue under the imported CodeLoaded predicate, static fetch fact and Running status. Does not yet bind every state of the full SHA-256 path or prove whole-call success."
+    },
+    {
+      "claim": "The complete recorded outer-block loop computes the FIPS compression fold and executes the terminating branch, including zero blocks.",
+      "theorems": [
+        "Crypto.ARM64.Imported.outer_loop",
+        "Crypto.ARM64.Imported.block_iteration_code_length",
+        "Crypto.ARM64.Imported.outer_loop_code_length"
+      ],
+      "scope": "All block counts below 2^64 under the stated initial facts; exact path length 3100*n+1, final pointer/count/PC, stored hash and next-phase memory/state invariants. Full-call bounds, fetched execution and equal remain separate."
+    },
+    {
+      "claim": "The recorded initial-hash memory transition copies exactly the eight 32-bit pool words.",
+      "theorem": "Crypto.ARM64.Imported.initialHashMemory_words",
+      "scope": "Four 64-bit stores over arbitrary previous workspace contents; the loaded image/FIPS constant binding is separate."
+    },
+    {
+      "claim": "The combined recorded full-block phase, padding phase, digest stores and return compute the FIPS compression folds and preserve the modeled return frame.",
+      "theorems": [
+        "Crypto.ARM64.Imported.padding_block_of_frame",
+        "Crypto.ARM64.Imported.hash_phases",
+        "Crypto.ARM64.Imported.hash_body"
+      ],
+      "scope": "Word-list execution from word 41 through RET, under actual block/padding/output permissions, separation, initial counters/phase and alignment. Proves stored digest bytes, zero status, SP restoration and original link-register return, with modeled nonvolatile/state preservation. Header/preparation composition, complete byte-array reference bridge, fetched execution, whole-call trace/safety/bounds and equal remain separate."
     }
   ],
   "equal": {
@@ -317,7 +374,7 @@
       "Bind proved recorded-word paths to memory-fetched imported executions",
       "Independent review and pinning of the complete function-specific entry, baseline, timing model and disclosure policy",
       "Machine-level ByteList decoding, independently established accessible extents and layout bridge",
-      "Whole-function entry, padding and outer block/phase loops; compose the checked digest/exit fragments",
+      "Whole-function entry/preparation composition and connection of the combined block/phase/digest path to the complete padded-byte reference fold",
       "Whole-function memory safety, ABI preservation, termination, instruction/stack bounds and confidentiality",
       "Proof connection to linked artifacts, relocation/load mapping and runtime binding assumptions",
       "Equivalent complete proofs and artifact validation for x86-64 and RISC-V"

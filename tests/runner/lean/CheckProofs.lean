@@ -147,7 +147,30 @@ run_cmd do
     ``Crypto.ARM64.Imported.digest_gate,
     ``Crypto.ARM64.Imported.block_preserves_ready,
     ``Crypto.ARM64.Imported.block_iteration,
-    ``Crypto.ARM64.Imported.outer_loop_prefix]
+    ``Crypto.ARM64.Imported.outer_loop_prefix,
+    ``Crypto.ARM64.Imported.prepare_tail,
+    ``Crypto.ARM64.Imported.padding_suffix,
+    ``Crypto.ARM64.Imported.suffixMemory_byte,
+    ``Crypto.ARM64.Imported.suffixMemory_outside,
+    ``Crypto.ARM64.Imported.suffixMemory_readable,
+    ``Crypto.ARM64.Imported.suffixMemory_writable,
+    ``Crypto.ARM64.Imported.prepare_padding,
+    ``Crypto.ARM64.Imported.reference_length_byte,
+    ``Crypto.ARM64.Imported.padded_tail_length_start,
+    ``Crypto.ARM64.Imported.padded_tail_size,
+    ``Crypto.ARM64.Imported.count_length_bits,
+    ``Crypto.ARM64.Imported.paddingByte_matches_reference,
+    ``Crypto.ARM64.Imported.prepare_padding_reference,
+    ``Crypto.ARM64.Imported.loaded_fetch_of_fetch,
+    ``Crypto.ARM64.Imported.evalInst_permitted,
+    ``Crypto.ARM64.Imported.recorded_step,
+    ``Crypto.ARM64.Imported.outer_loop,
+    ``Crypto.ARM64.Imported.block_iteration_code_length,
+    ``Crypto.ARM64.Imported.outer_loop_code_length,
+    ``Crypto.ARM64.Imported.initialHashMemory_words,
+    ``Crypto.ARM64.Imported.padding_block_of_frame,
+    ``Crypto.ARM64.Imported.hash_phases,
+    ``Crypto.ARM64.Imported.hash_body]
   let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
   for name in names do
     let axioms ← collectAxioms name
