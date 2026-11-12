@@ -2,7 +2,7 @@ import Arm64.Trusted.ISA.Semantics
 import Models.ARM64Program
 
 /-!
-Unchanged upstream AArch64 execution semantics, pinned by `lake-manifest.json`.
+Unchanged upstream AArch64 execution semantics, pinned by the `lean/Imports/arm64` Git submodule.
 The program has no extern/override hooks. A supervisor call faults: no software
 or cryptographic primitive is substituted for any instruction in this image.
 

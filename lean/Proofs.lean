@@ -25,3 +25,5 @@ import Proofs.ARM64.ImportedWordLoad
 import Proofs.ARM64.ImportedWordLoops
 import Proofs.ARM64.ImportedCellFrame
 import Proofs.ARM64.ImportedBlock
+import Proofs.ARM64.ImportedExit
+import Proofs.ARM64.ImportedArithmetic
