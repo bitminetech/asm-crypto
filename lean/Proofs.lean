@@ -17,3 +17,7 @@ import Proofs.ARM64.ImportedLoops
 import Proofs.ARM64.ImportedScheduleCycle
 import Proofs.ARM64.ImportedScheduleSpec
 import Proofs.ARM64.ImportedScheduleLoops
+import Proofs.ARM64.ImportedMemoryRange
+import Proofs.ARM64.ImportedInitialLoad
+import Proofs.ARM64.ImportedFeedForward
+import Proofs.ARM64.ImportedCompression

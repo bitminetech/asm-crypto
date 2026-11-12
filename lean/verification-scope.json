@@ -129,7 +129,33 @@
         "Crypto.ARM64.Imported.schedule_loop",
         "Crypto.ARM64.Imported.schedule_loop_matches_spec"
       ],
-      "scope": "48 copies of the 18 recorded words; initial X5=16, first 16 stack words equal the message block and all 64 workspace words have the stated permissions. The proof maintains the register/state frame and workspace permissions. Source-word loading, fetching, full-call bounds and equal remain separate."
+      "scope": "48 copies of the 18 recorded words; initial X5=16, first 16 stack words equal the message block and all 64 workspace words have the stated permissions. The proof maintains the register/state frame and workspace permissions and preserves every cell outside the 256-byte workspace. Source-word loading, fetching, full-call bounds and equal remain separate."
+    },
+    {
+      "claim": "A word store into the schedule workspace preserves every cell outside its 256-byte modular interval.",
+      "theorems": [
+        "Crypto.ARM64.Imported.workspace_store_outside",
+        "Crypto.ARM64.Imported.read32_write32_disjoint"
+      ],
+      "scope": "Memory-frame helpers over the imported memory model; caller range validity and whole-call memory safety remain separate."
+    },
+    {
+      "claim": "The six recorded hash-initialization instructions load the eight working words and reset the round counter while preserving the stated frame.",
+      "theorem": "Crypto.ARM64.Imported.initial_load",
+      "scope": "Offsets 0x10c-0x120, assuming the eight actual read permissions; preserves memory, SP, nonvolatile state and X0-X4/X6. Fetching and full-call equal remain separate."
+    },
+    {
+      "claim": "The 17 recorded feed-forward instructions store exactly the imported FIPS sum of the saved hash and working words.",
+      "theorem": "Crypto.ARM64.Imported.feed_forward",
+      "scope": "Offsets 0x1a8-0x1e8, assuming the eight actual read and write permissions; proves the exact eight-word memory transition, snapshot, working variables, PC advance and complete non-memory frame. Fetching and the full SHA-256 call remain separate."
+    },
+    {
+      "claim": "The recorded hash-loading, 64-round and feed-forward path stores exactly the imported FIPS compression result for a pre-expanded message block.",
+      "theorems": [
+        "Crypto.ARM64.Imported.compress_eq_rounds",
+        "Crypto.ARM64.Imported.compression"
+      ],
+      "scope": "Execution of the recorded word path from 0x10c through 0x1e8; assumes the correct stack schedule, K values, SP alignment and stated read/write permissions. Proves the RAM hash result, PC/counter and non-memory state frame. Message loading, fetching, outer loops, full-call bounds and equal remain separate."
     }
   ],
   "equal": {
