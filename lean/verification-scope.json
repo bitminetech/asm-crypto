@@ -129,7 +129,7 @@
         "Crypto.ARM64.Imported.schedule_loop",
         "Crypto.ARM64.Imported.schedule_loop_matches_spec"
       ],
-      "scope": "48 copies of the 18 recorded words; initial X5=16, first 16 stack words equal the message block and all 64 workspace words have the stated permissions. The proof maintains the register/state frame and workspace permissions and preserves every cell outside the 256-byte workspace. Source-word loading, fetching, full-call bounds and equal remain separate."
+      "scope": "48 copies of the 18 recorded words; initial X5=16, first 16 stack words equal the message block and all 64 workspace words have the stated permissions. The proof maintains the register/state frame and workspace permissions and preserves every cell outside the 256-byte workspace. Source-word loading, fetching, full-call bounds and equal remain separate. Both loops also preserve every previously readable memory region."
     },
     {
       "claim": "A word store into the schedule workspace preserves every cell outside its 256-byte modular interval.",
@@ -174,7 +174,27 @@
         "Crypto.ARM64.Imported.word_loop_prefix",
         "Crypto.ARM64.Imported.word_loop"
       ],
-      "scope": "16 copies of the six recorded words; initial X5=0, aligned SP, actual input read/workspace write permissions, the stated source-word values and source/workspace disjointness. Proves initialized words, preserved source words and permissions, cells outside the workspace, PC/counter and non-memory frame. ByteList decoding, fetching and full-call equal remain separate."
+      "scope": "16 copies of the six recorded words; initial X5=0, aligned SP, actual input read/workspace write permissions, the stated source-word values and source/workspace disjointness. Proves initialized words, preserved source words and permissions, cells outside the workspace, PC/counter and non-memory frame. ByteList decoding, fetching and full-call equal remain separate. Both loops also preserve every previously readable memory region."
+    },
+    {
+      "claim": "Exact cell frames preserve four-byte values and permissions and preserve the saved hash snapshot outside the schedule workspace.",
+      "theorems": [
+        "Crypto.ARM64.Imported.read32_of_cells",
+        "Crypto.ARM64.Imported.canRead32_of_cells",
+        "Crypto.ARM64.Imported.canWrite32_of_cells",
+        "Crypto.ARM64.Imported.hash_snapshot_of_frame"
+      ],
+      "scope": "Layout/frame transport over the imported memory model, including hash slots at stack offsets 256..287; no whole-call safety or loading claim."
+    },
+    {
+      "claim": "The recorded block path computes the imported FIPS compression of the 64 source bytes, including message loading, scheduling, all rounds and feed-forward.",
+      "theorems": [
+        "Crypto.ARM64.Imported.block_compression",
+        "Crypto.ARM64.Imported.sourceBlock_bytes",
+        "Crypto.ARM64.Imported.block_compression_source",
+        "Crypto.ARM64.Imported.block_code_length"
+      ],
+      "scope": "A 3,095-word path from 0xac through 0x1e8, under the stated source/workspace/hash/K permissions, disjointness, SP alignment, initial counter and K values. Proves the stored hash, PC/counter and non-memory frame. Padding, outer loops, ByteList decoding, memory-fetched execution, final output and full equal remain separate."
     }
   ],
   "equal": {
@@ -184,9 +204,10 @@
     "remaining": [
       "Independently reviewed and pinned full baseline statement and semantic dependency closure",
       "Complete ARM64 proof over imported ISA semantics, or a proved refinement from the auxiliary model to those semantics",
+      "Bind proved recorded-word paths to memory-fetched imported executions",
       "Independent review and pinning of the complete function-specific entry, baseline, timing model and disclosure policy",
       "Machine-level ByteList decoding, independently established accessible extents and layout bridge",
-      "Padding, schedule, round-loop, block-loop, entry, exit and digest-store proofs",
+      "Whole-function padding, outer block/phase loops, entry, exit and digest-store proofs",
       "Whole-function memory safety, ABI preservation, termination, instruction/stack bounds and confidentiality",
       "Proof connection to linked artifacts, relocation/load mapping and runtime binding assumptions",
       "Equivalent complete proofs and artifact validation for x86-64 and RISC-V"

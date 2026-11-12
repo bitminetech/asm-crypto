@@ -23,3 +23,5 @@ import Proofs.ARM64.ImportedFeedForward
 import Proofs.ARM64.ImportedCompression
 import Proofs.ARM64.ImportedWordLoad
 import Proofs.ARM64.ImportedWordLoops
+import Proofs.ARM64.ImportedCellFrame
+import Proofs.ARM64.ImportedBlock

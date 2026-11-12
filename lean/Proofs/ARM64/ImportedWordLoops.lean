@@ -39,7 +39,8 @@ theorem word_loop_prefix (s : Arm64.State) (M : Vector (BitVec 32) 16)
       (∀ i : Fin 16, out.mem.canRead (out.readReg64 .x2 + BitVec.ofNat 64 (4 * i.val)) 4 = true) ∧
       (∀ i : Fin 64, out.mem.canWrite (out.sp + BitVec.ofNat 64 (4 * i.val)) 4 = true) ∧
       (∀ i : Fin 16, reverseWord (out.mem.read32 (out.readReg64 .x2 + BitVec.ofNat 64 (4 * i.val))) = M[i.val]!) ∧
-      (∀ p, 256 ≤ (p - s.sp).toNat → out.mem.cells p = s.mem.cells p) := by
+      (∀ p, 256 ≤ (p - s.sp).toNat → out.mem.cells p = s.mem.cells p) ∧
+      (∀ a count, s.mem.canRead a count = true → out.mem.canRead a count = true) := by
   let P (i : Nat) (mid : Arm64.State) : Prop :=
     DataFrame s mid ∧ mid.pc = (if i < 16 then s.pc else s.pc + 24#64) ∧
     mid.readReg64 .x5 = BitVec.ofNat 64 i ∧
@@ -47,12 +48,13 @@ theorem word_loop_prefix (s : Arm64.State) (M : Vector (BitVec 32) 16)
     (∀ j : Fin 16, mid.mem.canRead (mid.readReg64 .x2 + BitVec.ofNat 64 (4 * j.val)) 4 = true) ∧
     (∀ j : Fin 64, mid.mem.canWrite (mid.sp + BitVec.ofNat 64 (4 * j.val)) 4 = true) ∧
     (∀ j : Fin 16, reverseWord (mid.mem.read32 (mid.readReg64 .x2 + BitVec.ofNat 64 (4 * j.val))) = M[j.val]!) ∧
-    (∀ p, 256 ≤ (p - s.sp).toNat → mid.mem.cells p = s.mem.cells p)
+    (∀ p, 256 ≤ (p - s.sp).toNat → mid.mem.cells p = s.mem.cells p) ∧
+    (∀ a count, s.mem.canRead a count = true → mid.mem.canRead a count = true)
   have h0 : P 0 s := ⟨DataFrame.refl s, rfl, hc, by intro j hj; omega,
-    hr, hw, hM, by intro p hp; rfl⟩
+    hr, hw, hM, by intro p hp; rfl, by intro a count read; exact read⟩
   have hs (i : Nat) (hi : i < n) (mid : Arm64.State) (hp : P i mid) :
       ∃ out, runWords wordCycleCode mid = some out ∧ P (i + 1) out := by
-    obtain ⟨hf, hp, hc', initialized, hr', hw', hM', outside⟩ := hp
+    obtain ⟨hf, hp, hc', initialized, hr', hw', hM', outside, readable⟩ := hp
     let t : Fin 16 := ⟨i, by omega⟩
     let t64 : Fin 64 := t.castLE (by decide : 16 ≤ 64)
     have shift : (mid.readReg64 .x5 <<< 2) = BitVec.ofNat 64 (4 * t.val) := by
@@ -81,7 +83,7 @@ theorem word_loop_prefix (s : Arm64.State) (M : Vector (BitVec 32) 16)
       apply workspace_store_delta mid.sp _ t64
       rw [hf.sp, hf.x2]
       exact hOutside j b
-    refine ⟨out, ho, hf.trans ff, ?_, count, ?_, ?_, ?_, ?_, ?_⟩
+    refine ⟨out, ho, hf.trans ff, ?_, count, ?_, ?_, ?_, ?_, ?_, ?_⟩
     · have hlt : i < 16 := by omega
       simp only [if_pos hlt] at hp
       simpa only [t, hp] using pc
@@ -109,6 +111,9 @@ theorem word_loop_prefix (s : Arm64.State) (M : Vector (BitVec 32) 16)
       rw [wordmem]
       have dist : 256 ≤ (p - mid.sp).toNat := by rw [hf.sp]; exact hp
       exact (workspace_store_outside mid.mem mid.sp p t64 (loadedWord mid) dist).trans (outside p hp)
+    · intro a count read
+      rw [wordmem]
+      exact canRead_write32 _ _ _ _ _ (readable a count read)
   exact iterateStep_invariant (runWords wordCycleCode) P n s h0 hs
 
 theorem word_loop (s : Arm64.State) (M : Vector (BitVec 32) 16)
@@ -124,9 +129,10 @@ theorem word_loop (s : Arm64.State) (M : Vector (BitVec 32) 16)
       (∀ i : Fin 16, out.mem.canRead (out.readReg64 .x2 + BitVec.ofNat 64 (4 * i.val)) 4 = true) ∧
       (∀ i : Fin 64, out.mem.canWrite (out.sp + BitVec.ofNat 64 (4 * i.val)) 4 = true) ∧
       (∀ i : Fin 16, reverseWord (out.mem.read32 (out.readReg64 .x2 + BitVec.ofNat 64 (4 * i.val))) = M[i.val]!) ∧
-      (∀ p, 256 ≤ (p - s.sp).toNat → out.mem.cells p = s.mem.cells p) := by
-  obtain ⟨out, he, hf, hp, hc', initialized, hr', hw', words, outside⟩ :=
+      (∀ p, 256 ≤ (p - s.sp).toNat → out.mem.cells p = s.mem.cells p) ∧
+      (∀ a count, s.mem.canRead a count = true → out.mem.canRead a count = true) := by
+  obtain ⟨out, he, hf, hp, hc', initialized, hr', hw', words, outside, readable⟩ :=
     word_loop_prefix s M hsp hc hr hw hM hOutside 16 (by decide)
-  exact ⟨out, he, hf, hp, hc', initialized, hr', hw', words, outside⟩
+  exact ⟨out, he, hf, hp, hc', initialized, hr', hw', words, outside, readable⟩
 
 end Crypto.ARM64.Imported
