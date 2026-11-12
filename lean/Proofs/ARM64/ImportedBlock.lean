@@ -5,7 +5,9 @@ import Proofs.ARM64.ImportedCellFrame
 Compose the recorded message-word loop, schedule loop, hash loading, round
 loop and feed-forward. The final stack hash is exactly the imported FIPS
 compression of the block decoded directly from the 64 source bytes.
-The closed length theorem counts the 3,095 recorded words in this path.
+The postcondition preserves cells outside the 288-byte schedule/hash area,
+existing read permissions and the workspace/hash write permissions needed by
+subsequent blocks. The closed length theorem counts the 3,095 recorded words in this path.
 These are word-list execution proofs: whole-function padding/outer loops,
 ByteList decoding, fetch binding, final output and the full baseline remain
 separate obligations.
@@ -36,7 +38,11 @@ theorem block_compression (s : Arm64.State) (M : Vector (BitVec 32) 16)
     ∃ out, runWords blockCode s = some out ∧ DataFrame s out ∧
       out.pc = s.pc + 320#64 ∧ out.readReg64 .x5 = 64#64 ∧
       wordVector 8 out.mem (out.sp + 256#64) =
-        SHS.SHA256.compress (wordVector 8 s.mem (s.sp + 256#64)) M := by
+        SHS.SHA256.compress (wordVector 8 s.mem (s.sp + 256#64)) M ∧
+      (∀ p, 288 ≤ (p - s.sp).toNat → out.mem.cells p = s.mem.cells p) ∧
+      (∀ a n, s.mem.canRead a n = true → out.mem.canRead a n = true) ∧
+      (∀ i : Fin 64, out.mem.canWrite (out.sp + BitVec.ofNat 64 (4 * i.val)) 4 = true) ∧
+      (∀ i : Fin 8, out.mem.canWrite ((out.sp + 256#64) + BitVec.ofNat 64 (4 * i.val)) 4 = true) := by
   obtain ⟨copied, hCopy, fw, pcCopy, countCopy, initialized,
     _sourceReads, writable, _sourceValues, outsideCopy, readableCopy⟩ :=
       word_loop s M hsp hc hr hww hM hOutside
@@ -45,7 +51,7 @@ theorem block_compression (s : Arm64.State) (M : Vector (BitVec 32) 16)
     rw [fw.sp]
     exact readableCopy _ _ (hwr i)
   obtain ⟨scheduled, hSchedule, fs, pcSchedule, _countSchedule, scheduleWords,
-    scheduleReads, _scheduleWrites, outsideSchedule, readableSchedule⟩ :=
+    scheduleReads, scheduleWrites, outsideSchedule, readableSchedule⟩ :=
       schedule_loop_matches_spec copied M countCopy workspaceRead writable initialized
   have fws := fw.trans fs
   have outside (p : BitVec 64) (hp : 256 ≤ (p - s.sp).toNat) :
@@ -78,19 +84,31 @@ theorem block_compression (s : Arm64.State) (M : Vector (BitVec 32) 16)
       wordVector 8 s.mem (s.sp + 256#64) := by
     rw [fws.sp]
     exact hash_snapshot_of_frame scheduled.mem s.mem s.sp outside
-  obtain ⟨out, hCompression, fc, pcCompression, countCompression, hashCompression⟩ :=
+  obtain ⟨out, hCompression, fc, pcCompression, countCompression, hashCompression, outsideCompression, readableCompression, writableCompression⟩ :=
     compression scheduled M (by rw [fws.aligned]; exact hsp)
       kr scheduleReads kv scheduleWords hashRead hashWrite
   have copyWords := (runCycles_words wordCycleCode 16 s).symm.trans hCopy
   have schedulePath := (runCycles_words scheduleCycleCode 48 copied).symm.trans hSchedule
   have tail := runWords_append_success schedulePath hCompression
   have whole := runWords_append_success copyWords tail
-  refine ⟨out, whole, fws.trans fc, ?_, countCompression, ?_⟩
+  refine ⟨out, whole, fws.trans fc, ?_, countCompression, ?_, ?_, ?_, ?_, ?_⟩
   · rw [pcCompression, pcSchedule, pcCopy]
     simp only [BitVec.add_assoc]
     exact congrArg (s.pc + ·) (by decide +kernel)
   · exact hashCompression.trans
       (congrArg (fun H : Vector (BitVec 32) 8 => SHS.SHA256.compress H M) hashBefore)
+
+  · intro p hp
+    have dist : 288 ≤ (p - scheduled.sp).toNat := by rw [fws.sp]; exact hp
+    exact (outsideCompression p dist).trans (outside p (by omega))
+  · intro a n read
+    exact readableCompression a n (readableSchedule a n (readableCopy a n read))
+  · intro i
+    rw [fc.sp, writableCompression]
+    exact scheduleWrites i
+  · intro i
+    rw [fc.sp, writableCompression]
+    exact hashWrite i
 
 def sourceBlock (s : Arm64.State) : Vector (BitVec 32) 16 :=
   Vector.ofFn (fun i => reverseWord (s.mem.read32 (s.readReg64 .x2 + BitVec.ofNat 64 (4 * i.val))))
@@ -120,7 +138,11 @@ theorem block_compression_source (s : Arm64.State)
     ∃ out, runWords blockCode s = some out ∧ DataFrame s out ∧
       out.pc = s.pc + 320#64 ∧ out.readReg64 .x5 = 64#64 ∧
       wordVector 8 out.mem (out.sp + 256#64) =
-        SHS.SHA256.compress (wordVector 8 s.mem (s.sp + 256#64)) (sourceBlock s) := by
+        SHS.SHA256.compress (wordVector 8 s.mem (s.sp + 256#64)) (sourceBlock s) ∧
+      (∀ p, 288 ≤ (p - s.sp).toNat → out.mem.cells p = s.mem.cells p) ∧
+      (∀ a n, s.mem.canRead a n = true → out.mem.canRead a n = true) ∧
+      (∀ i : Fin 64, out.mem.canWrite (out.sp + BitVec.ofNat 64 (4 * i.val)) 4 = true) ∧
+      (∀ i : Fin 8, out.mem.canWrite ((out.sp + 256#64) + BitVec.ofNat 64 (4 * i.val)) 4 = true) := by
   apply block_compression s (sourceBlock s) hsp hc hr hwr hww
     _ hOutside hkr hkv hKOutside hhr hhw
   intro i

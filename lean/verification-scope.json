@@ -252,6 +252,59 @@
         "Crypto.ARM64.Imported.tail_offset_shift"
       ],
       "scope": "Four words at 0x34-0x40, all 64-bit counts; exact register values, PC and modeled memory/state frame. Typed ByteList decoding, marker/length encoding, fetching and equal remain separate."
+    },
+    {
+      "claim": "The recorded padding suffix writes the marker, chooses one or two blocks and writes the big-endian bit length correctly.",
+      "theorems": [
+        "Crypto.ARM64.Imported.padding_marker",
+        "Crypto.ARM64.Imported.padding_count",
+        "Crypto.ARM64.Imported.padding_length",
+        "Crypto.ARM64.Imported.write64_byte",
+        "Crypto.ARM64.Imported.rev64_byte",
+        "Crypto.ARM64.Imported.padding_length_byte",
+        "Crypto.ARM64.Imported.bit_length_shift"
+      ],
+      "scope": "Recorded words 23..32 with the selected branch path and actual write guards; exact memory and register/state results. The bit-length shift is non-overflowing below 2^61 bytes. Full padding/reference composition, fetching and equal remain separate."
+    },
+    {
+      "claim": "The recorded entry subtracts the 416-byte frame, reads the offset/count fields and computes the payload pointer.",
+      "theorem": "Crypto.ARM64.Imported.decode_header",
+      "scope": "Four entry words under their actual two eight-byte read guards; exact registers, SP/PC, memory and modeled nonvolatile/state frame. Complete ByteList validity/extent and fetched-execution binding remain separate."
+    },
+    {
+      "claim": "The recorded hash-initialization fragment copies the four pool words, computes the K pointer and sets phase zero.",
+      "theorem": "Crypto.ARM64.Imported.initialize_hash",
+      "scope": "Words 33..40 under four actual pool-read and four hash-write guards; exact memory and register/state results. Binding the loaded pool to the pinned FIPS constants, fetching and equal remain separate."
+    },
+    {
+      "claim": "The feed-forward stores and complete compression/block paths preserve cells outside the 288-byte schedule/hash area and the permissions needed by subsequent blocks.",
+      "theorems": [
+        "Crypto.ARM64.Imported.region_word_store_delta",
+        "Crypto.ARM64.Imported.storeHashWords_outside",
+        "Crypto.ARM64.Imported.storeHashWords_readable",
+        "Crypto.ARM64.Imported.storeHashWords_writable"
+      ],
+      "scope": "Memory-frame helpers over the imported model; the compression/block postconditions retain outside cells, existing readable regions and workspace/hash write permissions. No full-call or fetched-execution claim."
+    },
+    {
+      "claim": "The recorded outer block gate, block advance and padding/digest phase controls implement their stated register and PC transitions.",
+      "theorems": [
+        "Crypto.ARM64.Imported.block_gate",
+        "Crypto.ARM64.Imported.block_skip",
+        "Crypto.ARM64.Imported.block_advance",
+        "Crypto.ARM64.Imported.padding_phase",
+        "Crypto.ARM64.Imported.digest_gate"
+      ],
+      "scope": "Word-list execution of the recorded controls with exact modeled register/memory frames and branch guards. Full function composition, fetching and equal remain separate."
+    },
+    {
+      "claim": "The recorded outer-block iteration and its arbitrary-length prefix compute the imported FIPS compression fold while preserving the next iteration requirements.",
+      "theorems": [
+        "Crypto.ARM64.Imported.block_preserves_ready",
+        "Crypto.ARM64.Imported.block_iteration",
+        "Crypto.ARM64.Imported.outer_loop_prefix"
+      ],
+      "scope": "Every block count below 2^64 and every prefix up to that count, under initial read/write permissions, source/constants separation, alignment and register facts. Includes source memory preservation, pointer/count transitions and the modeled state frame. Full padding/reference, fetched execution, whole-call safety/bounds/confidentiality and equal remain separate."
     }
   ],
   "equal": {

@@ -4,8 +4,8 @@ import Proofs.ARM64.ImportedCompression
 /-!
 The complete padding-tail copy loop, for every remainder below 64. The loop
 copies the original source bytes, exits at the recorded branch destination,
-and preserves source values, permissions, cells outside the 128-byte padding
-area, and the stated CPU/state frame. Empty tails require no source read.
+and preserves source values, permissions, every cell outside the copied
+byte prefix, and the stated CPU/state frame. Empty tails require no source read.
 Initializing padding, appending the marker/length, fetching and full-call
 `equal` remain separate obligations.
 -/
@@ -27,7 +27,7 @@ theorem tail_copy_prefix (s : Arm64.State) (rem : Nat) (hrem : rem < 64)
       (∀ j : Fin 128, out.mem.canWrite (s.readReg64 .x16 + BitVec.ofNat 64 j.val) 1 = true) ∧
       (∀ j : Fin rem, out.mem.read8 (s.readReg64 .x5 + BitVec.ofNat 64 j.val) =
         s.mem.read8 (s.readReg64 .x5 + BitVec.ofNat 64 j.val)) ∧
-      (∀ p, 128 ≤ (p - s.readReg64 .x16).toNat → out.mem.cells p = s.mem.cells p) ∧
+      (∀ p, n ≤ (p - s.readReg64 .x16).toNat → out.mem.cells p = s.mem.cells p) ∧
       (∀ a count, s.mem.canRead a count = true → out.mem.canRead a count = true) := by
   let P (i : Nat) (mid : Arm64.State) : Prop :=
     nonMemory mid = nonMemory s ∧ copyRegisters mid = copyRegisters s ∧
@@ -39,7 +39,7 @@ theorem tail_copy_prefix (s : Arm64.State) (rem : Nat) (hrem : rem < 64)
     (∀ j : Fin 128, mid.mem.canWrite (s.readReg64 .x16 + BitVec.ofNat 64 j.val) 1 = true) ∧
     (∀ j : Fin rem, mid.mem.read8 (s.readReg64 .x5 + BitVec.ofNat 64 j.val) =
       s.mem.read8 (s.readReg64 .x5 + BitVec.ofNat 64 j.val)) ∧
-    (∀ p, 128 ≤ (p - s.readReg64 .x16).toNat → mid.mem.cells p = s.mem.cells p) ∧
+    (∀ p, i ≤ (p - s.readReg64 .x16).toNat → mid.mem.cells p = s.mem.cells p) ∧
     (∀ a count, s.mem.canRead a count = true → mid.mem.canRead a count = true)
   have h0 : P 0 s := ⟨rfl, rfl, rfl, rfl, hc, by intro j hj; omega,
     hr, hw, by intro j; rfl, by intro p hp; rfl, by intro a count read; exact read⟩
@@ -100,8 +100,11 @@ theorem tail_copy_prefix (s : Arm64.State) (rem : Nat) (hrem : rem < 64)
       exact source j
     · intro p hp
       rw [byteMem]
-      exact (byte128_store_outside mid.mem (s.readReg64 .x16) p t128
-        (mid.mem.read8 (s.readReg64 .x5 + BitVec.ofNat 64 i)) hp).trans (outside p hp)
+      have neq : p ≠ s.readReg64 .x16 + BitVec.ofNat 64 i := by
+        intro he
+        rw [he, address_delta, BitVec.toNat_ofNat, Nat.mod_eq_of_lt ibound] at hp
+        omega
+      exact (cells_write8_outside _ _ _ _ neq).trans (outside p (by omega))
     · intro a count read
       rw [byteMem]
       exact canRead_write8 _ _ _ _ _ (readable a count read)
@@ -125,7 +128,7 @@ theorem tail_copy_loop (s : Arm64.State) (rem : Nat) (hrem : rem < 64)
       (∀ j : Fin 128, out.mem.canWrite (s.readReg64 .x16 + BitVec.ofNat 64 j.val) 1 = true) ∧
       (∀ j : Fin rem, out.mem.read8 (s.readReg64 .x5 + BitVec.ofNat 64 j.val) =
         s.mem.read8 (s.readReg64 .x5 + BitVec.ofNat 64 j.val)) ∧
-      (∀ p, 128 ≤ (p - s.readReg64 .x16).toNat → out.mem.cells p = s.mem.cells p) ∧
+      (∀ p, rem ≤ (p - s.readReg64 .x16).toNat → out.mem.cells p = s.mem.cells p) ∧
       (∀ a count, s.mem.canRead a count = true → out.mem.canRead a count = true) := by
   obtain ⟨mid, he, hm, hregs, hnv, hpc, count, initialized,
     reads, writes, values, outside, readable⟩ := tail_copy_prefix s rem hrem hc hrm hr hw hout rem (by omega)

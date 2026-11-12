@@ -126,7 +126,28 @@ run_cmd do
     ``Crypto.ARM64.Imported.padding_setup,
     ``Crypto.ARM64.Imported.remainder_mask,
     ``Crypto.ARM64.Imported.full_blocks_shift,
-    ``Crypto.ARM64.Imported.tail_offset_shift]
+    ``Crypto.ARM64.Imported.tail_offset_shift,
+    ``Crypto.ARM64.Imported.padding_marker,
+    ``Crypto.ARM64.Imported.padding_count,
+    ``Crypto.ARM64.Imported.padding_length,
+    ``Crypto.ARM64.Imported.write64_byte,
+    ``Crypto.ARM64.Imported.rev64_byte,
+    ``Crypto.ARM64.Imported.padding_length_byte,
+    ``Crypto.ARM64.Imported.bit_length_shift,
+    ``Crypto.ARM64.Imported.decode_header,
+    ``Crypto.ARM64.Imported.initialize_hash,
+    ``Crypto.ARM64.Imported.region_word_store_delta,
+    ``Crypto.ARM64.Imported.storeHashWords_outside,
+    ``Crypto.ARM64.Imported.storeHashWords_readable,
+    ``Crypto.ARM64.Imported.storeHashWords_writable,
+    ``Crypto.ARM64.Imported.block_gate,
+    ``Crypto.ARM64.Imported.block_skip,
+    ``Crypto.ARM64.Imported.block_advance,
+    ``Crypto.ARM64.Imported.padding_phase,
+    ``Crypto.ARM64.Imported.digest_gate,
+    ``Crypto.ARM64.Imported.block_preserves_ready,
+    ``Crypto.ARM64.Imported.block_iteration,
+    ``Crypto.ARM64.Imported.outer_loop_prefix]
   let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
   for name in names do
     let axioms ← collectAxioms name

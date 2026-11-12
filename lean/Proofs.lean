@@ -31,3 +31,9 @@ import Proofs.ARM64.ImportedTailCopy
 import Proofs.ARM64.ImportedTailLoops
 import Proofs.ARM64.ImportedZeroPad
 import Proofs.ARM64.ImportedPaddingSetup
+import Proofs.ARM64.ImportedPaddingFinish
+import Proofs.ARM64.ImportedHeader
+import Proofs.ARM64.ImportedHashInit
+import Proofs.ARM64.ImportedHashFrame
+import Proofs.ARM64.ImportedOuterControl
+import Proofs.ARM64.ImportedOuterLoop

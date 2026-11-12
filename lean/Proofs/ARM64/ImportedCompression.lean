@@ -1,11 +1,12 @@
-import Proofs.ARM64.ImportedFeedForward
+import Proofs.ARM64.ImportedHashFrame
 import Proofs.ARM64.ImportedScheduleCycle
 
 /-!
 Composition of hash-word loading, 64 recorded round cycles and feed-forward.
 The stored hash is exactly the imported FIPS compression result for a block
 whose schedule is already in the stack workspace. The conclusion also retains
-the PC/counter and non-memory state frame. Loading the message/schedule,
+the PC/counter and non-memory state frame, cells outside the 288-byte
+schedule/hash workspace, read permissions and write permissions. Loading the message/schedule,
 instruction fetching, whole-call bounds and `equal` remain separate obligations.
 -/
 namespace Crypto.ARM64.Imported
@@ -44,7 +45,10 @@ theorem compression (s : Arm64.State) (M : Vector (BitVec 32) 16)
     ∃ out, runWords compressionCode s = some out ∧ DataFrame s out ∧
       out.pc = s.pc + 224#64 ∧ out.readReg64 .x5 = 64#64 ∧
       wordVector 8 out.mem (out.sp + 256#64) =
-        SHS.SHA256.compress (wordVector 8 s.mem (s.sp + 256#64)) M := by
+        SHS.SHA256.compress (wordVector 8 s.mem (s.sp + 256#64)) M ∧
+      (∀ p, 288 ≤ (p - s.sp).toNat → out.mem.cells p = s.mem.cells p) ∧
+      (∀ a n, s.mem.canRead a n = true → out.mem.canRead a n = true) ∧
+      (∀ a n, out.mem.canWrite a n = s.mem.canWrite a n) := by
   obtain ⟨loaded, hl, postLoad⟩ := exists_of_map_some _ _ _ (initial_load s hhr)
   simp only [Prod.mk.injEq] at postLoad
   obtain ⟨loadWork, loadStable, loadPC, loadNV, l0, l1, l2, l3, l4, l5, l6⟩ := postLoad
@@ -79,15 +83,19 @@ theorem compression (s : Arm64.State) (M : Vector (BitVec 32) 16)
   obtain ⟨out, ho, post⟩ := exists_of_map_some _ _ _ (feed_forward rounded rr ww)
   simp only [Prod.mk.injEq] at post
   obtain ⟨ram, _work, stableOut, pc, nv, f0, f1, f2, f3, f4, f5, f6⟩ := post
+  have memOut := congrArg Arm64.State.mem stableOut
+  change out.mem = storeHashWords rounded at memOut
   have eraseOut : nonMemory out = nonMemory rounded := by
     have result := congrArg nonMemory stableOut
     simpa only [nonMemory_stable, nonMemory_set_mem] using result
   have eraseRound : nonMemory rounded = nonMemory s := by
     have result := congrArg nonMemory allFrame.1
     simpa only [nonMemory_controlStable] using result
+  have roundedSP := allFrame.sp
+  have roundedMem := allFrame.mem
   obtain ⟨_cs, nvRound, r0, r1, r2, r3, r4, r6⟩ := allFrame
   have roundWords := (runCycles_words roundCycleCode 64 loaded).symm.trans hr
-  refine ⟨out, ?_, ?_, ?_, f5.trans roundCount, ram.trans sum⟩
+  refine ⟨out, ?_, ?_, ?_, f5.trans roundCount, ram.trans sum, ?_, ?_, ?_⟩
   · have tail := runWords_append_success roundWords ho
     have whole := runWords_append_success hl tail
     exact whole
@@ -96,5 +104,15 @@ theorem compression (s : Arm64.State) (M : Vector (BitVec 32) 16)
   · rw [pc, roundPC, loadPC]
     simp only [BitVec.add_assoc]
     exact congrArg (s.pc + ·) (by decide +kernel)
+
+  · intro p hp
+    rw [memOut]
+    have dist : 288 ≤ (p - rounded.sp).toNat := by rw [roundedSP]; exact hp
+    exact (storeHashWords_outside rounded p dist).trans (congrArg (fun m : Arm64.Memory => m.cells p) roundedMem)
+  · intro a n read
+    rw [memOut]
+    exact storeHashWords_readable rounded a n (by rw [roundedMem]; exact read)
+  · intro a n
+    rw [memOut, storeHashWords_writable, roundedMem]
 
 end Crypto.ARM64.Imported
