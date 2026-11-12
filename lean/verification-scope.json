@@ -1,7 +1,7 @@
 {
   "standard": {
     "repository": "https://github.com/bitminetech/asm-standard",
-    "commit": "dc3b2a75755f502828c0d6060ff655a9dcfea20a",
+    "commit": "62edfc7e01141adbf45182a5b8dc6ce110b3df35",
     "sections": [
       3,
       8,
