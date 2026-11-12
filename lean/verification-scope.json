@@ -231,6 +231,27 @@
         "Crypto.ARM64.Imported.tail_copy_loop"
       ],
       "scope": "All 0..63-byte tails, assuming the stated initial counter/remainder, source/padding permissions and disjointness. Proves copied bytes, source/permission preservation, cells outside the 128-byte padding area, PC/counter and the modeled frame. Padding initialization, marker/length encoding, fetching and full-call equal remain separate."
+    },
+    {
+      "claim": "The recorded zeroing fragment initializes every byte of the 128-byte padding area and preserves the stated frame.",
+      "theorems": [
+        "Crypto.ARM64.Imported.zero_padding",
+        "Crypto.ARM64.Imported.zeroPadMemory_byte",
+        "Crypto.ARM64.Imported.zeroPadMemory_outside",
+        "Crypto.ARM64.Imported.zeroPadMemory_writable",
+        "Crypto.ARM64.Imported.zeroPadMemory_readable"
+      ],
+      "scope": "Nine words at 0x10-0x30 with their actual 16 eight-byte write guards; exact memory update, all 128 zero bytes, outside-cell and permission preservation, PC and modeled register/state frame. No whole-call or fetching claim."
+    },
+    {
+      "claim": "The recorded padding setup computes modulo/division by 64, the tail pointer and the initial copy counter correctly.",
+      "theorems": [
+        "Crypto.ARM64.Imported.padding_setup",
+        "Crypto.ARM64.Imported.remainder_mask",
+        "Crypto.ARM64.Imported.full_blocks_shift",
+        "Crypto.ARM64.Imported.tail_offset_shift"
+      ],
+      "scope": "Four words at 0x34-0x40, all 64-bit counts; exact register values, PC and modeled memory/state frame. Typed ByteList decoding, marker/length encoding, fetching and equal remain separate."
     }
   ],
   "equal": {

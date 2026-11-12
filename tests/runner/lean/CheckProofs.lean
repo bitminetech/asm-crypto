@@ -117,7 +117,16 @@ run_cmd do
     ``Crypto.ARM64.Imported.tail_copy_end,
     ``Crypto.ARM64.Imported.byte128_store_outside,
     ``Crypto.ARM64.Imported.tail_copy_prefix,
-    ``Crypto.ARM64.Imported.tail_copy_loop]
+    ``Crypto.ARM64.Imported.tail_copy_loop,
+    ``Crypto.ARM64.Imported.zero_padding,
+    ``Crypto.ARM64.Imported.zeroPadMemory_byte,
+    ``Crypto.ARM64.Imported.zeroPadMemory_outside,
+    ``Crypto.ARM64.Imported.zeroPadMemory_writable,
+    ``Crypto.ARM64.Imported.zeroPadMemory_readable,
+    ``Crypto.ARM64.Imported.padding_setup,
+    ``Crypto.ARM64.Imported.remainder_mask,
+    ``Crypto.ARM64.Imported.full_blocks_shift,
+    ``Crypto.ARM64.Imported.tail_offset_shift]
   let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
   for name in names do
     let axioms ← collectAxioms name
