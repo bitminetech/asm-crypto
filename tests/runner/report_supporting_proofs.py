@@ -24,6 +24,7 @@ def main():
                                     "lean/verification-scope.json", "lean/Models/arm64-sha256.text.hex")]))
     source_hashes = {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
                      for p in source_paths}
+    scope = json.loads((root / "lean/verification-scope.json").read_text())
     report = {
         "recorded_utc": datetime.now(timezone.utc).isoformat(),
         "git_commit": subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip(),
@@ -37,7 +38,9 @@ def main():
         "reference_vectors": (output / "reference-vectors.log").read_text().splitlines(),
         "arm64_model_checks": (output / "arm64-model-check.log").read_text().splitlines(),
         "arm64_artifact_identity": json.loads((output / "arm64-artifacts.json").read_text()),
-        "equal_status": "in progress",
+        "equal_status": scope["equal"]["status"],
+        "candidate_equal": scope["equal"].get("candidate"),
+        "independent_expected_statement_check": "not performed by the supporting-check job",
         "checked_equal_targets": [],
         "fully_verified_library": False,
         "scope": "lean/verification-scope.json"

@@ -22,9 +22,13 @@ def main():
     bad_statement = source.replace(
         "Crypto.Reference.sha256_matches_fips message h",
         "(fun (_ : False) => Crypto.Reference.sha256_matches_fips message h)", 1)
+    bad_equal_statement = source.replace(
+        "  Crypto.ARM64.sha256.equal\n",
+        "  (fun (_ : False) => Crypto.ARM64.sha256.equal)\n", 1)
     for name, contents, expected in (
         ("ExtraAxiom", bad_axiom, "Forbidden axioms in badAuditFixture"),
         ("AddedAssumption", bad_statement, "Type mismatch"),
+        ("EqualAddedAssumption", bad_equal_statement, "Type mismatch"),
     ):
         path = output / (name + ".lean")
         path.write_text(contents)

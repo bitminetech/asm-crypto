@@ -657,7 +657,7 @@
         "Crypto.ARM64.Imported.sha256_fetched",
         "Crypto.ARM64.Imported.sha256_callable"
       ],
-      "scope": "All message lengths below 2^61 under explicit CallInputs or derived typed CallerEntry; arbitrary prior stack/output bytes. Proves actual imported Steps, successful bounded runToReturn, zero status, restored SP/link-register return, modeled nonvolatile/state frame, final memory cells outside stack416/digest32, exact32 digestbytes and observer/permission-path existence. Full trace confinement/confidentiality, ownership/lifetime/concurrency, physical/OS profile closure and independently pinned equal baseline remain unproved."
+      "scope": "All message lengths below 2^61 under explicit CallInputs or derived typed CallerEntry; arbitrary prior stack/output bytes. Proves actual imported Steps, successful bounded runToReturn, zero status, restored SP/link-register return, modeled nonvolatile/state frame, final memory cells outside stack416/digest32, exact32 digestbytes and observer/permission-path existence. Later registered native baseline components add trace confinement/confidentiality, borrows and concurrency; the independently pinned expected statement remains a separate gate."
     },
     {
       "claim": "The complete recorded ARM64 SHA-256 call preserves all memory cells outside its416-byte stackframe and32-byte digest.",
@@ -667,22 +667,87 @@
         "Crypto.ARM64.Imported.whole_call_memory_frame"
       ],
       "scope": "Exact final-cell preservation composed from prologue, both blockphases and digeststores under operational CallInputs. This final-memory result does not by itself bound transient reads/writes, prove confidentiality or establish lifetime/concurrency."
+    },
+    {
+      "claim": "The typed logical call proves exact transient data/fetch regions, alignment, stack416 bounds and reference/ABI guarantees on the same native result.",
+      "theorems": [
+        "Crypto.ARM64.Imported.sha256_serial_contract",
+        "Crypto.ARM64.Imported.sha256_logical_safe",
+        "Crypto.ARM64.Imported.sha256_strict_read_footprint",
+        "Crypto.ARM64.Imported.whole_call_function_fetches",
+        "Crypto.ARM64.Imported.whole_call_platform_rules",
+        "Crypto.ARM64.Imported.whole_call_stack_not_below_sp"
+      ],
+      "scope": "Caller-only PermissionViewInputs, independent accessible extent, all SHA-256 lengths below2^61, arbitrary old stack/output bytes and arbitrary carried FPCR; underlying runtime/ISA/FPCR/platform correspondence remains explicit trusted profile work."
+    },
+    {
+      "claim": "Actual native control/data-address observations and permitted final bytes satisfy the SHA-256 public/secret policy.",
+      "theorems": [
+        "Crypto.ARM64.Imported.sha256_observations_equal",
+        "Crypto.ARM64.Imported.sha256_logical_disclosure",
+        "Crypto.ARM64.Imported.sha256_modeled_cost_equal",
+        "Crypto.ARM64.Imported.sha256_architectural_units_equal"
+      ],
+      "scope": "Paired caller-valid complete executions. Message contents and scratch/output pre-bytes may differ; pointers, offsets and lengths are public. Digest/status are releases. Unit costs are architectural instruction counts, not physical cycles. Callers protect residual private stack/registers and their application-level preparation/timing/result use."
+    },
+    {
+      "claim": "Native instruction locality and scoped borrows support environment progress without restoring stale process/resource state.",
+      "theorems": [
+        "Crypto.ARM64.Imported.permitted_projected_instruction_locality",
+        "Crypto.ARM64.Imported.observed_call_access",
+        "Crypto.ARM64.Imported.observed_environment_race_free",
+        "Crypto.ARM64.Imported.permission_view_entry_interference_projected",
+        "Crypto.ARM64.Imported.rebased_native_call",
+        "Crypto.ARM64.Imported.schedule_serial_observed_safe"
+      ],
+      "scope": "Constructive instruction-family locality and actual native observations. Complete input/image/output borrows; stack bytes protected only while allocated. Primitive hardware alias/lease interpretation and eventual scheduling are explicit profile assumptions, not SHA outcome premises."
+    },
+    {
+      "claim": "The complete dynamically scheduled ARM64 SHA-256 call returns through actual first-RET fetch/eval with reference digest, same public trace, memory/ABI bounds and phase-sensitive race freedom.",
+      "theorems": [
+        "Crypto.ARM64.Imported.sha256_concurrent_call_core",
+        "Crypto.ARM64.Imported.sha256_scheduled_guarantees",
+        "Crypto.ARM64.Imported.concurrent_call_evaluated",
+        "Crypto.ARM64.Imported.concurrent_call_state_evaluated",
+        "Crypto.ARM64.Imported.concurrent_call_readonly_borrows",
+        "Crypto.ARM64.Imported.paired_scheduled_modeled_cost_equal",
+        "Crypto.ARM64.Imported.sha256_scheduled_architectural_units"
+      ],
+      "scope": "Caller-only typed entry and primitive dynamic environment laws; actual same final CPU/digest, complete readonly input/image bytes, strict data/fetch/SP bounds, finite native budget and modeled scheduled costs. Future/freed stack contents and unrelated resources may progress. Physical/address/ABI/timing correspondence and eventual scheduling remain explicit target/caller trust laws."
     }
   ],
   "equal": {
-    "status": "in progress",
+    "status": "candidate theorem; independent statement approval pending",
     "checked_targets": [],
     "theorems": [],
     "remaining": [
-      "Independently reviewed, externally selected pinned full baseline statement and semantic dependency closure",
-      "Connect the typed logical caller contract to complete ownership/lifetime and physical address/permission profiles, including permitted aliases",
-      "Prove every transient fetched/read/written byte and SP remains in the declared regions and stack bound",
-      "Prove public-dependent control/access traces, disclosure policy and declared instruction timing model",
-      "Complete arbitrary FPCR/ABI and per-OS stack/loading/unwind profile obligations",
-      "Prove permitted concurrency, interference, data-race freedom, lifetime and environment-progress obligations",
-      "Bind the library artifact/load-address/symbol assumptions and final unwind registration to each claimed deployment",
-      "Equivalent complete proofs and artifact validation for x86-64 and RISC-V"
-    ]
+      "Final complete-library build, axiom audit, fresh kernel replay and artifact/vector checks for the candidate theorem",
+      "Independent reviewer must approve the full expected statement and semantic dependency closure, then select its immutable pin through policy outside candidate control; no repository-local proof or review authenticates that policy"
+    ],
+    "scope": "ARM64 crypto_sha256 only. x86-64/RISC-V have no equal claim in this work. Final consuming-application loading/unwind registration and caller premise discharge are outside this isolated library entry theorem.",
+    "candidate": {
+      "theorem": "Crypto.ARM64.sha256.equal",
+      "expected_statement": "lean/Proofs/ARM64/NativeStatement.lean:Crypto.ARM64.NativeRequirements.requirements",
+      "baseline": "lean/Proofs/StatelessBaseline.lean:Crypto.Baseline.Stateless.Equal",
+      "models": [
+        "Crypto.ARM64.Imported.program",
+        "Crypto.ARM64.Imported.runToReturn",
+        "Crypto.ARM64.Imported.DynamicEnvironment",
+        "Crypto.ARM64.OwnedView.InstructionConformance",
+        "Crypto.ARM64.PlatformProfile.BoundaryEntry"
+      ],
+      "profiles": [
+        "linux-arm64",
+        "windows-arm64",
+        "macos-arm64"
+      ],
+      "boundary": "pure effect-free common-ABI leaf; no OS/library callee boundaries",
+      "artifact_evidence": "build/verification/arm64-artifacts.json",
+      "runtime_binding": "Exact loaded symbol,604 fetched instruction bytes,288 constant bytes, load mapping, feature prerequisites and unwind registration are caller/deployment profile assumptions.",
+      "review_profile": "docs/models/arm64-sha256-native-profile.md",
+      "independent_statement_pin": null,
+      "expected_statement_gate": "tests/runner/check_arm64_equal_pin.py requires an approved manifest and selected hash outside candidate control; candidate generation never grants approval."
+    }
   },
   "trust_inventory": [
     "Review correspondence between the imported Lean FIPS transcription and the English FIPS document",
@@ -692,7 +757,11 @@
     "Python ELF/Mach-O/COFF/archive extraction/comparison and pinned-object unwind interpretation; final link/unwind registration and runtime binding remain caller/loader assumptions",
     "Pinned LLVM assembler, archiver, linker and platform unwind metadata",
     "Caller establishes actual accessible extents, alignment, ownership/lifetime and physical memory/profile facts; typed logical CallerEntry implies operational CallInputs by proof",
-    "Loaded code, immutable constants, ISA implementation and hardware obey the declared model; not yet bound by a full equal claim"
+    "Loaded code, immutable constants, ISA implementation and hardware obey the declared model; not yet bound by a full equal claim",
+    "Logical permissions are conservative semantic grants, not exact PTE bits. Stable owned lease-byte resolution, allowed read-only aliases, writable-role separation and per-instruction hardware correspondence are target/caller obligations; no global VA injectivity or unrelated-memory equality is assumed.",
+    "Dynamic environment may update unrelated memory and process/resource state; it preserves owned cells/lifetimes and restores the current thread CPU context. Inactive stack contents may change. Each environment boundary represents finite progress, with eventual resumption assumed.",
+    "Arbitrary FPCR is carried by an exact-image scalar extension because upstream state omits FPCR. Physical FPCR and other omitted ABI-state framing requires explicit admitted-instruction profile laws.",
+    "Architectural public trace and covered observation-dependent cost models exclude no unmodeled physical side channel. Physical timing correspondence, caller preparation/scheduling/result use and protection of secret residual stack/registers remain explicit integration obligations."
   ],
   "isa_model": {
     "repository": "https://github.com/google-deepmind/code-verification",

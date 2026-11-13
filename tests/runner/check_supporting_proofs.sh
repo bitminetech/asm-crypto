@@ -1,6 +1,7 @@
 #!/bin/sh
-# This checks supporting lemmas, not the full equal baseline. No verified mark
-# is produced. Run with Lean 4.29.1 on PATH after `lake update` / cache setup.
+# This checks supporting lemmas and the native candidate equal theorem. The
+# independently pinned expected statement is a separate gate; no verified mark
+# is produced. Run with Lean 4.29.1 on PATH after dependency/cache setup.
 set -eu
 root=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$root"
@@ -17,6 +18,7 @@ lake build Reference Proofs reference-vectors arm64-model-check
 python3 -I tests/runner/test_reference_vectors.py "$vectors"
 lake env lean tests/runner/lean/CheckProofs.lean > build/verification/axioms.log
 python3 -I tests/runner/test_proof_audit.py
+python3 -I tests/runner/test_equal_pin.py
 lake env leanchecker --fresh Proofs > build/verification/kernel.log 2>&1
 python3 -I tests/runner/check_arm64_artifacts.py > build/verification/arm64-artifacts.json
 python3 -I tests/runner/test_arm64_artifacts.py
@@ -25,4 +27,4 @@ python3 -I tests/runner/test_arm64_artifacts.py
     "$vectors/acvp-aft.bin" "$vectors/cavp-monte.bin" "$vectors/acvp-mct.bin" \
     "$vectors/acvp-ldt.bin" > build/verification/reference-vectors.log
 python3 -I tests/runner/report_supporting_proofs.py
-echo 'Supporting proof checks passed. Full equal and whole-library verification remain incomplete.'
+echo 'Candidate proof checks passed. Checked equal requires the independent expected-statement pin; no verified mark produced.'
