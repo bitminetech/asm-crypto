@@ -8,8 +8,7 @@ The 48 recorded schedule-expansion cycles maintain the register/state frame
 and workspace permissions, preserving all cells outside the 256-byte workspace.
 Their final RAM snapshot is the imported FIPS
 schedule whenever the first 16 words initially contain the message block;
-the other workspace bytes may be arbitrary. Fetching, source-word loading,
-whole-function memory bounds and `equal` remain separate obligations.
+the other workspace bytes may be arbitrary.
 -/
 namespace Crypto.ARM64.Imported
 

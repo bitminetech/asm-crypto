@@ -1,10 +1,9 @@
 import Proofs.ARM64.ImportedAccess
 
 /-!
-Candidate program-point relation for SHA-256 architectural trace secrecy.
-Temporary registers have distinct public lifetimes. Returned is an explicit
-terminal point: a caller's link register may point into the same image.
-These definitions alone prove no relational instruction transfer or secrecy.
+Program-point relation for SHA-256 architectural trace secrecy. Temporary
+registers have distinct public lifetimes. Returned is an explicit terminal
+point, allowing the caller's link register to point into the same image.
 -/
 namespace Crypto.ARM64.Imported
 

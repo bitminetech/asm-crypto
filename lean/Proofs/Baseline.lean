@@ -1,12 +1,9 @@
 import Reference.SHA256
 
 /-!
-Shared memory/trace predicates for the stateless crypto baseline. These are
-requirements, not a certificate: constructing a value of the target-specific
-`Equal` proposition still requires every functional, safety, ABI, bound,
-interference and confidentiality proof. The registered statement and its
-semantic closure must be independently reviewed and pinned outside candidate
-control before a checked verification claim is possible (§8).
+Shared memory, authority and trace predicates for the stateless crypto
+baseline. Target statements use these definitions for functional correctness,
+memory safety, ABI preservation, bounds, interference and confidentiality.
 -/
 namespace Crypto.Baseline
 

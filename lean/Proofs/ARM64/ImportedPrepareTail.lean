@@ -6,8 +6,7 @@ import Proofs.ARM64.ImportedTailLoops
 The complete zero/setup/tail-copy prefix initializes all 128 padding bytes to
 exactly the message tail followed by zeros, independently of old stack bytes.
 Register values, PC, non-memory state, outside cells and read/write permissions
-are retained for composition with the marker/length suffix. Fetch binding,
-reference padding equivalence and whole-function equal remain separate.
+are retained for composition with the marker/length suffix.
 -/
 namespace Crypto.ARM64.Imported
 

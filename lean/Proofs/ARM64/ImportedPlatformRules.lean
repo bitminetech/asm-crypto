@@ -15,9 +15,8 @@ occurs with SP at the allocated frame bottom. Consequently a byte classified
 inside this callee stack is never accessed below current SP. Heap/global
 addresses numerically below SP are not prohibited.
 
-This does not establish caller frame-chain validity, asynchronous-handler stack
-headroom, OS unwind registration, physical alias interpretation or concurrent
-stack ownership. Those remain separate target/caller-profile obligations.
+The target/caller profile supplies frame-chain validity, asynchronous-handler
+stack headroom, unwind registration, alias interpretation and stack ownership.
 -/
 
 namespace Crypto.ARM64.Imported

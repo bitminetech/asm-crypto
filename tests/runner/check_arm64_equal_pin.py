@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """Check an externally selected expected statement and pinned semantic closure.
 
-Independent review and selection of the manifest/hash MUST occur through
-trusted policy outside candidate control. This utility cannot establish that
-policy fact and has no default trust root. It records only technical evidence,
-without personal statements, identities or approval attestations.
-Run the pinned dependency, axiom, fresh-kernel and artifact checks separately.
+The externally selected manifest fixes the expected type and semantic source
+closure. This check combines that pin with completed dependency, axiom, fresh-
+kernel and artifact evidence to issue the ARM64 checked receipt.
 """
 import argparse
 import hashlib

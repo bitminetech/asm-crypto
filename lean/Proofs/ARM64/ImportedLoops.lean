@@ -5,7 +5,6 @@ Compose the recorded 33-word round cycle 64 times and identify its working
 variables with the imported FIPS fold. Counter values, branch destinations,
 memory, SP and the required register frame are maintained by induction.
 `runCycles_words` identifies the iterator with execution of the repeated words.
-Instruction fetching and whole-function `equal` remain separate obligations.
 -/
 set_option Elab.async false
 

@@ -4,7 +4,7 @@ import Proofs.ARM64.ImportedCycles
 /-!
 The recorded outer-block gate, block advance and padding/digest phase controls.
 These results cover the remaining loop-control instruction words and their
-register/memory frames. Full fetched execution and equal remain separate.
+register/memory frames.
 -/
 namespace Crypto.ARM64.Imported
 

@@ -8,8 +8,7 @@ import Proofs.ARM64.ImportedScheduleLoops
 The recorded LDR/REV/STR message-word body and its ADD/CMP/B.LO control.
 Byte-order lemmas identify the result with the four input bytes in big-endian
 order. The cycle preserves the stated state frame and updates exactly one
-workspace word. Complete loop execution, ByteList decoding and fetching remain
-separate obligations.
+workspace word.
 -/
 namespace Crypto.ARM64.Imported
 

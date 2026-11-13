@@ -1,12 +1,9 @@
 import Proofs.ARM64.ImportedReferenceFold
 
 /-!
-Original full-input bytes and the prepared padding bytes determine exactly the
-FIPS padded blocks. The combined recorded hash body through RET then produces
-exactly the pinned byte-oriented SHA-256 result, under its explicit prepared-
-state memory/register hypotheses. This is not the complete function-entry or
-architecture equal theorem: prologue/preparation composition, fetched-path
-execution, access/confidentiality bounds and baseline review remain separate.
+Original full-input bytes and prepared padding bytes determine the FIPS padded
+blocks. The recorded hash body through RET produces the pinned byte-oriented
+SHA-256 result under the prepared-state memory/register hypotheses.
 -/
 namespace Crypto.ARM64.Imported
 open SHS.Equiv.SHA256.Lift

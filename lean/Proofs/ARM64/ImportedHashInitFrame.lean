@@ -4,8 +4,7 @@ import Proofs.ARM64.ImportedHashBody
 /-!
 The recorded hash-initialization execution produces the actual FIPS IV from
 loaded image bytes, sets the K pointer and phase, and preserves outside cells
-and read/write permissions. This supports whole-entry composition; fetched
-execution and the full architecture baseline remain separate.
+and read/write permissions.
 -/
 namespace Crypto.ARM64.Imported
 

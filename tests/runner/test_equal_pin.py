@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Exercise fail-closed expected-statement/semantic-closure validation.
 
-Temporary manifests are test fixtures, never independent approvals or checked
-claims. Dependency execution is covered by the existing real dependency audit.
+Temporary manifests exercise the external-pin validator. The dependency audit
+checks the real pinned imports.
 """
 import hashlib
 import importlib.util

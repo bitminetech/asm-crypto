@@ -4,8 +4,7 @@ import Proofs.ARM64.ImportedArithmetic
 /-!
 The first four recorded words subtract the 416-byte frame, read the offset
 and count fields, and calculate the payload pointer. Actual header-read guards
-remain explicit. This does not establish the complete ByteList layout/extent
-predicate, caller assumptions, instruction fetching or whole-function equal.
+remain explicit.
 -/
 namespace Crypto.ARM64.Imported
 

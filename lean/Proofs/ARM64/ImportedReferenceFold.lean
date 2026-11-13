@@ -7,8 +7,7 @@ import equiv.SHA256.Padding.Equiv
 /-!
 The two native-memory compression folds are connected to the pinned FIPS
 padded-block fold and to its exact 32-byte sha256 result. The input block
-identities and initialized IV remain explicit layout/value hypotheses; complete
-caller-entry, fetched execution and architecture equal remain separate.
+identities and initialized IV remain explicit layout/value hypotheses.
 -/
 namespace Crypto.ARM64.Imported
 open SHS.Equiv.SHA256.Lift

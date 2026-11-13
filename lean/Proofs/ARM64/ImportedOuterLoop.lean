@@ -6,8 +6,7 @@ Composition of the recorded block gate, 3,095-word compression path and advance.
 The loop invariant proves the FIPS compression fold for every number of blocks
 below 2^64, retaining source/constants, permissions and the modeled state frame.
 BlockReady contains only input memory/layout/register facts; it assumes no
-execution result. Fetch binding, full padding/reference composition, ABI/trace
-bounds and the complete equal baseline remain separate obligations.
+execution result.
 -/
 namespace Crypto.ARM64.Imported
 

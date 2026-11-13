@@ -1,15 +1,12 @@
 /-!
-Shared baseline assembly for a stateless, effect-free leaf function. The
-target statement supplies the FULL propositions below, including quantified
-caller/environment conditions, the reference, native execution relation and
-observable guarantees. These propositions and their semantic closure are part
-of the independently reviewed expected statement required by §8; this wrapper
-does not authenticate a candidate-supplied contract.
+Shared baseline for a stateless, effect-free leaf function. Target requirements
+specify caller/environment conditions, the reference, native execution and
+observable guarantees. Equal combines functional safety, concurrency,
+confidentiality, timing and leaf-effect proofs for those requirements.
 
-State rollback, action delivery and OS completion are discharged by a proof of
-the recorded leaf/effect-free domain, rather than by assuming successful SHA
-results or silently omitting those obligations. Stateful or effectful entries
-require a different baseline with the corresponding interaction obligations.
+The leaf/effect-free domain discharges state rollback, action delivery and OS
+completion obligations. Stateful or effectful entries use a baseline with the
+corresponding interaction obligations.
 -/
 namespace Crypto.Baseline.Stateless
 

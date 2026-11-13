@@ -6,9 +6,9 @@ import Proofs.ARM64.ImportedInstructionLocality
 
 /-!
 Serial guarantees for one actual SHA-256 execution and its observations. The
-arbitrary FPCR value is carried in the restricted scalar frame; this does not
-supply physical FPCR/ISA correspondence. No concurrency, timing, physical grant
-or disclosure theorem is asserted by this aggregate.
+arbitrary FPCR value is carried in the restricted scalar frame. The target
+profile supplies physical FPCR/ISA correspondence. NativeEqual combines these
+serial results with concurrency, timing and disclosure guarantees.
 -/
 namespace Crypto.ARM64.Imported
 

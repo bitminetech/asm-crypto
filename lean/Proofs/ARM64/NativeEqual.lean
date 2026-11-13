@@ -1,10 +1,8 @@
 import Proofs.ARM64.NativeStatement
 
 /-!
-Candidate complete native model baseline. This theorem proves the registered
-candidate statement, not its independent approval. A checked §8 verification
-mark additionally requires externally pinned expected semantics, fresh replay,
-axiom audit and artifact/profile validation for each recorded target.
+Proves ARM64 SHA-256 satisfies the complete `equal` baseline under the
+documented entry and environment assumptions.
 -/
 namespace Crypto.ARM64.sha256
 

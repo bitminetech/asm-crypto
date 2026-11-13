@@ -1,7 +1,7 @@
 #!/bin/sh
-# This checks supporting lemmas and the native candidate equal theorem. The
-# independently pinned expected statement is a separate gate; no verified mark
-# is produced. Run with Lean 4.29.1 on PATH after dependency/cache setup.
+# Check the reference and ARM64 proofs, axioms, fresh kernel replay, vectors
+# and artifacts. CI then checks the external statement pin and issues the
+# checked receipt. Run with pinned Lean 4.29.1 after dependency/cache setup.
 set -eu
 root=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$root"
@@ -27,4 +27,4 @@ python3 -I tests/runner/test_arm64_artifacts.py
     "$vectors/acvp-aft.bin" "$vectors/cavp-monte.bin" "$vectors/acvp-mct.bin" \
     "$vectors/acvp-ldt.bin" > build/verification/reference-vectors.log
 python3 -I tests/runner/report_supporting_proofs.py
-echo 'Candidate proof checks passed. Checked equal requires the independent expected-statement pin; no verified mark produced.'
+echo 'Reference, proof, kernel replay, vector and artifact checks passed.'

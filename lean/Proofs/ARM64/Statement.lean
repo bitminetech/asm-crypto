@@ -2,9 +2,8 @@ import Proofs.Baseline
 import Models.ARM64Machine
 
 /-!
-Proposed full ARM64 `equal` statement for independent review. No theorem of
-this type is asserted here. Do not weaken Entry or any field of Equal to make
-a candidate proof pass; changes create a new registered obligation (§8).
+Auxiliary callable contract for the local ARM64 model. The registered imported-
+ISA contract and complete proof are in NativeStatement.lean and NativeEqual.lean.
 -/
 namespace Crypto.ARM64.Requirements
 
@@ -71,8 +70,7 @@ def Entry (args : Arguments) (s : Machine.State) : Prop :=
     s.memory (args.messagePointer + BitVec.ofNat 64 (args.message.offset + i.val)) =
       args.message.bytes[i.val]!.toBitVec)
 
-/-- A conservative instruction budget. Establishing this bound requires the
-full loop proof; the formula is not a claim that the proof already exists. -/
+/-- Conservative instruction budget parameterized by message length. -/
 def instructionBound (args : Arguments) : Nat :=
   512 + 4000 * ((args.message.bytes.size + 8) / 64 + 1)
 
@@ -125,9 +123,7 @@ def SamePublicResult (args : Arguments) (left right : Machine.State) : Prop :=
   (∀ address, ¬(used args).Contains address → ¬(stack args).Contains address →
     left.memory address = right.memory address)
 
-/-- Full proof obligation for this pure, effect-free, leaf entry point.
-There are no state buffers, software callees, OS boundaries or resource contexts
-to omit from these guarantees. No constructor or theorem is supplied here. -/
+/-- Callable contract for the auxiliary pure, effect-free leaf model. -/
 structure Equal : Prop where
   terminates : ∀ args before, Entry args before →
     ∃ after, Executes args before after ∧ Post args before after

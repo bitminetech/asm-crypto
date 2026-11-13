@@ -1,8 +1,8 @@
 import Proofs.ARM64.ImportedBranchFetch
 
 /-!
-A static path ending at its first RET executes in the bounded memory-fetch
-evaluator. This is a generic execution bridge, not the complete equal claim.
+Connect a static path ending at its first RET to the bounded memory-fetch
+evaluator.
 -/
 namespace Crypto.ARM64.Imported
 

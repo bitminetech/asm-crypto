@@ -6,8 +6,7 @@ Composition of hash-word loading, 64 recorded round cycles and feed-forward.
 The stored hash is exactly the imported FIPS compression result for a block
 whose schedule is already in the stack workspace. The conclusion also retains
 the PC/counter and non-memory state frame, cells outside the 288-byte
-schedule/hash workspace, read permissions and write permissions. Loading the message/schedule,
-instruction fetching, whole-call bounds and `equal` remain separate obligations.
+schedule/hash workspace, read permissions and write permissions.
 -/
 namespace Crypto.ARM64.Imported
 open SHS.Equiv.SHA256.Foldl.Sequential

@@ -4,7 +4,7 @@ import Proofs.ARM64.ImportedBranchFetch
 Control-flow certificates for recorded fragments containing an interior branch.
 The proved native PC postcondition and sequential-PC rules determine the next
 instruction address; branch/data arithmetic is not substituted. These helpers
-support tail-copy and phase/gate integration; full equal remains separate.
+support tail-copy and phase/gate integration; NativeEqual assembles the complete baseline.
 -/
 namespace Crypto.ARM64.Imported
 

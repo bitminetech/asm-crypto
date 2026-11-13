@@ -3,8 +3,7 @@ import Proofs.ARM64.ImportedLinearFetch
 /-!
 Static-path rules for image spans ending in a branch and repeated recorded
 cycles. A cycle proof plus the existing native PC invariant lifts its repeated
-path; no cryptographic operation replaces an instruction. Full-call path,
-run-to-return binding and the complete equal baseline remain separate.
+path; no cryptographic operation replaces an instruction.
 -/
 namespace Crypto.ARM64.Imported
 

@@ -6,7 +6,6 @@ Byte/word layout and permission lemmas for the unchanged upstream memory model.
 Stores preserve normalized permissions, affect their modular byte interval,
 reconstruct their 32-bit word, and update one slot of a 64-word snapshot.
 Existing readable regions remain readable (a store only clears lazy-free bits).
-These are layout helpers; whole-call access bounds and ownership remain separate.
 -/
 namespace Crypto.ARM64.Imported
 

@@ -4,10 +4,8 @@ import Proofs.ARM64.ImportedPreparePadding
 import Proofs.ARM64.ImportedHashBody
 
 /-!
-The complete proposed recorded-word path has the stated exact length and
-fits the architecture instruction budget for every count. This counts the
-word-list path; whole-call existence and memory-fetched execution must be
-connected before claiming a bound on the callable implementation.
+The complete recorded-word path has the stated exact length and
+fits the architecture instruction budget for every count. ImportedVerifiedCall applies this word-list bound to the callable execution.
 -/
 namespace Crypto.ARM64.Imported
 

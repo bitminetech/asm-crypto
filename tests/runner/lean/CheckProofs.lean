@@ -1,10 +1,9 @@
 import Proofs
 import Lean.Util.CollectAxioms
 
-/-! This audit covers the registered candidate declarations below. A candidate
-type check and axiom audit cannot authenticate the expected `equal` statement.
-These checks must not be substituted for the independently reviewed, externally
-pinned expected statement and semantic dependency closure required by §8. -/
+/-! Type checks and axiom audits for the registered reference and ARM64 theorems.
+CI combines this audit with fresh kernel replay, the external statement pin
+and exact artifact checks. -/
 
 example (message : Crypto.Reference.ByteList) (h : message.bytes.size < 2 ^ 61) :
     Crypto.Reference.MatchesFIPS message (Crypto.Reference.sha256 message).2 h :=

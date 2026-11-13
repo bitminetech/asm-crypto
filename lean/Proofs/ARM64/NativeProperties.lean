@@ -13,9 +13,8 @@ public. Only digest/status are released; temporary registers and private stack
 are not public observations. Callers must protect those residual secrets and
 their own preparation/invocation/result-use policy.
 
-These definitions are proposed expected-statement dependencies, not an
-independently authenticated verification claim. The ISA, byte loading and
-physical timing correspondence retain their explicitly documented trust laws.
+These properties form the registered baseline in NativeStatement. ISA, loading
+and physical timing correspondence use the documented target-profile laws.
 -/
 namespace Crypto.ARM64.NativeRequirements
 

@@ -4,8 +4,7 @@ import Proofs.ARM64.ImportedFetchExecution
 Data-access observations for exactly the ordinary instruction families used
 by SHA-256. The addresses and widths follow the unchanged imported load/store
 definitions. Successful execution establishes their actual permission guards.
-This does not yet restrict all permissions to the declared caller footprint or
-prove public-dependent traces, concurrency or physical timing properties.
+ImportedPermissionView bounds these observations by the caller footprint.
 -/
 namespace Crypto.ARM64.Imported
 
@@ -107,8 +106,8 @@ theorem runWordsObserved_erases (words : List (BitVec 32)) (s : Arm64.State) :
         simpa only [observed, Option.map_some, Option.bind_some, Bind.bind, Option.bind, pure, Pure.pure] using ih
 
 /-- Each data access in each actual intermediate state satisfies the imported
-permission guard. Bounding these permissions by caller-owned regions is a
-separate obligation; this predicate does not silently assert that bound. -/
+permission guard. ImportedPermissionView
+bounds these permissions by the declared caller-owned regions. -/
 def AccessPath : List (BitVec 32) → Arm64.State → Prop
   | [], _ => True
   | word :: rest, s => match Arm64.decode word with

@@ -3,8 +3,7 @@ import Proofs.ARM64.ImportedArithmetic
 /-!
 The four recorded instructions calculate the remainder, full-block count,
 tail pointer and zero copy counter. Arithmetic lemmas identify the mask/shifts
-with modulo/division by 64 for every 64-bit count. Entry decoding, complete
-padding, fetching and whole-function equal remain separate obligations.
+with modulo/division by 64 for every 64-bit count.
 -/
 namespace Crypto.ARM64.Imported
 

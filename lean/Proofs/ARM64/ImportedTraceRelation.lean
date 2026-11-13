@@ -7,12 +7,11 @@ Semantic paired-instruction observations for the concrete SHA-256 vocabulary.
 Effective addresses use only declared address registers; branch observations
 use only the tested public register or flags. Successful load/store guards are
 derived elsewhere from the complete call, rather than added to caller entry.
-A closed certificate checks that the candidate point masks include every
+A closed certificate checks that the point masks include every
 observation source for all151 image instructions. Semantic operand-dependency
 rules and closed certificates establish next-mask preservation for every
-post-header CFG edge, including the final return. Header load agreement,
-complete paired trace equality, disclosure policy, physical timing and the
-independently pinned architecture baseline remain separate obligations.
+post-header CFG edge, including the final return. ImportedHeaderRelation handles header loads, and ImportedPairedTrace composes
+the complete trace relation.
 -/
 
 namespace Crypto.ARM64.Imported
@@ -221,8 +220,8 @@ theorem public_relation_control (point : TracePoint) (instruction : Arm64.Instr)
 set_option maxRecDepth 16384 in
 set_option maxHeartbeats 4000000 in
 /-- Per-instruction paired observation theorem for every word of this SHA image.
-The point is a supplied program label; proving its agreement with actual PCs
-and preservation of the next label's relation remain separate obligations. -/
+The point is a program label. ImportedLabeledExecution relates labels to actual
+PCs; image_public_relation_transfer preserves the successor label's relation. -/
 theorem image_public_observation_eq (i : Fin 151) (instruction : Arm64.Instr)
     (left right : Arm64.State)
     (decoded : Arm64.decode imageWords[i.val]! = some instruction)

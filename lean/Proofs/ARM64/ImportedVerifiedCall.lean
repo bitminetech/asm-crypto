@@ -6,13 +6,10 @@ import Proofs.ARM64.ImportedWholeCallFrame
 
 /-!
 Complete bounded, memory-fetched SHA-256 correctness under the imported model
-and the explicit operational or typed caller-entry conditions. The result is
-the unchanged pinned FIPS byte reference, with modeled state/ABI preservation.
-The observed raw path erases to those same imported instruction executions.
-
-These are supporting callable theorems, not the architecture equal baseline:
-declared-region trace confinement, confidentiality/timing, lifetime/concurrency,
-physical/OS profiles and independently pinned baseline validation remain.
+and operational or typed caller-entry conditions. The result is the pinned
+FIPS byte reference, with modeled state/ABI preservation. The observed raw path
+erases to the same imported instruction executions. These callable results
+are composed with safety, confidentiality and concurrency in NativeEqual.
 -/
 namespace Crypto.ARM64.Imported
 

@@ -10,11 +10,8 @@ The existing returnStable/nonvolatile/SP result supplies all modeled CPU
 preservation; the full vector file is preserved, including AAPCS64 D8-D15.
 
 The FPCR extension carries arbitrary values without an FPCR=0 entry assumption.
-Its hardware meaning requires the separately named HardwareFPCRFrames and
-native ISA correspondence assumptions. The extension's preservation theorem
-must not be represented as a physical FPCR proof from the missing upstream
-field. Physical/OS profiles, unwinding and the full equal baseline remain
-separate obligations. No upstream model is changed and no axiom is added.
+HardwareFPCRFrames and native ISA correspondence supply its physical meaning.
+PlatformProfile records the ABI, OS and unwind assumptions.
 -/
 
 namespace Crypto.ARM64.CallFrame

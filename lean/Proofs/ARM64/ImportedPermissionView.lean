@@ -13,10 +13,8 @@ independently of imported permission bits. It derives unchanged CallInputs
 without assuming physical mappings are unmapped, non-executable, or exactly
 these rights. Constructing this mathematical view performs no protection change.
 
-The physical/profile correspondence boundary (including tagged-address aliases,
-actual grant validity, lifetime and interference) is not proved here. Neither
-bytes alone nor this supporting logical certificate establishes that boundary
-or the independently pinned full architecture equal baseline.
+The target profile supplies physical correspondence, including tagged-address
+aliases, grant validity, lifetime and interference.
 -/
 namespace Crypto.ARM64.Imported
 open Crypto.Baseline

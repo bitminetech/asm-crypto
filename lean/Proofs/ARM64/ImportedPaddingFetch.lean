@@ -7,8 +7,6 @@ import Proofs.ARM64.ImportedHashInitFrame
 Fetched-image paths for the recorded header, tail copy, one/two-block padding
 and hash initialization. Existing native prefix/PC proofs determine each
 branch path; every recorded instruction retains imported ISA semantics.
-These supporting certificates do not establish the full architecture equal
-baseline by themselves.
 -/
 namespace Crypto.ARM64.Imported
 

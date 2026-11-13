@@ -5,7 +5,6 @@ All 16 recorded word-load cycles initialize the first 16 schedule words to
 the given big-endian message block, preserving source words and read permissions,
 workspace write permissions and every cell outside the workspace. The entry
 requires the 64 source bytes to be disjoint from the 256-byte workspace.
-ByteList decoding, instruction fetching and whole-call `equal` remain separate.
 -/
 namespace Crypto.ARM64.Imported
 open SHS.Equiv.VecBridge

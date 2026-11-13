@@ -5,7 +5,6 @@ import Proofs.ARM64.ImportedSchedule
 Connect the executed 15-instruction schedule body and actual stack-word layout
 to the unchanged imported FIPS `specScheduleStep`. The counter must be in
 16..63 and the 256-byte word workspace must provide the stated permissions.
-The complete 48-step loop, fetching, caller layout and `equal` remain separate.
 -/
 namespace Crypto.ARM64.Imported
 

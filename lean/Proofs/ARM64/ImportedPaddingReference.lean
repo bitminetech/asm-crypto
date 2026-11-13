@@ -4,9 +4,7 @@ import equiv.SHA256.Padding.Layout
 /-!
 The complete recorded padding buffer agrees byte for byte with the pinned
 FIPS implementation's padded-byte definition, for its one/two tail blocks.
-The bridge uses the independently supplied byte-count and source-tail mapping;
-ByteList extent decoding, fetched execution and whole-function equal remain
-separate obligations.
+The bridge uses the independently supplied byte-count and source-tail mapping.
 -/
 namespace Crypto.ARM64.Imported
 open SHS.Equiv.SHA256.Padding.Layout

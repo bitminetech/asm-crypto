@@ -137,7 +137,7 @@ def WritesFramed {Hardware : Type u} {Lease : Type v}
 /-- A load/binding obligation for the final runtime symbol and recorded bytes.
 The 604 fetched code bytes and 288 K/H data bytes have their distinct roles;
 4 alignment bytes are not spuriously required as fetched or constant data.
-This does not claim a checked final consuming application or installed loader. -/
+The consuming application supplies final linking, loader and runtime binding. -/
 def LoadedProgramBinding {Hardware : Type u} {Lease : Type v}
     (profile : Profile Hardware Lease) (hardware : Hardware) (base : BitVec 64) : Prop :=
   profile.entrySymbol hardware = some base ∧

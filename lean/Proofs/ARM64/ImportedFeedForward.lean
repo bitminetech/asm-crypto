@@ -5,8 +5,7 @@ import Proofs.ARM64.ImportedMemoryRange
 The 17 recorded feed-forward instructions add each saved hash word to its
 working variable and write the resulting eight words. The theorem records
 the exact memory transition, RAM snapshot, working variables, PC and state
-frame, under all eight read/write permission guards. Fetching and the full
-SHA-256 call remain separate obligations.
+frame, under all eight read/write permission guards.
 -/
 namespace Crypto.ARM64.Imported
 

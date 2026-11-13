@@ -2,9 +2,9 @@ import Models.ARM64Program
 
 /-!
 A restricted local A64 model for the straight-line compression-round fragment.
-Unsupported encodings fail. This is not yet a model of the complete function.
-Instruction meaning and decoding are trusted, pending independent ISA review.
-Memory validity and timing are separate obligations; the read footprint is kept.
+Unsupported encodings fail, and each step records its read footprint.
+Instruction meaning and decoding are trusted model assumptions. The complete
+call uses the pinned imported ISA in Models.ARM64.
 -/
 namespace Crypto.ARM64.Round
 

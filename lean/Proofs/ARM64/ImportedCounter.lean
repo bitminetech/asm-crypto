@@ -5,7 +5,7 @@ import Mathlib.Tactic.IntervalCases
 The recorded ADD/CMP/B.LO controls for the 64-round and schedule loops.
 The carry-bit calculation is kernel-checked for every counter in 0..63.
 These lemmas establish counter increment, branch destination, state framing and
-preservation of working variables; they do not prove complete loop execution.
+preservation of working variables for loop composition.
 -/
 namespace Crypto.ARM64.Imported
 

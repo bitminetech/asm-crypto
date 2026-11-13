@@ -5,9 +5,7 @@ import Proofs.ARM64.ImportedHashInitFrame
 Final memory-cell footprint for the recorded SHA-256 body. The compression
 phases preserve cells outside the 288-byte schedule/hash area, and the exit
 stores preserve cells outside the 32-byte digest. Composition uses the exact
-native execution results and deterministic intermediate states. These are
-final-state frame results; transient accesses and the complete architecture
-resource/effect baseline remain separate obligations.
+native execution results and deterministic intermediate states.
 -/
 namespace Crypto.ARM64.Imported
 

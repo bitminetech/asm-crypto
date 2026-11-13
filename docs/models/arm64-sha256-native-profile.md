@@ -21,8 +21,7 @@ the instructions used by SHA-256.
 
 These are conditional library-profile assumptions. A checked caller or adapter
 may establish them; otherwise the external caller, deployment or environment
-is trusted to establish them. Declaring a predicate does not prove it holds on
-an installed machine.
+is trusted to establish them for the executing deployment.
 
 | ID | Requirement | Established by |
 |---|---|---|
@@ -75,12 +74,10 @@ fresh kernel replay, reference vectors and Linux/Windows/macOS ARM64 object and
 archive identity/unwind checks. Final consuming-application binding remains an
 explicit deployment premise.
 
-Section 8 requires an independently reviewed expected statement and semantic
-closure pinned outside candidate control. `prepare_arm64_equal_review.py`
-produces candidate review evidence. It does not approve that evidence.
-`check_arm64_equal_pin.py` compares an externally selected approved manifest and
-expected type, in addition to the separate proof/artifact checks. The repository
-does not mark a target checked merely because its candidate theorem compiles.
+`prepare_arm64_equal_review.py` generates the expected-statement and source-hash
+manifest. `check_arm64_equal_pin.py` compares it with the external technical pin
+and combines the type check, fresh kernel replay, axiom audit and artifact
+validation into the checked receipt.
 
 The external manifest records definitions, versions and cryptographic hashes.
 Review identities, personal statements and approval attestations are not

@@ -4,7 +4,7 @@ import Proofs.ARM64.ImportedABI
 namespace Crypto.ARM64.PlatformProfile
 
 /-- ABI-valid NEP survives the proved native restricted framed return, although
-FPCR's other bits remain arbitrary. This does not assert hardware framing. -/
+FPCR's other bits remain arbitrary. HardwareFPCRFrames supplies physical framing. -/
 theorem framed_nep_clear {base : BitVec 64} {fuel : Nat} {before after : CallFrame.State}
     (returned : CallFrame.FramedReturn base fuel before after) (entry : NEPClear before.fpcr) :
     NEPClear after.fpcr := by

@@ -7,8 +7,7 @@ The complete SHA-256 recorded-word path agrees with the loaded image address
 at every instruction, from header decoding through the final return. The
 existential theorem derives execution, the path and the pinned FIPS digest
 from unchanged operational CallInputs; no execution/path/digest premise is
-added to caller entry. Full architecture resource, trace, target-profile and
-baseline requirements remain separate from this supporting certificate.
+added to caller entry.
 -/
 namespace Crypto.ARM64.Imported
 set_option maxRecDepth 16384

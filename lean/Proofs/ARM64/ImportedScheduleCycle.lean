@@ -4,7 +4,7 @@ import Proofs.ARM64.ImportedCycles
 One recorded schedule body plus ADD/CMP/B.LO control, over the upstream ISA.
 The theorem retains the exact memory-store transition, the FIPS word-vector
 update, branch destination and all state outside the declared work registers,
-PC, condition flags and memory. Fetching and complete loops remain separate.
+PC, condition flags and memory.
 -/
 namespace Crypto.ARM64.Imported
 

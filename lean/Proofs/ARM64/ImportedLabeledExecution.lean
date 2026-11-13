@@ -8,9 +8,7 @@ PCs. At every nonterminal edge, native PC alternatives and distinct decoded
 successor instructions identify the next label from StaticPath. The Returned
 endpoint imposes no artificial PC constraint. Whole-call premises are derived
 from unchanged CallInputs and the complete native SHA-256 execution proof.
-The observation theorem gives the exact PC list from public code base/length;
-data-access traces and the complete architecture confidentiality policy remain
-separate obligations.
+The observation theorem gives the exact PC list from public code base/length.
 -/
 namespace Crypto.ARM64.Imported
 set_option maxRecDepth 16384

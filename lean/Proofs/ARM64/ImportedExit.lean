@@ -5,8 +5,6 @@ The final 20 recorded words load the saved hash, serialize all 32 digest bytes
 in big-endian order, return status zero, restore SP by 416 bytes and return
 through the original X30. The theorem records the exact output stores and the
 modeled nonvolatile/state frame under the actual read/write guards.
-This is word-list execution; fetching, entry/outer-loop composition and the
-complete `equal` baseline remain separate obligations.
 -/
 namespace Crypto.ARM64.Imported
 

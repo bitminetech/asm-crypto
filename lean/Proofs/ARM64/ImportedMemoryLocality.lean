@@ -1,9 +1,8 @@
 import Proofs.ARM64.ImportedPermissionView
 
 /-!
-Locality of the unchanged scalar memory operations. These helpers preserve
+Locality of the imported scalar memory operations. These helpers preserve
 full cells (bytes and permission/liveness metadata) on a declared footprint.
-They do not alone establish a concurrent SHA-256 execution simulation.
 -/
 namespace Crypto.ARM64.Imported
 

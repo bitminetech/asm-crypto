@@ -3,8 +3,7 @@ import Proofs.ARM64.ImportedOuterLoop
 /-!
 Complete recorded outer-block loop, including the final zero-count branch.
 The theorem covers n=0 and arbitrary counts below 2^64 and counts exactly
-3,100 words per block plus the terminating branch. Fetching and whole-call
-reference/baseline composition remain separate obligations.
+3,100 words per block plus the terminating branch.
 -/
 namespace Crypto.ARM64.Imported
 

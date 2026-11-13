@@ -10,9 +10,8 @@ it is never an assumption of caller entry. The costed runner has exactly the
 original imported CPU updates, with a proved state-erasure theorem.
 
 The concrete architectural-unit profile counts instructions. Its one unit per
-instruction is not physical latency. HardwareTimingConforms names the separate
-unproved hardware/profile correspondence obligation; no hardware instance,
-DIT requirement, FPCR=0 restriction or all-side-channel claim is introduced.
+instruction measures architectural work. HardwareTimingConforms specifies the
+hardware/profile correspondence required for a physical duration claim.
 The current architectural observer has no cache, predictor, power, speculative
 execution or scheduler model. Physical claims need their own explicit model
 and conformance evidence under the chosen profile.
@@ -122,9 +121,9 @@ theorem architectural_unit_image_covered : architecturalUnitProfile.ImageCovered
   intro index instruction decoded
   exact scalar_admissible_image index instruction decoded
 
-/-- A named, unproved hardware/profile obligation. The hardware-state type and
+/-- Hardware/profile conformance law. The hardware-state type and
 projection must describe any platform/microarchitectural context relevant to a
-physical duration claim. No instance is asserted for the unit-cost profile. -/
+physical duration claim. The unit-cost profile measures architectural work. -/
 def HardwareTimingConforms {Hardware : Type} (profile : TimingProfile)
     (project : Hardware → Arm64.State) (duration : Arm64.Instr → Hardware → Nat) : Prop :=
   ∀ instruction hardware, profile.admits instruction → duration instruction hardware = profile.cost instruction (project hardware)

@@ -10,8 +10,8 @@ native execution and its final running state. It introduces no recovery path.
 The paired-call rule transfers an independently constructed restricted-view
 execution's footprint to the actual full-RX view through the existing semantic
 public-control/address theorem. Trace equality is proved internally; it is not
-an entry assumption. Fetch, physical alias, loader and concurrency correspondence
-remain separate obligations.
+an entry assumption. The target profile
+supplies physical alias and loader correspondence.
 -/
 
 namespace Crypto.ARM64.Imported

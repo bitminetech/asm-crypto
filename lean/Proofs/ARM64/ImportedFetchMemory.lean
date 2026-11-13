@@ -4,7 +4,7 @@ import Proofs.ARM64.ImportedWholeCall
 Code-loading invariants for the instruction families in the SHA-256 image.
 Permission-checked scalar stores preserve every loaded RX code byte, and the
 permitted evaluator preserves CodeLoaded throughout successful word-list runs.
-These are fetch-bridge helpers, not a whole-call fetched-execution certificate.
+ImportedWholeCallFetch composes these bridges for the complete call.
 -/
 namespace Crypto.ARM64.Imported
 

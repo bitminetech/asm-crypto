@@ -3,8 +3,7 @@ import Proofs.ARM64.ImportedMiddleFetch
 /-!
 Recorded SHA-256 cycle/control path certificates and the complete message-load,
 schedule and round loop paths. The certificates use native execution PC
-invariants and checked image/decoder facts. These are StaticPath proofs; the
-full-call composition, runToReturn binding and complete equal remain separate.
+invariants and checked image/decoder facts.
 -/
 namespace Crypto.ARM64.Imported
 

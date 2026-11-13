@@ -5,8 +5,7 @@ import Proofs.ARM64.ImportedCompression
 /-!
 Composition of the recorded marker/count/length suffix, including its complete
 byte-level memory transition and outside/permission frame. The length tag is
-big-endian and the one/two-block branch uses the actual remainder. Full-call
-fetch binding, padding/reference equivalence and equal remain separate.
+big-endian and the one/two-block branch uses the actual remainder.
 -/
 namespace Crypto.ARM64.Imported
 

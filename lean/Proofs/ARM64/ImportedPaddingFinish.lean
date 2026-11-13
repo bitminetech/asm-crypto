@@ -4,8 +4,7 @@ import Proofs.ARM64.ImportedTailCopy
 The recorded marker store, one/two-block selection and length store. The
 length bytes are exactly the big-endian 64-bit bit length; the shift has no
 overflow for byte counts below 2^61. Each word-list fragment retains its
-actual guards and modeled state frame. Full padding/reference composition,
-fetching and whole-function equal remain separate obligations.
+actual guards and modeled state frame.
 -/
 namespace Crypto.ARM64.Imported
 

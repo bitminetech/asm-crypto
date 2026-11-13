@@ -12,8 +12,7 @@ when a byte borrow is active, independently of reservation/accessibility.
 
 ScheduledWords records actual memory fetch and the unchanged imported execute
 operation at every library step. Local instructions must preserve the current
-global tail, so no earlier environment snapshot is restored. This model alone
-is not an existence, ownership, race-freedom or complete equal proof.
+global tail, so no earlier environment snapshot is restored.
 -/
 namespace Crypto.ARM64.Imported
 open Crypto.Baseline

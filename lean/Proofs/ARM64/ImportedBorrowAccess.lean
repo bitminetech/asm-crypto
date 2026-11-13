@@ -5,8 +5,8 @@ import Proofs.ARM64.ImportedSafeCall
 Connect actual SHA-256 fetch/data observations to shared input/image borrows
 and exclusive output/stack borrows. Environment events may read immutable
 shared bytes and make unrelated progress, but cannot race writable borrows or
-release/change protection of borrowed regions. Native interleaving simulation
-and physical ownership/address correspondence remain separate obligations.
+release/change protection of borrowed regions. ImportedConcurrentCall
+constructs the scheduled execution under the target ownership/address profile.
 -/
 namespace Crypto.ARM64.Imported
 open Crypto.Baseline

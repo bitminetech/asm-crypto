@@ -12,7 +12,6 @@ The resulting schedule has the original safe observation list, exact code
 length/budget and no early RET, with final projected CPU and static-cell
 agreement. Allocation, active-prefix and return admissibility are explicit
 witnesses. No execution, trace equality or digest result is a caller premise.
-Physical/profile and independently pinned equal validation remain separate.
 -/
 namespace Crypto.ARM64.Imported
 open Crypto.Baseline

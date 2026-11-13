@@ -6,8 +6,6 @@ The complete padding-tail copy loop, for every remainder below 64. The loop
 copies the original source bytes, exits at the recorded branch destination,
 and preserves source values, permissions, every cell outside the copied
 byte prefix, and the stated CPU/state frame. Empty tails require no source read.
-Initializing padding, appending the marker/length, fetching and full-call
-`equal` remain separate obligations.
 -/
 namespace Crypto.ARM64.Imported
 

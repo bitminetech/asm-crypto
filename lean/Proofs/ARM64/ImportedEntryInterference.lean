@@ -8,10 +8,8 @@ read/write grants over the reserved 416-byte future stack are the explicit
 accessibility/lifetime environment law; its old bytes may change arbitrarily.
 The static protected footprint is proved disjoint from that stack.
 
-The projected form permits unrelated global-tail progress. No stack-byte
-agreement, execution witness or candidate result is a premise. This entry
-bridge does not alone establish the full concurrent execution or a physical
-permission/alias profile.
+The projected form permits unrelated global-tail progress. Stack contents
+remain arbitrary under the reservation grants and protected static footprint.
 -/
 namespace Crypto.ARM64.Imported
 open Crypto.Baseline

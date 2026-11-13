@@ -6,7 +6,7 @@ import Proofs.ARM64.ImportedMemory
 Memory-fetch glue for the imported program. The loaded-code fetch proof follows
 ProofLib/Invariant.lean at the pinned Google DeepMind revision (Apache-2.0),
 using kernel-checked address algebra and four byte permissions here. No upstream
-ISA source is changed. These lemmas do not supply the complete callable proof.
+ISA source is changed. ImportedWholeCallFetch composes these fetch rules for the full call.
 -/
 namespace Crypto.ARM64.Imported
 

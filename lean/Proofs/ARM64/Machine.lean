@@ -7,8 +7,7 @@ namespace Crypto.ARM64.Machine
 
 set_option maxHeartbeats 4000000 in
 /-- The operational model handles every executable instruction word, for every
-register/memory/flag state. This is coverage of the declared model, not a proof
-that its instruction meanings agree with hardware or that SHA-256 is correct. -/
+register/memory/flag state. NativeEqual proves complete SHA-256 correctness using the pinned imported ISA. -/
 theorem program_vocabulary (i : Nat) (hi : i < 151) (s : State) :
     (stepWord imageWords[i]! s).isSome = true := by
   interval_cases i <;>

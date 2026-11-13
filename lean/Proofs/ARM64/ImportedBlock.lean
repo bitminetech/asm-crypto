@@ -8,9 +8,6 @@ compression of the block decoded directly from the 64 source bytes.
 The postcondition preserves cells outside the 288-byte schedule/hash area,
 existing read permissions and the workspace/hash write permissions needed by
 subsequent blocks. The closed length theorem counts the 3,095 recorded words in this path.
-These are word-list execution proofs: whole-function padding/outer loops,
-ByteList decoding, fetch binding, final output and the full baseline remain
-separate obligations.
 -/
 namespace Crypto.ARM64.Imported
 

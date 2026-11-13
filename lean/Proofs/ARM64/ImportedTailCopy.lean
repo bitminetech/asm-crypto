@@ -6,7 +6,6 @@ The recorded padding-tail byte-copy cycle and terminating compare/branch.
 The cycle is proved when the byte counter is below the remainder, with the
 actual byte read/write guards. Its state frame preserves all GPRs other than
 X6/X7 and all modeled nonvolatile state. Byte-range helpers frame the stores.
-Complete copying, padding, fetching and whole-call `equal` remain separate.
 -/
 namespace Crypto.ARM64.Imported
 

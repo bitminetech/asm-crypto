@@ -3,7 +3,7 @@ import Proofs.ARM64.ImportedFetchExecution
 /-!
 Lift sequential recorded image spans to imported memory-fetched Steps, and
 compose their StaticPath certificates. The header span is the first concrete
-fragment lifted here. Full-loop/control certificates and equal remain separate.
+fragment lifted here.
 -/
 namespace Crypto.ARM64.Imported
 

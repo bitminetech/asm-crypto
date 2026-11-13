@@ -4,11 +4,10 @@ import Proofs.ARM64.ImportedStackBound
 import Proofs.ARM64.ImportedFetchTrace
 
 /-!
-Compose bounded fetched correctness with exact logical data-access and stack
-trace bounds. The permission view preserves the caller's bytes and expresses
-borrowed semantic grants; it does not change physical page protections.
-Physical/profile correspondence, ownership/lifetime, interference, trace
-confidentiality/timing and independently pinned equal validation remain separate.
+Compose bounded fetched correctness with logical data-access and stack-trace
+bounds. The permission view preserves caller bytes and expresses borrowed
+semantic grants. Physical permissions and address interpretation follow the
+target profile documented in arm64-sha256-native-profile.md.
 -/
 namespace Crypto.ARM64.Imported
 

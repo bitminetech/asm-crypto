@@ -4,7 +4,7 @@ import Proofs.ARM64.ImportedZeroPad
 The eight recorded words copy four PC-relative 64-bit pool words into the
 saved hash slots, calculate the K-table pointer and set phase zero. The exact
 memory transition and modeled state frame are proved under the read/write
-guards. Loaded-pool/FIPS binding, fetching and whole-call equal remain separate.
+guards.
 -/
 namespace Crypto.ARM64.Imported
 

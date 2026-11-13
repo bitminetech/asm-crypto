@@ -8,9 +8,8 @@ complete writable output and active stack, not merely bytes actually accessed.
 
 Unlike byte preservation alone, an admissible environment also excludes reads
 racing the call's writes, and release/protection changes during the borrow.
-Connecting these events to native executions and real ownership/lifetime is a
-separate obligation. These definitions are a candidate dependency of a future
-independently reviewed baseline, not an equal certificate.
+ImportedBorrowAccess connects these predicates to native SHA-256 observations;
+ImportedScheduledGuarantees establishes phase-sensitive race freedom.
 -/
 namespace Crypto.Baseline
 

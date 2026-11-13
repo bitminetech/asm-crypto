@@ -2,12 +2,9 @@ import Proofs.ARM64.ImportedWholeCall
 import Proofs.Baseline
 
 /-!
-Derive the operational native CallInputs from a typed ByteList value, an
-independently supplied accessible extent, complete-region logical grants and
-separation, truthful header/data bytes, and initial ABI/loading facts.
-No execution or digest conclusion is assumed. This candidate entry bridge does
-not establish the independently reviewed/pinned equal baseline, a physical
-memory/address profile, lifetime/interference rules, or confidentiality.
+Derive native CallInputs from a typed ByteList, an independently supplied
+accessible extent, complete-region logical grants and separation, truthful
+header/data bytes, and initial ABI/loading facts.
 -/
 
 namespace Crypto.ARM64.Imported
@@ -92,11 +89,11 @@ def callerOutput (s : Arm64.State) : Region := ⟨s.readReg64 .x1, 32⟩
 def callerStack (s : Arm64.State) : Region := ⟨entryStack s, 416⟩
 def callerImage (base : BitVec 64) : Region := ⟨base, 896⟩
 
-/-- Candidate typed caller-entry bridge under the imported logical memory view.
+/-- Typed caller-entry bridge under the imported logical memory view.
 The independently supplied extent is not inferred from the embedded size.
 Grants describe the complete borrowed regions, including unused input room.
-This predicate is not an independently pinned baseline or a physical permission,
-tagged-address, ownership-lifetime, interference or confidentiality certificate. -/
+Physical grants, tagged-address interpretation and lifetime follow the target
+profile; NativeStatement combines caller entry with the remaining guarantees. -/
 structure CallerEntry (base : BitVec 64) (s : Arm64.State)
     (message : Crypto.Reference.ByteList) (extent : Nat) : Prop where
   layout : message.WellFormed

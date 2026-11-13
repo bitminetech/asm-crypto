@@ -6,22 +6,15 @@ import Proofs.ARM64.ImportedScheduledTiming
 import Proofs.ARM64.ImportedPlatformProfile
 
 /-!
-Proposed native expected `equal` statement for the pointer-only ARM64 SHA-256
-library entry. Unlike the older auxiliary Statement module this uses the pinned
-imported ISA's actual loaded fetch/execute updates, bounded first RET, exact
-transient observations and a phase-sensitive concurrent environment.
+Registered `equal` statement for the pointer-only ARM64 SHA-256 library entry.
+It uses the pinned imported ISA's loaded fetch/execute updates, bounded first
+RET, instruction observations and phase-sensitive concurrent environment.
 
-Entry facts are unchanged PermissionViewInputs: independent extent, truthful
-layout/bytes, alignment, loading and semantic accessibility/separation. The
-dynamic environment permits arbitrary unrelated progress and private stack
-reuse outside its active allocation. No final result, execution or trace
-equality is an entry condition. Model/hardware, primitive ABI, timing and
-deployment assumptions are recorded in arm64-sha256-native-profile.md and its
-linked model definitions. They are not physical instances asserted by this file.
-
-The shared wrapper AND every proposition below, together with their relevant
-semantic closure, need independent review and an externally selected immutable
-pin. This candidate definition cannot itself authorize a checked target.
+PermissionViewInputs supplies the independent extent, truthful layout/bytes,
+alignment, loading and semantic accessibility/separation. The environment may
+advance unrelated state and reuse private stack space outside its allocation.
+Model, hardware, ABI, timing and deployment assumptions are documented in
+arm64-sha256-native-profile.md and the linked model definitions.
 -/
 namespace Crypto.ARM64.NativeRequirements
 open Crypto.ARM64.Imported

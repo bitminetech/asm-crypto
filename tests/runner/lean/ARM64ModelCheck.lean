@@ -1,8 +1,7 @@
 import Proofs.ARM64.Statement
 import Models.ARM64
 
-/-! Executable checks of the proposed operational model. These are regression
-tests and do not discharge the universally quantified `Equal` obligation. -/
+/-! Executable regression checks of the local ARM64 operational model. -/
 open Crypto Crypto.ARM64 Crypto.ARM64.Machine
 
 private def codeBase : Round.Address := 0x20000

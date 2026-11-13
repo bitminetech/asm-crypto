@@ -4,8 +4,7 @@ import Proofs.ARM64.ImportedFetchMemory
 Running-state and PC rules for the instruction families used by SHA-256.
 A fault cannot recover to Running; successful sequential instructions advance
 PC by four bytes. A separately supplied StaticPath plus the recorded-word
-result lifts to actual imported Steps through loaded memory. This file does
-not establish the complete SHA-256 StaticPath or the architecture equal claim.
+result lifts to actual imported Steps through loaded memory.
 -/
 namespace Crypto.ARM64.Imported
 

@@ -4,7 +4,6 @@ import Proofs.ARM64.ImportedTailCopy
 The nine recorded padding-zeroing instructions write all 128 bytes to zero.
 The exact memory transition, cells outside the padding area, permissions and
 modeled state/register frame are proved without constraining old stack bytes.
-Marker/length encoding, whole-call composition, fetching and equal remain separate.
 -/
 namespace Crypto.ARM64.Imported
 

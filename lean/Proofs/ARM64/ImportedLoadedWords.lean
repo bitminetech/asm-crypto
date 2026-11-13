@@ -5,7 +5,7 @@ import Proofs.ARM64.ImportedHashInitWords
 The imported CodeLoaded predicate binds all 224 words to the recorded 896-byte
 image, including both FIPS constant pools. Static instruction fetches agree
 with the recorded decoder; loaded_initial_pool and loaded_round_pool bind the
-actual memory reads. Full-path fetched execution and equal remain separate.
+actual memory reads.
 -/
 namespace Crypto.ARM64.Imported
 

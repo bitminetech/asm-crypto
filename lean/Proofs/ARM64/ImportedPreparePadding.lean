@@ -5,8 +5,7 @@ import Proofs.ARM64.ImportedPaddingSuffix
 Complete recorded padding path: zeroing, remainder setup, tail copy, marker,
 block-count selection and big-endian length store. Every padding byte is proved
 for every 64-bit count, with outside-cell, permission and modeled-state frames.
-The FIPS domain additionally requires count < 2^61. Reference padding equality,
-fetched execution and whole-call equal remain separate obligations.
+The FIPS domain additionally requires count < 2^61.
 -/
 namespace Crypto.ARM64.Imported
 

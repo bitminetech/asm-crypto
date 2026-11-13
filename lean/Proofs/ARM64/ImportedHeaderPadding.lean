@@ -4,8 +4,7 @@ import Proofs.ARM64.ImportedPaddingReference
 /-!
 The recorded header decoder and complete padding path compose from actual
 entry memory. The output padding is the pinned FIPS padded-byte tail and all
-needed registers, frame and permissions are retained. Independent caller-layout
-extents, hash-body composition, fetched execution and full equal are separate.
+needed registers, frame and permissions are retained for whole-call composition.
 -/
 namespace Crypto.ARM64.Imported
 

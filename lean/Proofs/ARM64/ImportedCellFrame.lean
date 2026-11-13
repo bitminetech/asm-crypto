@@ -4,7 +4,6 @@ import Proofs.ARM64.ImportedMemoryRange
 Transport word values and four-byte read/write permissions across exact cell
 frames. Hash slots at stack offsets 256..287 lie outside the schedule workspace,
 so the input/schedule loop frames preserve their values and permissions.
-These layout helpers do not establish caller allocation or full-call safety.
 -/
 namespace Crypto.ARM64.Imported
 

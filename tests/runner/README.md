@@ -31,5 +31,5 @@ The runner maps the large messages instead of storing them: it maps one 4 MiB bl
 - When every file runs, the runner prints `FUNCTION crypto_sha256 PASS` or `FUNCTION crypto_sha256 FAIL`.
 - CI runs `tick_tables.py` after the tests of all 7 targets.
 - An OS cell gets ✅ when the runner of that target printed `PASS`.
-- The `equal` cells stay empty: the supporting proof checks are not a checked `equal` claim.
+- ARM64 `equal` gets ✅ when its checked receipt matches the current sources and artifacts and vectors pass on all three ARM64 OS builds. Other ISA proof cells remain empty.
 - On a push to `main`, CI commits the tables when they change.

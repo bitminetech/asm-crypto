@@ -7,7 +7,6 @@ Fetched path certificates for the complete SHA-256 block phases and digest
 return. The initial conditions match the existing native functional body
 proof. Loop prefix invariants identify the actual intermediate states, source
 permissions and PCs; no instruction is replaced by a cryptographic summary.
-The complete architecture equal baseline is a separate obligation.
 -/
 namespace Crypto.ARM64.Imported
 

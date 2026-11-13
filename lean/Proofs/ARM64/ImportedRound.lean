@@ -9,8 +9,7 @@ The imported memory permissions and SP alignment checks remain active.
 
 `round_frame` preserves all state other than general registers and PC, preserves
 X0–X6 and X18–X30, and advances PC by 120. X7–X17 are the fragment's working and
-scratch registers. Instruction fetching, loop control, whole-call safety,
-confidentiality and the complete `equal` baseline are separate obligations.
+scratch registers. These results supply the round computation and state frame for loop composition.
 
 The closed decoder table below is proof support: Lean's kernel checks it against
 both the recorded words and the unchanged imported decoder. It is not an assumed

@@ -6,8 +6,6 @@ Composition of both recorded block phases and the final digest/return path.
 The stored digest is the imported FIPS compression fold over the original full
 blocks and the original private padding blocks. The proof retains the modeled
 state/ABI frame, zero status, restored SP and original link-register return.
-Entry/preparation, reference byte-array fold, fetched execution, access/trace
-bounds and the full architecture equal baseline remain separate obligations.
 -/
 namespace Crypto.ARM64.Imported
 

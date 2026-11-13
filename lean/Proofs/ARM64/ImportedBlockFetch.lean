@@ -5,8 +5,7 @@ Fetched control-flow certificates for the recorded SHA-256 compression path.
 Each span uses the imported instruction model and its exact image offset;
 loop PCs come from the existing instruction-execution invariants. Code-list
 casts remain explicit to avoid reducing an entire concrete trace during type
-checking. These certificates are auxiliary to the full architecture equal
-contract and make no independent entry/baseline claim.
+checking. These certificates support whole-call path composition.
 -/
 namespace Crypto.ARM64.Imported
 

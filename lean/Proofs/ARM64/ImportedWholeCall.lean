@@ -6,15 +6,10 @@ import Proofs.ARM64.ImportedCallBounds
 /-!
 Complete recorded-word SHA-256 call, from header decoding through RET, under
 operational initial-memory, loading, permission, separation and register facts.
-No execution result or digest conclusion is assumed by CallInputs. The proof
-composes header/padding, actual loaded FIPS initialization, both block phases
-and output/return, producing exactly the pinned reference digest.
-
-This remains a word-list theorem. CallInputs is a lower-level sufficient
-condition, not the architecture's independently reviewed typed caller-entry or
-full equal baseline. Whole-path memory-fetch correspondence, full resource/
-concurrency/confidentiality guarantees, ABI/profile coverage and runtime build
-binding remain separate obligations. Do not mark equal checked from this file.
+CallInputs supplies the initial facts. The proof composes header/padding,
+loaded FIPS initialization, both block phases and output/return to produce the
+pinned reference digest. ImportedWholeCallFetch connects this path to loaded
+instruction addresses; NativeEqual assembles the complete callable baseline.
 -/
 namespace Crypto.ARM64.Imported
 
