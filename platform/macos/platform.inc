@@ -51,3 +51,46 @@ _\name:
 
 .macro UNWIND_END_EPILOGUE
 .endm
+
+/* A local function: unwind data, no export. */
+.macro LOCAL_FUNCTION name
+    .text
+    .p2align 4
+\name:
+    .cfi_startproc
+.endm
+
+/* Call a global function: of this library, or of a dependency. Mach-O adds a leading underscore. */
+.macro CALL_GLOBAL name
+.ifdef ISA_ARM64
+    bl      _\name
+.else
+    call    _\name
+.endif
+.endm
+
+/* ARM64 frame records and saved register pairs (DWARF CFI). */
+.macro UNWIND_SAVE_FPLR_X bytes
+    .cfi_def_cfa_offset \bytes
+    .cfi_offset x29, -(\bytes)
+    .cfi_offset x30, 8 - (\bytes)
+.endm
+
+.macro UNWIND_SET_FP
+.endm
+
+.macro UNWIND_SAVE_REGP first, second, offset, bytes
+    .cfi_offset \first, \offset - (\bytes)
+    .cfi_offset \second, \offset + 8 - (\bytes)
+.endm
+
+.macro UNWIND_RESTORE_REGP first, second, offset
+    .cfi_restore \first
+    .cfi_restore \second
+.endm
+
+.macro UNWIND_RESTORE_FPLR_X bytes
+    .cfi_restore x29
+    .cfi_restore x30
+    .cfi_def_cfa_offset 0
+.endm

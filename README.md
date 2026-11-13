@@ -2,14 +2,27 @@
 
 Cryptographic primitives for Ethereum, in assembly.
 
-Standard: [asm-standard@90ddb72](https://github.com/bitminetech/asm-standard/blob/90ddb728ec7070b9e1ce4dab44dd48050c3464fd/ARCHITECTURE.md)
+SHA-256 for SSZ, and the primitives of discv5 and ENR: Keccak-256, HMAC and HKDF with SHA-256, AES-128 in CTR and GCM, and secp256k1.
+
+Standard: [asm-standard@2a19d3f](https://github.com/bitminetech/asm-standard/blob/2a19d3f7fa737af1c01720b6e891703e53a682aa/ARCHITECTURE.md)
 
 ## Reference
 
 | File | Covers |
 |---|---|
 | [docs/reference/sha-256.md](docs/reference/sha-256.md) | SHA-256 |
-| [include/crypto.inc](include/crypto.inc) | Constants |
+| [docs/reference/keccak-256.md](docs/reference/keccak-256.md) | Keccak-256 |
+| [docs/reference/hmac.md](docs/reference/hmac.md) | HMAC-SHA-256 |
+| [docs/reference/hkdf.md](docs/reference/hkdf.md) | HKDF-SHA-256 |
+| [docs/reference/aes.md](docs/reference/aes.md) | AES-128 |
+| [docs/reference/ctr.md](docs/reference/ctr.md) | AES-128-CTR |
+| [docs/reference/gcm.md](docs/reference/gcm.md) | AES-128-GCM |
+| [docs/reference/secp256k1.md](docs/reference/secp256k1.md) | secp256k1 |
+| [include/crypto.inc](include/crypto.inc) | Constants: shared, SHA-256 |
+| [include/keccak.inc](include/keccak.inc) | Constants: Keccak-256 |
+| [include/hmac.inc](include/hmac.inc) | Constants: HMAC and HKDF |
+| [include/aes.inc](include/aes.inc) | Constants: AES, CTR and GCM |
+| [include/secp256k1.inc](include/secp256k1.inc) | Constants: secp256k1 |
 
 ## Targets
 
@@ -52,7 +65,7 @@ Standard: [asm-standard@90ddb72](https://github.com/bitminetech/asm-standard/blo
 
 | Item | Value |
 |---|---|
-| Stack per call | At most 1024 bytes, callees included |
+| Stack per call | At most 4096 bytes, callees included |
 
 ## Lean
 

@@ -17,7 +17,8 @@ Checks on the library archive of each of the 7 targets:
 - Names: every function starts with the library name.
 - Entries: every function in the archive has a documentation entry, and
   every documented function is in the archive.
-- Imports: every undefined symbol is a declared dependency function.
+- Imports: every symbol that no object of the archive defines is a
+  declared dependency function.
 - Unwind: every function has unwind data that starts at its first byte.
 
 Checks on the instructions, once for each ISA, on its Linux object. The core
@@ -30,13 +31,18 @@ uses the same instruction sequence on every OS (section 7).
   it starts with "stp x29, x30, [sp, #-N]!" and "mov x29, sp", and writes
   x29 nowhere else but its epilogue. A leaf does not touch x29 or x30.
 
+The archive of each target holds one object for each core file; the checks
+read each object on its own, after llvm-ar extracts them.
+
 It writes build/linux-<ISA>/calls.txt: one "caller callee" line for each call.
 """
 
 import glob
+import os
 import re
 import subprocess
 import sys
+import tempfile
 
 TARGETS = [
     ("linux", "x86_64"),
@@ -112,10 +118,16 @@ def is_temporary(name):
     return name.startswith(".L") or name.startswith("ltmp")
 
 
-def symbols(archive, macos):
+def members(archive, directory):
+    """Extract the objects of archive into directory. Returns their paths."""
+    run("llvm-ar", "x", "--output", directory, archive)
+    return sorted(os.path.join(directory, name) for name in run("llvm-ar", "t", archive).split())
+
+
+def symbols(obj, macos):
     """Defined code symbols as {name: (address, global)}, and undefined names."""
     defined, undefined = {}, set()
-    for line in run("llvm-nm", "--no-sort", archive).splitlines():
+    for line in run("llvm-nm", "--no-sort", obj).splitlines():
         parts = line.split()
         if len(parts) == 2 and parts[0] == "U":
             name = parts[1]
@@ -128,17 +140,17 @@ def symbols(archive, macos):
     return defined, undefined
 
 
-def unwind_starts(archive, os_name):
+def unwind_starts(obj, os_name):
     """Where unwind data starts: addresses, and on Windows function names."""
     starts = set()
     if os_name == "windows":
         # x64 prints StartAddress, ARM64 prints Function. Both name the function.
-        text = run("llvm-readobj", "--unwind", archive)
+        text = run("llvm-readobj", "--unwind", obj)
         return set(re.findall(r"(?:StartAddress|Function): (\S+) \(", text))
-    frames = run("llvm-objdump", "--dwarf=frames", archive)
+    frames = run("llvm-objdump", "--dwarf=frames", obj)
     starts |= {int(a, 16) for a in re.findall(r"FDE cie=\S+ pc=([0-9a-f]+)\.\.\.", frames)}
     if os_name == "macos":
-        info = run("llvm-objdump", "--unwind-info", archive)
+        info = run("llvm-objdump", "--unwind-info", obj)
         starts |= {int(a, 16) for a in re.findall(r"start:\s+(0x[0-9a-f]+)", info)}
     return starts
 
@@ -147,7 +159,19 @@ def check_target(os_name, isa, library, roles, deps):
     target = f"{os_name}-{isa}"
     archive = f"build/{target}/libasm-{library}.a"
     macos = os_name == "macos"
-    defined, undefined = symbols(archive, macos)
+    defined, undefined = {}, set()
+    with tempfile.TemporaryDirectory() as directory:
+        for obj in members(archive, directory):
+            names, imports = symbols(obj, macos)
+            starts = unwind_starts(obj, os_name)
+            for name, (address, _) in sorted(names.items()):
+                if name in defined:
+                    fail(target, f"function {name} is in two objects")
+                if address not in starts and name not in starts:
+                    fail(target, f"function {name} has no unwind data at its start")
+            defined.update(names)
+            undefined |= imports
+    undefined -= set(defined)
 
     exported = {n for n, (_, g) in defined.items() if g}
     l2 = {n for n, r in roles.items() if r == "L2"}
@@ -164,11 +188,6 @@ def check_target(os_name, isa, library, roles, deps):
         fail(target, f"documented function {name} is not in the library")
     for name in sorted(undefined - deps):
         fail(target, f"uses {name}, which is not a declared dependency function")
-
-    starts = unwind_starts(archive, os_name)
-    for name, (address, _) in sorted(defined.items()):
-        if address not in starts and name not in starts:
-            fail(target, f"function {name} has no unwind data at its start")
 
 
 # ---------------------------------------------------------------- Instructions
@@ -223,11 +242,17 @@ def target_address(operands):
 
 def check_instructions(isa, library, roles, deps):
     target = f"linux-{isa}"
-    obj = f"build/{target}/libasm-{library}.a"
-    members = run("llvm-ar", "t", obj).split()
-    if len(members) != 1:
-        fail(target, f"the archive has {len(members)} objects; check.py reads one")
-        return
+    calls = []
+    with tempfile.TemporaryDirectory() as directory:
+        for obj in members(f"build/{target}/libasm-{library}.a", directory):
+            check_object(target, isa, obj, roles, deps, calls)
+    with open(f"build/{target}/calls.txt", "w") as f:
+        for caller, callee in sorted(set(calls)):
+            f.write(f"{caller} {callee}\n")
+
+
+def check_object(target, isa, obj, roles, deps, calls):
+    """The instruction checks on one object. Appends its calls to calls."""
     if isa == "riscv64":
         # RISC-V branches carry relocations to .Ltmp labels: resolve them by address.
         addresses = {}
@@ -251,7 +276,6 @@ def check_instructions(isa, library, roles, deps):
         ranges[name] = (start, ends[start])
         functions[name] = [i for i in functions[name] if i[0] < ends[start]]
     start_of = {start: name for start, name in starts}
-    calls = []
 
     for name, code in functions.items():
         lo, hi = ranges[name]
@@ -305,10 +329,6 @@ def check_instructions(isa, library, roles, deps):
 
         if isa == "arm64":
             check_frame(target, name, code, makes_calls)
-
-    with open(f"build/{target}/calls.txt", "w") as f:
-        for caller, callee in sorted(set(calls)):
-            f.write(f"{caller} {callee}\n")
 
 
 FRAME_WRITES = (

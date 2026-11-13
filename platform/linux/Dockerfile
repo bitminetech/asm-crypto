@@ -47,5 +47,10 @@ RUN set -eu; \
     rm /tmp/mingw.tar.xz; \
     /opt/llvm-mingw/bin/x86_64-w64-mingw32-clang --version
 
+# Tools for tests/generator/run.sh, which builds libsecp256k1 and installs
+# the pinned Python packages of tests/generator/requirements.txt.
+RUN apt-get update && apt-get install -y --no-install-recommends git python3-venv cmake make gcc g++ \
+    && rm -rf /var/lib/apt/lists/*
+
 ENV PATH=/opt/llvm/bin:$PATH
 WORKDIR /src

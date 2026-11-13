@@ -16,7 +16,11 @@ case "$isa" in
 esac
 
 mkdir -p "$out"
-clang --target=$target -I"$root/include" -I"$root/platform/macos" \
-    -c "$root/asm/core/$isa/sha256.s" -o "$out/sha256.o"
+objects=""
+for name in sha256 keccak hmac aes secp256k1; do
+    clang --target=$target -I"$root/include" -I"$root/platform/macos" \
+        -c "$root/asm/core/$isa/$name.s" -o "$out/$name.o"
+    objects="$objects $out/$name.o"
+done
 rm -f "$out/libasm-crypto.a"
-llvm-ar --format=darwin rcs "$out/libasm-crypto.a" "$out/sha256.o"
+llvm-ar --format=darwin rcs "$out/libasm-crypto.a" $objects

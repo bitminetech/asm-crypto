@@ -15,10 +15,14 @@ case "$isa" in
 esac
 
 mkdir -p "$out"
-clang --target=$target $march -I"$root/include" -I"$root/platform/windows" \
-    -c "$root/asm/core/$isa/sha256.s" -o "$out/sha256.o"
+objects=""
+for name in sha256 keccak hmac aes secp256k1; do
+    clang --target=$target $march -I"$root/include" -I"$root/platform/windows" \
+        -c "$root/asm/core/$isa/$name.s" -o "$out/$name.o"
+    objects="$objects $out/$name.o"
+done
 rm -f "$out/libasm-crypto.a"
-llvm-ar rcs "$out/libasm-crypto.a" "$out/sha256.o"
+llvm-ar rcs "$out/libasm-crypto.a" $objects
 
 /opt/llvm-mingw/bin/$mingw-clang $march -std=c11 -O2 -Wall -Wextra -Werror -static \
     "$root/tests/runner/runner.c" -I"$root/platform/windows" "$root/tests/runner/abi_$isa.s" "$out/libasm-crypto.a" -o "$out/runner.exe"

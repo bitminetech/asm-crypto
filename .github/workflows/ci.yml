@@ -91,6 +91,8 @@ jobs:
           fi
       - name: Generate vectors
         run: python3 -I tests/generator/generate.py "$RUNNER_TEMP/vectors"
+      - name: Generate Keccak-256, HMAC, HKDF, AES and secp256k1 vectors
+        run: tests/generator/run.sh "$RUNNER_TEMP/vectors"
       - name: Build and check all targets
         run: |
           docker build -t asm-crypto-build -f platform/linux/Dockerfile platform/linux

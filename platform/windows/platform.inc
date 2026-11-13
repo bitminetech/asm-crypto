@@ -55,3 +55,45 @@
     .seh_endepilogue
 .endif
 .endm
+
+/* A local function: an SEH unwind record, no export. */
+.macro LOCAL_FUNCTION name
+    .text
+    .def \name
+    .scl 3
+    .type 32
+    .endef
+    .p2align 4
+\name:
+    .seh_proc \name
+.endm
+
+/* Call a global function: of this library, or of a dependency. */
+.macro CALL_GLOBAL name
+.ifdef ISA_ARM64
+    bl      \name
+.else
+    call    \name
+.endif
+.endm
+
+/* ARM64 frame records and saved register pairs (SEH unwind codes). */
+.macro UNWIND_SAVE_FPLR_X bytes
+    .seh_save_fplr_x \bytes
+.endm
+
+.macro UNWIND_SET_FP
+    .seh_set_fp
+.endm
+
+.macro UNWIND_SAVE_REGP first, second, offset, bytes
+    .seh_save_regp \first, \offset
+.endm
+
+.macro UNWIND_RESTORE_REGP first, second, offset
+    .seh_save_regp \first, \offset
+.endm
+
+.macro UNWIND_RESTORE_FPLR_X bytes
+    .seh_save_fplr_x \bytes
+.endm

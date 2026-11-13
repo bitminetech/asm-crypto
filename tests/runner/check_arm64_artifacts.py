@@ -251,9 +251,15 @@ def text_bytes(data):
     return coff(data)
 
 
+# The objects of the library archive, one for each core file. Only sha256.o is
+# compared with the recorded program; the others must be present once each.
+CORE_OBJECTS = ("sha256.o", "keccak.o", "hmac.o", "aes.o", "secp256k1.o")
+
+
 def archive_object(data):
+    """The sha256.o member of the archive, after checking the member list."""
     require(data.startswith(b"!<arch>\n"), "expected static archive")
-    offset, members = 8, []
+    offset, members = 8, {}
     while offset < len(data):
         header = chunk(data, offset, 60)
         require(header[58:] == b"`\n", "invalid archive header")
@@ -265,11 +271,12 @@ def archive_object(data):
             name = chunk(member, 0, name_bytes).rstrip(b"\0").decode("ascii")
             member = member[name_bytes:]
         if name not in ("/", "//", "/SYM64/", "__.SYMDEF", "__.SYMDEF SORTED"):
-            require(name.rstrip("/") == "sha256.o", "unexpected archive member")
-            members.append(member)
+            name = name.rstrip("/")
+            require(name in CORE_OBJECTS and name not in members, "unexpected archive member")
+            members[name] = member
         offset += 60 + size + size % 2
-    require(offset == len(data) and len(members) == 1, "expected exactly one archive object")
-    return members[0]
+    require(offset == len(data) and set(members) == set(CORE_OBJECTS), "expected each core object once")
+    return members["sha256.o"]
 
 
 def check(root, expected):

@@ -15,10 +15,14 @@ case "$isa" in
 esac
 
 mkdir -p "$out"
-clang --target=$target $march -I"$root/include" -I"$root/platform/linux" \
-    -c "$root/asm/core/$isa/sha256.s" -o "$out/sha256.o"
+objects=""
+for name in sha256 keccak hmac aes secp256k1; do
+    clang --target=$target $march -I"$root/include" -I"$root/platform/linux" \
+        -c "$root/asm/core/$isa/$name.s" -o "$out/$name.o"
+    objects="$objects $out/$name.o"
+done
 rm -f "$out/libasm-crypto.a"
-llvm-ar rcs "$out/libasm-crypto.a" "$out/sha256.o"
+llvm-ar rcs "$out/libasm-crypto.a" $objects
 
 # Test runner (C), linked statically so QEMU user mode needs no target libraries.
 clang --target=$target $march -std=c11 -O2 -Wall -Wextra -Werror -static -fuse-ld=lld \

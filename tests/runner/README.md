@@ -7,6 +7,10 @@ python3 -I tests/generator/generate.py ~/.cache/asm-crypto/vectors
 ```
 
 ```bash
+tests/generator/run.sh ~/.cache/asm-crypto/vectors
+```
+
+```bash
 tests/runner/docker.sh ~/.cache/asm-crypto/vectors
 ```
 
@@ -19,21 +23,23 @@ tests/runner/macos.sh ~/.cache/asm-crypto/vectors
 | `docker.sh` | Builds the Docker image, builds the library for all 7 targets into `build/`, and runs the vectors for Linux x86-64, ARM64 and RISC-V. ISAs other than the host's run under QEMU user mode. |
 | `macos.sh` | Links the runner on a Mac against the library that `docker.sh` built, and runs the vectors. |
 | `tick_tables.py` | Writes the tick table of each function into its document, from the results of every target. |
-| `abi_x86_64.s`, `abi_arm64.s`, `abi_riscv64.s` | `abi_call`, through which the runner calls `crypto_sha256`. Test code in assembly. |
+| `abi_x86_64.s`, `abi_arm64.s`, `abi_riscv64.s` | `abi_call`, through which the runner calls every library function. Test code in assembly. |
 
 Name vector files after the folder to run only those files, for example `tests/runner/docker.sh DIR cavp-short.bin`. With no names, every file runs, including the 1 to 8 GiB messages in `acvp-ldt.bin`.
 
 [.github/workflows/ci.yml](../../.github/workflows/ci.yml) runs every file on all 7 targets: Linux on GitHub's x64 and ARM64 runners (RISC-V under QEMU), Windows on `windows-2025` and `windows-11-arm`, and macOS on `macos-15-intel` and `macos-15`.
 
+Inputs sit at an offset with unused room after them, and must stay unchanged. Fixed size outputs have guard bytes on both sides. Each `ByteList` output and scratch buffer gets exactly the size the function needs, with guard bytes after it; the runner also calls with one byte less, which must give `CRYPTO_BUFFER_TOO_SMALL`.
+
 The runner maps the large messages instead of storing them: it maps one 4 MiB block of repeated content again and again, so an 8 GiB message needs 8 GiB of address space but only 4 MiB of memory.
 
 ## ABI and stack check
 
-- The runner calls `crypto_sha256` through `abi_call`, in `abi_x86_64.s`, `abi_arm64.s` and `abi_riscv64.s`. It is test code in assembly.
+- The runner calls every L2 function through `abi_call`, in `abi_x86_64.s`, `abi_arm64.s` and `abi_riscv64.s`. It is test code in assembly.
 - Before the call, `abi_call` sets each register that the callee must keep to a known value, and paints the stack below the call.
 - After the call, it records the status, the kept state that changed, and the bytes of stack the call used.
 - It then puts the stack pointer, the flags and the floating point control state back.
-- The runner prints the most stack the function used, and fails when it is over the README cap of 1024 bytes, or when kept state changed.
+- The runner prints the most stack each function used, and fails when it is over the README cap of 4096 bytes, or when kept state changed.
 
 | ISA | Kept state it checks |
 |---|---|
@@ -61,7 +67,7 @@ The record that `abi_call` reads and writes:
 
 ## Tick tables
 
-- When every file runs, the runner prints `FUNCTION crypto_sha256 PASS` or `FUNCTION crypto_sha256 FAIL`.
+- When every file runs, the runner prints `FUNCTION <name> PASS` or `FUNCTION <name> FAIL` for each L2 function.
 - CI runs `tick_tables.py` after the tests of all 7 targets.
 - An OS cell gets ✅ when the runner of that target printed `PASS`.
 - ARM64 `equal` gets ✅ when its checked receipt matches the current sources and artifacts and vectors pass on all three ARM64 OS builds. Other ISA proof cells remain empty.
