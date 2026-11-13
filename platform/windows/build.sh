@@ -21,4 +21,4 @@ rm -f "$out/libasm-crypto.a"
 llvm-ar rcs "$out/libasm-crypto.a" "$out/sha256.o"
 
 /opt/llvm-mingw/bin/$mingw-clang $march -std=c11 -O2 -Wall -Wextra -Werror -static \
-    "$root/tests/runner/runner.c" "$out/libasm-crypto.a" -o "$out/runner.exe"
+    "$root/tests/runner/runner.c" -I"$root/platform/windows" "$root/tests/runner/abi_$isa.s" "$out/libasm-crypto.a" -o "$out/runner.exe"

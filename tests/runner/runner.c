@@ -11,6 +11,10 @@
  * Besides the digest, each message case checks that the function returns 0,
  * reads the message from its offset, ignores the unused room, leaves the
  * message unchanged and writes nothing outside the 32 digest bytes.
+ *
+ * Every call goes through abi_call (tests/runner/abi_<ISA>.s). The runner
+ * prints the most stack the function used, and fails when a call uses more
+ * than the README cap or changes state that the ABI says it must keep.
  */
 #define _GNU_SOURCE
 #include <stdint.h>
@@ -33,6 +37,37 @@
 #define CRYPTO_ABI
 #endif
 CRYPTO_ABI uint64_t crypto_sha256(const void *message, void *digest);
+
+/*
+ * ABI and stack check. abi_call sets every register the callee must keep to a
+ * known value and paints PAINT_BYTES of stack below the call. Afterwards it
+ * reports the kept state that changed, and the bytes of stack the call used,
+ * its return address included on x86-64. The layout of its record is in
+ * tests/runner/README.md.
+ */
+#define STACK_CAP 1024 /* README: stack per call */
+#define PAINT_BYTES (STACK_CAP + 1024)
+
+typedef struct {
+    uint64_t fn, arg[5], paint, status, fault, stack, scratch[4];
+} abi_ctx;
+CRYPTO_ABI void abi_call(abi_ctx *ctx);
+
+static uint64_t stack_peak, abi_fault;
+
+/* crypto_sha256(message, digest), through abi_call. */
+static uint64_t sha256_checked(const void *message, void *digest) {
+    abi_ctx c;
+    memset(&c, 0, sizeof c);
+    c.fn = (uint64_t)(uintptr_t)crypto_sha256;
+    c.arg[0] = (uint64_t)(uintptr_t)message;
+    c.arg[1] = (uint64_t)(uintptr_t)digest;
+    c.paint = PAINT_BYTES;
+    abi_call(&c);
+    if (c.stack > stack_peak) stack_peak = c.stack;
+    abi_fault |= c.fault;
+    return c.status;
+}
 
 #define CRYPTO_OK 0
 #define BYTES_FIXED 24
@@ -93,7 +128,7 @@ static int hash_checked(const uint8_t *msg, uint64_t len, uint8_t md[DIGEST]) {
     uint64_t out[6];                 /* 8 guard bytes, 32 digest bytes, 8 guard bytes */
     uint8_t *o = (uint8_t *)out;
     memset(o, 0x5A, sizeof out);
-    uint64_t status = crypto_sha256(buf, o + 8);
+    uint64_t status = sha256_checked(buf, o + 8);
 
     int ok = status == CRYPTO_OK && memcmp(buf, before, (size_t)size) == 0;
     for (int i = 0; i < 8; i++) ok &= o[i] == 0x5A && o[40 + i] == 0x5A;
@@ -262,7 +297,7 @@ static int run_large(cursor *c, uint64_t n) {
         wr64(base + 8, CHUNK);
         wr64(base + 16, full);
         uint64_t out[4];
-        uint64_t status = crypto_sha256(base, out);
+        uint64_t status = sha256_checked(base, out);
         if (status != CRYPTO_OK || memcmp(out, want, DIGEST) != 0) {
             fprintf(stderr, "%s: case %llu (%llu bytes) fails\n", c->name, (unsigned long long)k,
                     (unsigned long long)full);
@@ -331,10 +366,18 @@ int main(int argc, char **argv) {
     if (argc == 2) {
         for (size_t i = 0; i < sizeof ALL_FILES / sizeof ALL_FILES[0]; i++)
             failed |= run_file(argv[1], ALL_FILES[i]);
-        /* The verdict for the function, after every file ran. */
-        printf("FUNCTION crypto_sha256 %s\n", failed ? "FAIL" : "PASS");
     } else {
         for (int i = 2; i < argc; i++) failed |= run_file(argv[1], argv[i]);
     }
+    int over = stack_peak > STACK_CAP;
+    printf("%s stack crypto_sha256: %llu bytes, cap %d\n", over ? "FAIL" : "PASS", (unsigned long long)stack_peak,
+           STACK_CAP);
+    if (abi_fault)
+        printf("FAIL abi crypto_sha256: kept state changed, mask 0x%016llx\n", (unsigned long long)abi_fault);
+    else
+        printf("PASS abi crypto_sha256: kept registers, stack pointer and flags\n");
+    failed |= over || abi_fault;
+    /* The verdict for the function, after every file ran. */
+    if (argc == 2) printf("FUNCTION crypto_sha256 %s\n", failed ? "FAIL" : "PASS");
     return failed;
 }
