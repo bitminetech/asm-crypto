@@ -331,6 +331,8 @@ int main(int argc, char **argv) {
     if (argc == 2) {
         for (size_t i = 0; i < sizeof ALL_FILES / sizeof ALL_FILES[0]; i++)
             failed |= run_file(argv[1], ALL_FILES[i]);
+        /* The verdict for the function, after every file ran. */
+        printf("FUNCTION crypto_sha256 %s\n", failed ? "FAIL" : "PASS");
     } else {
         for (int i = 2; i < argc; i++) failed |= run_file(argv[1], argv[i]);
     }
