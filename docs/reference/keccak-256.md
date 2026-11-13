@@ -95,3 +95,11 @@ A Keccak-256 result.
 ## Results
 
 <!-- CI generates the tick table for each function here. -->
+
+### `crypto_keccak256`
+
+| ISA | Linux | Windows | macOS | `equal` |
+|---|---|---|---|---|
+| x86-64 | ✅ | ✅ | ✅ |  |
+| ARM64 | ✅ | ✅ | ✅ |  |
+| RISC-V | ✅ |  |  |  |
