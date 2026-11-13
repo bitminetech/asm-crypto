@@ -1,6 +1,6 @@
 #!/bin/sh
-# Generate the Keccak-256, HMAC, HKDF, AES and secp256k1 vectors inside the
-# image from platform/linux/Dockerfile.
+# Generate the Keccak-256, HMAC, HKDF, AES, secp256k1, ChaCha20-Poly1305,
+# X25519 and P-256 vectors inside the image from platform/linux/Dockerfile.
 # Usage: tests/generator/run.sh OUT_DIR    (OUT_DIR must be outside this repo)
 #
 # OUT_DIR keeps the downloads (sources/), the libsecp256k1 build and the

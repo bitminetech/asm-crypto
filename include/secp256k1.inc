@@ -3,9 +3,7 @@
  * The requirement entry for each function is in docs/reference/secp256k1.md.
  */
 
-/* Status codes (ARCHITECTURE.md section 6). */
-.set CRYPTO_INVALID_PRIVATE_KEY, 4      /* the private key is 0, or n or more */
-.set CRYPTO_INVALID_PUBLIC_KEY, 5       /* the public key is not a compressed point on the curve */
+/* Status codes: CRYPTO_INVALID_PRIVATE_KEY and CRYPTO_INVALID_PUBLIC_KEY, in crypto.inc. */
 
 .set CRYPTO_SECP256K1_PRIVATE_KEY_SIZE, 32
 .set CRYPTO_SECP256K1_PUBLIC_KEY_SIZE, 33   /* 0x02 or 0x03 for even or odd y, then x */

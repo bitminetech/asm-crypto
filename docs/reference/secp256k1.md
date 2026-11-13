@@ -803,12 +803,12 @@ A modulus m with its Montgomery constants. The library holds the records for p a
 ## Constant `CRYPTO_INVALID_PRIVATE_KEY`
 
 - Value: 4.
-- Status when a private key is 0, or n or more.
+- Status when a private key is 0, or n or more, with n the order of the curve.
 
 ## Constant `CRYPTO_INVALID_PUBLIC_KEY`
 
 - Value: 5.
-- Status when a public key is not a valid compressed point.
+- Status when a public key is not a valid point in the form the function takes: compressed for secp256k1, uncompressed for P-256.
 
 ## Test vectors
 

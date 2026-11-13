@@ -7,6 +7,8 @@
 /* Status codes (ARCHITECTURE.md section 6). */
 .set CRYPTO_OK, 0
 .set CRYPTO_BUFFER_TOO_SMALL, 1
+.set CRYPTO_INVALID_PRIVATE_KEY, 4      /* secp256k1 and P-256: the private key is 0, or n or more */
+.set CRYPTO_INVALID_PUBLIC_KEY, 5       /* secp256k1 and P-256: the public key is not a point of the curve in the form the function takes */
 
 /*
  * Byte list value (ARCHITECTURE.md section 6, a standalone list with one field).

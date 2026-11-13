@@ -1,6 +1,6 @@
 """
 Write the vector files for Keccak-256, HMAC-SHA-256, HKDF-SHA-256, AES-128
-(CTR and GCM) and secp256k1.
+(CTR and GCM), secp256k1, ChaCha20-Poly1305, X25519 and P-256.
 
 Usage: python3 -I primitives.py OUT_DIR
 Environment: SECP256K1_LIBRARY, the libsecp256k1 shared library that
@@ -8,9 +8,10 @@ run.sh builds at the pinned commit.
 
 Expected results:
 - Keccak-256: the Keccak team's CompactFIPS202.py, at the pinned XKCP commit.
-- HMAC, HKDF, AES: the pinned `cryptography` package (OpenSSL).
+- HMAC, HKDF, AES, ChaCha20-Poly1305, X25519, P-256: the pinned
+  `cryptography` package (OpenSSL); P-256 signatures with its RFC 6979 nonces.
 - secp256k1: libsecp256k1 at the pinned commit, through its C interface.
-- Official vectors (NIST, Wycheproof, devp2p) carry their own results. The
+- Official vectors (NIST, RFC, Wycheproof, devp2p) carry their own results. The
   script checks that the reference agrees with each one it uses.
 The file format is in README.md.
 """
@@ -29,14 +30,17 @@ import sys
 import urllib.request
 import zipfile
 
-from cryptography.hazmat.primitives import hashes, hmac as chmac
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import hashes, hmac as chmac, poly1305
+from cryptography.hazmat.primitives.asymmetric import ec, utils as ecutils, x25519
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM, ChaCha20Poly1305
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF, HKDFExpand
 
 WYCHEPROOF = "https://raw.githubusercontent.com/C2SP/wycheproof/65ca494727a52944c204441c860b039e6786b99b/testvectors_v1/"
 DEVP2P = "https://raw.githubusercontent.com/ethereum/devp2p/88f1c80800d622cc3a542a2125bbe33cc18c9f9c/"
 NIST = "https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/"
+RFC = "https://www.rfc-editor.org/rfc/"
 SOURCES = {
     "CompactFIPS202.py": ("https://raw.githubusercontent.com/XKCP/XKCP/d20c8fcaecc543f816a0721d0dfc13b4cf27c14d/Standalone/CompactFIPS202/Python/CompactFIPS202.py",
                           "0b731097a4dfcf33fdaf395ac0bee81c6a6ebff2975590c35ad8cd8d6f3c204f"),
@@ -50,13 +54,28 @@ SOURCES = {
     "enr.md": (DEVP2P + "enr.md", "29260bceb96e289140dc08c1336e1f26e070613664a7ec6db72fffbfb85cc58d"),
     "KAT_AES.zip": (NIST + "aes/KAT_AES.zip", "a203b16c9246b2ebae31dee5de21a606be80cf78ceabaca37150236fa098eb60"),
     "gcmtestvectors.zip": (NIST + "mac/gcmtestvectors.zip", "f9fc479e134cde2980b3bb7cddbcb567b2cd96fd753835243ed067699f26a023"),
+    "chacha20_poly1305_test.json": (WYCHEPROOF + "chacha20_poly1305_test.json", "fe61d25f90e1bde4461d00eafe61049e5f29bd999f36b766df9cda90906ad53d"),
+    "x25519_test.json": (WYCHEPROOF + "x25519_test.json", "35c3f5231cf25cc640b524d403461deee9e49441d5d915a3a25b2c8ff5adbe7d"),
+    "ecdsa_secp256r1_sha256_p1363_test.json": (WYCHEPROOF + "ecdsa_secp256r1_sha256_p1363_test.json",
+                                               "c60de693930e386c3a5472d08081623ef8504decc54b38ac01ec6b2a2575c986"),
+    "rfc7748.txt": (RFC + "rfc7748.txt", "279ca0ecc5e92e2962e27b846986aeb74729d9dd34bd4a04a362f80dcb596ad3"),
+    "rfc8439.txt": (RFC + "rfc8439.txt", "25bef70fbf7a07ff45c2fe4cb7c6ce954eac687413d8610603268b4e4415324c"),
+    "rfc6979.txt": (RFC + "rfc6979.txt", "456e8f17558fdbd206f968b96fc6f1b4a71ea331ab30ad17f711ab3adaa7d701"),
+    "186-4ecdsatestvectors.zip": (NIST + "dss/186-4ecdsatestvectors.zip", "fe47cc92b4cee418236125c9ffbcd9bb01c8c34e74a4ba195d954bcb72824752"),
 }
 
-# include/hmac.inc, include/aes.inc and include/secp256k1.inc
+# include/crypto.inc, include/hmac.inc, include/aes.inc, include/chacha20.inc and include/x25519.inc
 OK, HKDF_LENGTH, GCM_FAIL, INVALID_PRIVATE_KEY, INVALID_PUBLIC_KEY = 0, 2, 3, 4, 5
+CHACHA_FAIL, X25519_ZERO = 6, 7
 
 KIND_KECCAK, KIND_HMAC, KIND_HKDF, KIND_CTR, KIND_GCM = 1, 2, 3, 4, 5
 KIND_PUBLIC_KEY, KIND_DECOMPRESS, KIND_ECDH, KIND_SIGN, KIND_VERIFY = 6, 7, 8, 9, 10
+KIND_CHACHA, KIND_X25519, KIND_P256_PUBLIC_KEY, KIND_P256_SIGN, KIND_P256_VERIFY = 11, 12, 13, 14, 15
+KIND_POLY1305 = 16
+
+# P-256 (FIPS 186-5 / SP 800-186): the field prime and the group order.
+P256_P = 2**256 - 2**224 + 2**192 + 2**96 - 1
+P256_N = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551
 
 N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
@@ -297,6 +316,125 @@ def verify_case(f, ref, name, pub, msg, sig, want=None):
     f.add(KIND_VERIFY, name, pub + msg + sig + u64(status) + u64(valid))
 
 
+def chacha_case(f, name, key, nonce, pt, aad, sealed=None, valid=True):
+    """A ChaCha20-Poly1305 case. With valid False, sealed is a tampered input that must fail."""
+    if valid:
+        got = ChaCha20Poly1305(key).encrypt(nonce, pt, aad)
+        if sealed is not None and got != sealed:
+            fail(f"{name}: cryptography does not give the official ChaCha20-Poly1305 output")
+        sealed = got
+    else:
+        try:
+            ChaCha20Poly1305(key).decrypt(nonce, sealed, aad)
+            fail(f"{name}: cryptography accepts a case marked invalid")
+        except Exception as e:
+            if type(e).__name__ != "InvalidTag":
+                raise
+        pt = b""
+    f.add(KIND_CHACHA, name, key + nonce + blob(aad) + blob(pt) + blob(sealed) + u64(OK if valid else CHACHA_FAIL))
+
+
+def poly1305_case(f, name, key, msg, want=None):
+    tag = poly1305.Poly1305.generate_tag(key, msg)
+    if want is not None and tag != want:
+        fail(f"{name}: cryptography does not give the official Poly1305 tag")
+    f.add(KIND_POLY1305, name, key + blob(msg) + tag)
+
+
+def x25519_ref(scalar, u):
+    """(status, result) as crypto_x25519 gives them: X25519_ZERO for an all-zero result."""
+    try:
+        out = x25519.X25519PrivateKey.from_private_bytes(scalar).exchange(x25519.X25519PublicKey.from_public_bytes(u))
+    except ValueError:
+        return X25519_ZERO, None
+    if out == bytes(32):
+        return X25519_ZERO, None
+    return OK, out
+
+
+def x25519_case(f, name, scalar, u, want=None):
+    status, out = x25519_ref(scalar, u)
+    if want is not None and (status, out) != want:
+        fail(f"{name}: cryptography gives {(status, out)}, the official result is {want}")
+    f.add(KIND_X25519, name, scalar + u + u64(status) + (out or bytes(32)))
+    return out
+
+
+class P256:
+    """P-256 through the pinned cryptography package."""
+
+    CURVE = ec.SECP256R1()
+
+    @staticmethod
+    def private(priv):
+        d = int.from_bytes(priv, "big")
+        return ec.derive_private_key(d, P256.CURVE) if 0 < d < P256_N else None
+
+    @staticmethod
+    def public_key(priv):
+        k = P256.private(priv)
+        if k is None:
+            return None
+        nums = k.public_key().public_numbers()
+        return b"\x04" + nums.x.to_bytes(32, "big") + nums.y.to_bytes(32, "big")
+
+    @staticmethod
+    def load(pub):
+        """The public key object of a 65-byte uncompressed point, or None."""
+        if len(pub) != 65 or pub[0] != 4:
+            return None
+        try:
+            return ec.EllipticCurvePublicKey.from_encoded_point(P256.CURVE, pub)
+        except ValueError:
+            return None
+
+    @staticmethod
+    def sign(priv, hash32):
+        k = P256.private(priv)
+        if k is None:
+            return INVALID_PRIVATE_KEY, None
+        der = k.sign(hash32, ec.ECDSA(ecutils.Prehashed(hashes.SHA256()), deterministic_signing=True))
+        r, s = ecutils.decode_dss_signature(der)
+        return OK, r.to_bytes(32, "big") + s.to_bytes(32, "big")
+
+    @staticmethod
+    def verify(pub, hash32, sig64):
+        key = P256.load(pub)
+        if key is None:
+            return INVALID_PUBLIC_KEY, 0
+        r, s = int.from_bytes(sig64[:32], "big"), int.from_bytes(sig64[32:], "big")
+        if not (0 < r < P256_N and 0 < s < P256_N):
+            return OK, 0
+        try:
+            key.verify(ecutils.encode_dss_signature(r, s), hash32, ec.ECDSA(ecutils.Prehashed(hashes.SHA256())))
+            return OK, 1
+        except InvalidSignature:
+            return OK, 0
+
+
+def p256_pub_case(f, name, priv, want=None):
+    pub = P256.public_key(priv)
+    if want is not None and pub != want:
+        fail(f"{name}: cryptography does not give the official public key")
+    f.add(KIND_P256_PUBLIC_KEY, name, priv + u64(OK if pub else INVALID_PRIVATE_KEY) + (pub or bytes(65)))
+    return pub
+
+
+def p256_sign_case(f, name, priv, hash32, want=None):
+    status, sig = P256.sign(priv, hash32)
+    if want is not None and sig != want:
+        fail(f"{name}: cryptography does not give the official signature")
+    f.add(KIND_P256_SIGN, name, priv + hash32 + u64(status) + (sig or bytes(64)))
+    return sig
+
+
+def p256_verify_case(f, name, pub, hash32, sig64, want=None):
+    status, valid = P256.verify(pub, hash32, sig64)
+    if want is not None and (status, valid) != want:
+        fail(f"{name}: cryptography gives {(status, valid)}, the official result is {want}")
+    f.add(KIND_P256_VERIFY, name, pub + hash32 + sig64 + u64(status) + u64(valid))
+
+
 # ---------------------------------------------------------------- Official vectors
 
 
@@ -379,6 +517,168 @@ def rlp_encode_list(items):
         return bytes([0xC0 + len(payload)]) + payload
     n = len(payload).to_bytes((len(payload).bit_length() + 7) // 8, "big")
     return bytes([0xF7 + len(n)]) + n + payload
+
+
+def rfc_section(text, start, end):
+    """The text from the line that starts with start to the line that starts with end."""
+    a = re.search(r"^" + re.escape(start), text, re.M)
+    b = re.search(r"^" + re.escape(end), text[a.end():], re.M)
+    return text[a.start(): a.end() + b.start()]
+
+
+def rfc_dump(section, label):
+    """The bytes of the hex dump after the line with label, in RFC 8439 form:
+    "NNN  hh hh ...  ascii" rows or "hh:hh:..." rows, across page breaks."""
+    lines = section.splitlines()
+    i = next(k for k, line in enumerate(lines) if line.strip() == label)
+    out = bytearray()
+    for line in lines[i + 1:]:
+        t = line.strip()
+        if not t or t.startswith("Nir & Langley") or t.startswith("RFC 8439"):
+            continue
+        m = re.match(r"^\d{3}\s+(.*)$", t)
+        if m:
+            hexpart = re.split(r"\s{2,}", m.group(1))[0]
+            out += bytes(int(h, 16) for h in hexpart.split())
+            continue
+        if re.fullmatch(r"(?:[0-9a-f]{2}:)+(?:[0-9a-f]{2})?:?", t):
+            out += bytes(int(h, 16) for h in t.strip(":").split(":"))
+            continue
+        if re.fullmatch(r"(?:[0-9A-Fa-f]{2} )*[0-9A-Fa-f]{2}", t):
+            out += bytes.fromhex(t)
+            continue
+        break
+    if not out:
+        fail(f"rfc 8439: no bytes after {label!r}")
+    return bytes(out)
+
+
+def p256_sqrt(v):
+    """A square root mod p of v, or None (p = 3 mod 4)."""
+    r = pow(v, (P256_P + 1) // 4, P256_P)
+    return r if r * r % P256_P == v % P256_P else None
+
+
+def p256_x_of_y(y):
+    """An x with x^3 - 3x + b = y^2 mod p, or None: the roots of the cubic, by gcd with x^p - x and splitting."""
+    p = P256_P
+    b = 0x5AC635D8AA3A93E7B3EBBD55769886BC651D06B0CC53B0F63BCE3C3E27D2604B
+    f = [(b - y * y) % p, p - 3, 0, 1]                  # coefficients, low first, monic
+
+    def trim(a):
+        while a and a[-1] == 0:
+            a.pop()
+        return a
+
+    def mod(a, m):
+        a = trim(list(a))
+        while len(a) >= len(m):
+            c, s = a[-1] * pow(m[-1], -1, p) % p, len(a) - len(m)
+            for i, v in enumerate(m):
+                a[s + i] = (a[s + i] - c * v) % p
+            a = trim(a)
+        return a
+
+    def mulmod(a, c, m):
+        out = [0] * (len(a) + len(c))
+        for i, u in enumerate(a):
+            for j, v in enumerate(c):
+                out[i + j] = (out[i + j] + u * v) % p
+        return mod(out, m)
+
+    def powmod(a, e, m):
+        r, a = [1], mod(a, m)
+        while e:
+            if e & 1:
+                r = mulmod(r, a, m)
+            a, e = mulmod(a, a, m), e >> 1
+        return r
+
+    def gcd(a, c):
+        a, c = trim(list(a)), trim(list(c))
+        while c:
+            a, c = c, mod(a, c)
+        return a
+
+    xp = powmod([0, 1], p, f) + [0] * 3                  # x^p mod f, then x^p - x
+    xp[1] = (xp[1] - 1) % p
+    g = gcd(f, xp)
+    rng_ = random.Random(y)
+    while len(g) > 2:
+        a = rng_.randrange(p)
+        h = powmod([a, 1], (p - 1) // 2, g)
+        h = (h + [0] * len(g))[: len(g)]
+        h[0] = (h[0] - 1) % p
+        d = gcd(g, h)
+        if 1 < len(d) < len(g):
+            g = d
+    if len(g) != 2:
+        return None
+    return (-g[0]) * pow(g[1], -1, p) % p
+
+
+def rfc7748_x25519(text):
+    """(scalar, u, result) of the two X25519 vectors and the iteration results of RFC 7748 section 5.2."""
+    sec = rfc_section(text, "5.2.  Test Vectors", "6.  Diffie-Hellman")
+    x25519_part = sec.split("X448:")[0]
+    singles = re.findall(r"Input scalar:\s+([0-9a-f]{64}).*?Input u-coordinate:\s+([0-9a-f]{64}).*?"
+                         r"Output u-coordinate:\s+([0-9a-f]{64})", x25519_part, re.S)
+    iteration_part = sec[sec.index("For each iteration"):].split("X448:")[0]
+    iters = re.findall(r"After (one|[\d,]+) iterations?:\s+([0-9a-f]{64})", iteration_part)
+    iters = [("1" if k == "one" else k, v) for k, v in iters]
+    dh = rfc_section(text, "6.1.  Curve25519", "6.2.  Curve448")
+    keys = dict(re.findall(r"(Alice's private key, a|Alice's public key, X25519\(a, 9\)|Bob's private key, b|"
+                           r"Bob's public key, X25519\(b, 9\)|Their shared secret, K):\s+([0-9a-f]{64})", dh))
+    return [tuple(bytes.fromhex(v) for v in t) for t in singles], [(int(k.replace(",", "")), bytes.fromhex(v)) for k, v in iters], \
+        {k: bytes.fromhex(v) for k, v in keys.items()}
+
+
+def rfc6979_p256(text):
+    """The P-256 key and the SHA-256 signatures of RFC 6979 section A.2.5."""
+    sec = rfc_section(text, "A.2.5.  ECDSA, 256 Bits (Prime Field)", "A.2.6.  ECDSA, 384 Bits (Prime Field)")
+    flat = re.sub(r"\s+", " ", sec)
+    x = int(re.search(r"private key: x = ([0-9A-F]+) ", flat).group(1), 16)
+    ux = int(re.search(r"Ux = ([0-9A-F]+) ", flat).group(1), 16)
+    uy = int(re.search(r"Uy = ([0-9A-F]+) ", flat).group(1), 16)
+    sigs = []
+    for msg in ("sample", "test"):
+        m = re.search(r'With SHA-256, message = "' + msg + r'": k = [0-9A-F]+ r = ([0-9A-F]+) s = ([0-9A-F]+) ', flat)
+        r, s = (int(g, 16) for g in m.groups())
+        sigs.append((msg.encode(), r.to_bytes(32, "big") + s.to_bytes(32, "big")))
+    return x.to_bytes(32, "big"), b"\x04" + ux.to_bytes(32, "big") + uy.to_bytes(32, "big"), sigs
+
+
+def cavp_ecdsa(text):
+    """Records of a 186-4 ECDSA .rsp file, each a dict with the [curve,hash] section under "_section"."""
+    out, section, record = [], "", {}
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("["):
+            if re.fullmatch(r"\[[PKB]-\d+(,SHA-\d+)?\]", line):
+                section = line.strip("[]")
+            continue
+        if " = " not in line:
+            if record:
+                out.append(record)
+                record = {}
+            continue
+        k, v = line.split(" = ", 1)
+        if k in record:
+            out.append(record)
+            record = {}
+        record[k] = v
+        record["_section"] = section
+    if record:
+        out.append(record)
+    return out
+
+
+def cavp_point(r):
+    """The 65-byte uncompressed point of a CAVP record, or None when x or y needs more than 32 bytes."""
+    x, y = int(r["Qx"], 16), int(r["Qy"], 16)
+    if x >> 256 or y >> 256:
+        return None
+    return b"\x04" + x.to_bytes(32, "big") + y.to_bytes(32, "big")
 
 
 # ---------------------------------------------------------------- Main
@@ -585,6 +885,214 @@ def main(out):
     verify_case(d, ref, "enr/verify", pub, content_hash, items[0], (OK, 1))
     if ref.sign(priv, content_hash)[1] == items[0]:
         sign_case(d, ref, "enr/sign", priv, content_hash, items[0])
+
+    # ChaCha20-Poly1305: RFC 8439 sections 2.8.2 and A.5.
+    c = f("chacha20-poly1305-rfc.bin")
+    rfc8439 = fetch(out, "rfc8439.txt").decode()
+    sec = rfc_section(rfc8439, "2.8.2.  Example and Test Vector for AEAD_CHACHA20_POLY1305", "3.  Implementation Advice")
+    nonce = rfc_dump(sec, "32-bit fixed-common part:") + rfc_dump(sec, "IV:")
+    chacha_case(c, "rfc8439/2.8.2", rfc_dump(sec, "Key:"), nonce, rfc_dump(sec, "Plaintext:"), rfc_dump(sec, "AAD:"),
+                rfc_dump(sec, "Ciphertext:") + rfc_dump(sec, "Tag:"))
+    sec = rfc_section(rfc8439, "A.5.  ChaCha20-Poly1305 AEAD Decryption", "Appendix B.  Performance Measurements")
+    sealed = rfc_dump(sec, "Ciphertext:") + rfc_dump(sec, "Received Tag:")
+    chacha_case(c, "rfc8439/A.5", rfc_dump(sec, "The ChaCha20 Key"), rfc_dump(sec, "The nonce:"), rfc_dump(sec, "Plaintext::"),
+                rfc_dump(sec, "The AAD:"), sealed)
+
+    # Poly1305: RFC 8439 sections 2.5.2 and A.3.
+    pr = f("poly1305-rfc.bin")
+    sec = rfc_section(rfc8439, "2.5.2.  Poly1305 Example and Test Vector", "2.6.  Generating the Poly1305 Key Using ChaCha20")
+    key = bytes.fromhex(re.sub(r"[^0-9a-f]", "", re.search(r"Key Material: ([0-9a-f:\s]+?)o  s as", sec).group(1)))
+    tag = bytes.fromhex(re.search(r"Tag: ([0-9a-f:]+)", sec).group(1).replace(":", ""))
+    poly1305_case(pr, "rfc8439/2.5.2", key, rfc_dump(sec, "Message to be Authenticated:"), tag)
+    sec = rfc_section(rfc8439, "A.3.  Poly1305 Message Authentication Code", "A.4.  Poly1305 Key Generation Using ChaCha20")
+    vectors = re.split(r"\n\s*Test Vector #", sec)[1:]
+    if len(vectors) != 11:
+        fail("rfc 8439: section A.3 does not hold 11 vectors")
+    for i, v in enumerate(vectors, 1):
+        if "One-time Poly1305 Key:" in v:
+            key, msg, tag = rfc_dump(v, "One-time Poly1305 Key:"), rfc_dump(v, "Text to MAC:"), rfc_dump(v, "Tag:")
+        else:
+            key = rfc_dump(v, "R:") + rfc_dump(v, "S:")
+            msg, tag = rfc_dump(v, "data:"), rfc_dump(v, "tag:")
+        poly1305_case(pr, f"rfc8439/A.3/{i}", key, msg, tag)
+    pg = f("poly1305-generated.bin")
+    for n in list(range(0, 100)) + [255, 256, 257, 1000, 4096]:
+        poly1305_case(pg, f"length_{n}", rb(32), rb(n))
+    for n in (0, 15, 16, 17, 64):
+        poly1305_case(pg, f"ones_{n}", b"\xff" * 32, b"\xff" * n)
+
+    # ChaCha20-Poly1305: Wycheproof, 256-bit keys, 96-bit nonces, 128-bit tags.
+    for group in json.loads(fetch(out, "chacha20_poly1305_test.json"))["testGroups"]:
+        if group["keySize"] != 256 or group["ivSize"] != 96 or group["tagSize"] != 128:
+            continue
+        for t in group["tests"]:
+            sealed = hexb(t["ct"]) + hexb(t["tag"])
+            chacha_case(f("chacha20-poly1305-wycheproof.bin"), f"wycheproof/{t['tcId']}", hexb(t["key"]), hexb(t["iv"]),
+                        hexb(t["msg"]), hexb(t["aad"]), sealed, valid=t["result"] == "valid")
+
+    # ChaCha20-Poly1305: generated lengths and flipped bits.
+    g = f("chacha20-poly1305-generated.bin")
+    for n in list(range(0, 140)) + [255, 256, 257, 511, 512, 513, 1000, 1280, 4096, 65535, 65536, 100000]:
+        for al in ((0, 1, 15, 16, 17, 70) if n < 140 else (0, 13)):
+            key, nonce, pt, aad = rb(32), rb(12), rb(n), rb(al)
+            chacha_case(g, f"length_{n}_aad_{al}", key, nonce, pt, aad)
+            sealed = bytearray(ChaCha20Poly1305(key).encrypt(nonce, pt, aad))
+            i = rng.randrange(len(sealed))
+            sealed[i] ^= 1 << rng.randrange(8)
+            chacha_case(g, f"length_{n}_aad_{al}_flipped_{i}", key, nonce, b"", aad, bytes(sealed), valid=False)
+    key, nonce = rb(32), rb(12)
+    for n in range(16):
+        chacha_case(g, f"short_sealed_{n}", key, nonce, b"", b"", rb(n), valid=False)
+    for n in (0, 64):
+        pt = rb(n)
+        sealed = ChaCha20Poly1305(key).encrypt(nonce, pt, b"\x01")
+        chacha_case(g, f"other_aad_{n}", key, nonce, b"", b"\x02", sealed, valid=False)
+
+    # X25519: RFC 7748 sections 5.2 and 6.1, with the iterations to 1000.
+    x = f("x25519-rfc.bin")
+    singles, iters, dh = rfc7748_x25519(fetch(out, "rfc7748.txt").decode())
+    if len(singles) != 2 or len(dh) != 5 or [k for k, _ in iters][:2] != [1, 1000]:
+        fail("rfc 7748: the X25519 test vectors do not parse")
+    for i, (scalar, u, want) in enumerate(singles):
+        x25519_case(x, f"rfc7748/5.2/{i}", scalar, u, (OK, want))
+    k = u = (9).to_bytes(32, "little")
+    want = dict(iters)
+    for i in range(1, 1001):
+        k, u = x25519_case(x, f"rfc7748/5.2/iteration_{i}", k, u, (OK, want[i]) if i in want else None), k
+    nine = (9).to_bytes(32, "little")
+    x25519_case(x, "rfc7748/6.1/alice_public", dh["Alice's private key, a"], nine, (OK, dh["Alice's public key, X25519(a, 9)"]))
+    x25519_case(x, "rfc7748/6.1/bob_public", dh["Bob's private key, b"], nine, (OK, dh["Bob's public key, X25519(b, 9)"]))
+    x25519_case(x, "rfc7748/6.1/alice_shared", dh["Alice's private key, a"], dh["Bob's public key, X25519(b, 9)"],
+                (OK, dh["Their shared secret, K"]))
+    x25519_case(x, "rfc7748/6.1/bob_shared", dh["Bob's private key, b"], dh["Alice's public key, X25519(a, 9)"],
+                (OK, dh["Their shared secret, K"]))
+
+    # X25519: Wycheproof. An all-zero shared value is the zero status.
+    for group in json.loads(fetch(out, "x25519_test.json"))["testGroups"]:
+        if group["curve"] != "curve25519":
+            continue
+        for t in group["tests"]:
+            shared = hexb(t["shared"])
+            want = (X25519_ZERO, None) if shared == bytes(32) else (OK, shared)
+            x25519_case(f("x25519-wycheproof.bin"), f"wycheproof/{t['tcId']}", hexb(t["private"]), hexb(t["public"]), want)
+
+    # X25519: generated scalars and points, public keys, and u at the edges.
+    g = f("x25519-generated.bin")
+    p25519 = 2**255 - 19
+    for i in range(200):
+        a, b = rb(32), rb(32)
+        pa = x25519_case(g, f"public_{i}_a", a, nine)
+        pb = x25519_case(g, f"public_{i}_b", b, nine)
+        s1 = x25519_case(g, f"shared_{i}_ab", a, pb)
+        s2 = x25519_case(g, f"shared_{i}_ba", b, pa)
+        if s1 != s2:
+            fail("x25519: the two sides do not agree")
+    for v in (0, 1, 2, p25519 - 1, p25519, p25519 + 1, p25519 + 9, 2**255 - 1, 2**255, 2**256 - 1, 2**255 + 9) + \
+            tuple(rng.randrange(2**256) for _ in range(40)):
+        x25519_case(g, f"u_{v:x}", rb(32), v.to_bytes(32, "little"))
+    for scalar in (bytes(32), b"\xff" * 32, b"\x01" + bytes(31), bytes(31) + b"\x80"):
+        x25519_case(g, f"scalar_{scalar.hex()}", scalar, rb(32))
+
+    # P-256: RFC 6979 section A.2.5, SHA-256.
+    r6 = f("p256-rfc6979.bin")
+    priv, pub, sigs = rfc6979_p256(fetch(out, "rfc6979.txt").decode())
+    p256_pub_case(r6, "rfc6979/A.2.5/public_key", priv, pub)
+    for msg, sig in sigs:
+        h = hashlib.sha256(msg).digest()
+        p256_sign_case(r6, f"rfc6979/A.2.5/{msg.decode()}", priv, h, sig)
+        p256_verify_case(r6, f"rfc6979/A.2.5/{msg.decode()}/verify", pub, h, sig, (OK, 1))
+
+    # P-256: NIST CAVP FIPS 186-4 KeyPair, PKV, SigGen (as checks) and SigVer, P-256 with SHA-256.
+    cv = f("p256-cavp.bin")
+    with zipfile.ZipFile(io.BytesIO(fetch(out, "186-4ecdsatestvectors.zip"))) as z:
+        def rsp(name):
+            return cavp_ecdsa(z.read("186-4ecdsatestvectors/" + name).decode())
+        some_hash, some_sig = hashlib.sha256(b"pkv").digest(), b"\x01" * 64
+        for i, r in enumerate(x for x in rsp("KeyPair.rsp") if x["_section"] == "P-256" and "d" in x):
+            want = b"\x04" + int(r["Qx"], 16).to_bytes(32, "big") + int(r["Qy"], 16).to_bytes(32, "big")
+            p256_pub_case(cv, f"keypair/{i}", int(r["d"], 16).to_bytes(32, "big"), want)
+        for i, r in enumerate(x for x in rsp("PKV.rsp") if x["_section"] == "P-256" and "Result" in x):
+            point = cavp_point(r)
+            if point is None:
+                continue
+            ok = r["Result"].startswith("P")
+            p256_verify_case(cv, f"pkv/{i}", point, some_hash, some_sig, (OK, 0) if ok else (INVALID_PUBLIC_KEY, 0))
+        for name in ("SigGen.rsp", "SigVer.rsp"):
+            for i, r in enumerate(x for x in rsp(name) if x["_section"] == "P-256,SHA-256" and "Msg" in x):
+                point = cavp_point(r)
+                h = hashlib.sha256(hexb(r["Msg"])).digest()
+                sig = int(r["R"], 16).to_bytes(32, "big") + int(r["S"], 16).to_bytes(32, "big")
+                want = (OK, 1) if name == "SigGen.rsp" or r["Result"].startswith("P") else (OK, 0)
+                if point is None:
+                    continue
+                p256_verify_case(cv, f"{name[:-4].lower()}/{i}", point, h, sig, want)
+
+    # P-256: Wycheproof ECDSA, in P1363 form: 64 bytes r || s.
+    w = f("p256-wycheproof.bin")
+    for group in json.loads(fetch(out, "ecdsa_secp256r1_sha256_p1363_test.json"))["testGroups"]:
+        point = hexb(group["publicKey"]["uncompressed"])
+        for t in group["tests"]:
+            sig = hexb(t["sig"])
+            if len(sig) != 64:
+                continue
+            h = hashlib.sha256(hexb(t["msg"])).digest()
+            p256_verify_case(w, f"wycheproof/{t['tcId']}", point, h, sig, (OK, int(t["result"] == "valid")))
+
+    # P-256: generated keys, signatures and checks.
+    g = f("p256-generated.bin")
+    edges = [1, 2, 3, P256_N - 1, P256_N - 2, (P256_N - 1) // 2, (P256_N + 1) // 2, 1 << 255, (1 << 128) + 1]
+    bad = [0, P256_N, P256_N + 1, (1 << 256) - 1]
+    privs = [k.to_bytes(32, "big") for k in edges] + [rb(32) for _ in range(150)]
+    for i, k in enumerate(privs + [k.to_bytes(32, "big") for k in bad]):
+        p256_pub_case(g, f"public_key_{i}", k)
+    privs = [k for k in privs if P256.private(k) is not None]
+    hashes_ = [bytes(32), b"\xff" * 32, P256_N.to_bytes(32, "big"), (P256_N - 1).to_bytes(32, "big"),
+               (P256_N + 5).to_bytes(32, "big")] + [rb(32) for _ in range(150)]
+    for i, h in enumerate(hashes_):
+        priv = privs[i % len(privs)]
+        pub = P256.public_key(priv)
+        sig = p256_sign_case(g, f"sign_{i}", priv, h)
+        p256_verify_case(g, f"verify_{i}", pub, h, sig, (OK, 1))
+        r, s = int.from_bytes(sig[:32], "big"), int.from_bytes(sig[32:], "big")
+        p256_verify_case(g, f"verify_{i}_negated_s", pub, h, sig[:32] + (P256_N - s).to_bytes(32, "big"), (OK, 1))
+        flipped = bytearray(sig)
+        flipped[rng.randrange(64)] ^= 1 << rng.randrange(8)
+        p256_verify_case(g, f"verify_{i}_flipped", pub, h, bytes(flipped))
+        p256_verify_case(g, f"verify_{i}_other_hash", pub, rb(32), sig)
+        if i < 10:
+            for rr, ss in ((0, s), (r, 0), (P256_N, s), (r, P256_N), (P256_N + r, s), (r, P256_N + s)):
+                if rr >> 256 or ss >> 256:
+                    continue
+                p256_verify_case(g, f"verify_{i}_r_{rr:x}_s_{ss:x}", pub, h, rr.to_bytes(32, "big") + ss.to_bytes(32, "big"), (OK, 0))
+    for k in bad:
+        p256_sign_case(g, f"sign_bad_private_{k:x}", k.to_bytes(32, "big"), hashes_[5])
+    pub = P256.public_key(privs[0])
+    sig = P256.sign(privs[0], hashes_[5])[1]
+    for prefix in (0, 2, 3, 5, 6, 7, 0xFF):
+        p256_verify_case(g, f"verify_prefix_{prefix:02x}", bytes([prefix]) + pub[1:], hashes_[5], sig, (INVALID_PUBLIC_KEY, 0))
+    for xv, yv in ((P256_P, 1), (1, P256_P), ((1 << 256) - 1, 0), (0, 0)) + tuple((rng.randrange(P256_P), rng.randrange(P256_P)) for _ in range(20)):
+        p256_verify_case(g, f"verify_point_{xv:x}_{yv:x}", b"\x04" + xv.to_bytes(32, "big") + yv.to_bytes(32, "big"), hashes_[5], sig)
+    for xv in range(1, 40):
+        yv = p256_sqrt((xv ** 3 - 3 * xv + 0x5AC635D8AA3A93E7B3EBBD55769886BC651D06B0CC53B0F63BCE3C3E27D2604B) % P256_P)
+        if yv is None:
+            continue
+        point = b"\x04" + xv.to_bytes(32, "big") + yv.to_bytes(32, "big")
+        p256_verify_case(g, f"verify_small_x_{xv}", point, hashes_[5], sig, (OK, 0))
+        point = b"\x04" + (xv + P256_P).to_bytes(32, "big") + yv.to_bytes(32, "big")
+        p256_verify_case(g, f"verify_small_x_{xv}_plus_p", point, hashes_[5], sig, (INVALID_PUBLIC_KEY, 0))
+    for yv in range(1, 40):
+        xv = p256_x_of_y(yv)
+        if xv is None:
+            continue
+        point = b"\x04" + xv.to_bytes(32, "big") + yv.to_bytes(32, "big")
+        p256_verify_case(g, f"verify_small_y_{yv}", point, hashes_[5], sig, (OK, 0))
+        point = b"\x04" + xv.to_bytes(32, "big") + (yv + P256_P).to_bytes(32, "big")
+        p256_verify_case(g, f"verify_small_y_{yv}_plus_p", point, hashes_[5], sig, (INVALID_PUBLIC_KEY, 0))
+    x0, y0 = int.from_bytes(pub[1:33], "big"), int.from_bytes(pub[33:], "big")
+    for name, point in (("x_plus_p", (x0 + P256_P, y0)), ("y_plus_p", (x0, y0 + P256_P)), ("negated_y", (x0, P256_P - y0))):
+        if point[0] >> 256 or point[1] >> 256:
+            continue
+        p256_verify_case(g, f"verify_{name}", b"\x04" + point[0].to_bytes(32, "big") + point[1].to_bytes(32, "big"), hashes_[5], sig)
 
     manifest = []
     for name in sorted(files):

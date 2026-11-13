@@ -2,7 +2,7 @@
 
 Cryptographic primitives for Ethereum, in assembly.
 
-SHA-256 for SSZ, and the primitives of discv5 and ENR: Keccak-256, HMAC and HKDF with SHA-256, AES-128 in CTR and GCM, and secp256k1.
+SHA-256 for SSZ; the primitives of discv5 and ENR: Keccak-256, HMAC and HKDF with SHA-256, AES-128 in CTR and GCM, and secp256k1; and the primitives of libp2p: X25519, ChaCha20-Poly1305 (with Poly1305 on its own) and ECDSA P-256.
 
 Standard: [asm-standard@2a19d3f](https://github.com/bitminetech/asm-standard/blob/2a19d3f7fa737af1c01720b6e891703e53a682aa/ARCHITECTURE.md)
 
@@ -18,11 +18,19 @@ Standard: [asm-standard@2a19d3f](https://github.com/bitminetech/asm-standard/blo
 | [docs/reference/ctr.md](docs/reference/ctr.md) | AES-128-CTR |
 | [docs/reference/gcm.md](docs/reference/gcm.md) | AES-128-GCM |
 | [docs/reference/secp256k1.md](docs/reference/secp256k1.md) | secp256k1 |
-| [include/crypto.inc](include/crypto.inc) | Constants: shared, SHA-256 |
+| [docs/reference/chacha20.md](docs/reference/chacha20.md) | ChaCha20 |
+| [docs/reference/poly1305.md](docs/reference/poly1305.md) | Poly1305 |
+| [docs/reference/chacha20-poly1305.md](docs/reference/chacha20-poly1305.md) | ChaCha20-Poly1305 |
+| [docs/reference/x25519.md](docs/reference/x25519.md) | X25519 |
+| [docs/reference/p256.md](docs/reference/p256.md) | P-256 |
+| [include/crypto.inc](include/crypto.inc) | Constants: shared, SHA-256, the key status codes |
 | [include/keccak.inc](include/keccak.inc) | Constants: Keccak-256 |
 | [include/hmac.inc](include/hmac.inc) | Constants: HMAC and HKDF |
 | [include/aes.inc](include/aes.inc) | Constants: AES, CTR and GCM |
 | [include/secp256k1.inc](include/secp256k1.inc) | Constants: secp256k1 |
+| [include/chacha20.inc](include/chacha20.inc) | Constants: ChaCha20, Poly1305 and ChaCha20-Poly1305 |
+| [include/x25519.inc](include/x25519.inc) | Constants: X25519 |
+| [include/p256.inc](include/p256.inc) | Constants: P-256 |
 
 ## Targets
 

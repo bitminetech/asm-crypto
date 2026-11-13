@@ -253,7 +253,7 @@ def text_bytes(data):
 
 # The objects of the library archive, one for each core file. Only sha256.o is
 # compared with the recorded program; the others must be present once each.
-CORE_OBJECTS = ("sha256.o", "keccak.o", "hmac.o", "aes.o", "secp256k1.o")
+CORE_OBJECTS = ("sha256.o", "keccak.o", "hmac.o", "aes.o", "secp256k1.o", "chacha20.o", "x25519.o", "p256.o")
 
 
 def archive_object(data):
