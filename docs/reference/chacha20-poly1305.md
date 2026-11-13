@@ -159,3 +159,19 @@ crypto_chacha20_aead_decrypt(key, nonce, sealed, aad, plaintext) -> status
 ## Results
 
 <!-- CI generates the tick table for each function here. -->
+
+### `crypto_chacha20_aead_encrypt`
+
+| ISA | Linux | Windows | macOS | `equal` |
+|---|---|---|---|---|
+| x86-64 | ✅ | ✅ | ✅ |  |
+| ARM64 | ✅ | ✅ | ✅ |  |
+| RISC-V | ✅ |  |  |  |
+
+### `crypto_chacha20_aead_decrypt`
+
+| ISA | Linux | Windows | macOS | `equal` |
+|---|---|---|---|---|
+| x86-64 | ✅ | ✅ | ✅ |  |
+| ARM64 | ✅ | ✅ | ✅ |  |
+| RISC-V | ✅ |  |  |  |
