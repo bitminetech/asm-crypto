@@ -717,12 +717,13 @@
     }
   ],
   "equal": {
-    "status": "candidate theorem; independent statement approval pending",
+    "status": "registered; checked status is emitted per build after the external technical pin and all proof/artifact checks pass",
     "checked_targets": [],
-    "theorems": [],
+    "theorems": [
+      "Crypto.ARM64.sha256.equal"
+    ],
     "remaining": [
-      "Final complete-library build, axiom audit, fresh kernel replay and artifact/vector checks for the candidate theorem",
-      "Independent reviewer must approve the full expected statement and semantic dependency closure, then select its immutable pin through policy outside candidate control; no repository-local proof or review authenticates that policy"
+      "Each build must match the external expected-statement/semantic-closure pin and pass all recorded CI checks; deployment and caller/profile assumptions remain explicit."
     ],
     "scope": "ARM64 crypto_sha256 only. x86-64/RISC-V have no equal claim in this work. Final consuming-application loading/unwind registration and caller premise discharge are outside this isolated library entry theorem.",
     "candidate": {
@@ -745,9 +746,15 @@
       "artifact_evidence": "build/verification/arm64-artifacts.json",
       "runtime_binding": "Exact loaded symbol,604 fetched instruction bytes,288 constant bytes, load mapping, feature prerequisites and unwind registration are caller/deployment profile assumptions.",
       "review_profile": "docs/models/arm64-sha256-native-profile.md",
-      "independent_statement_pin": null,
+      "independent_statement_pin": {
+        "manifest_variable": "ARM64_SHA256_EXPECTED_MANIFEST_B64",
+        "sha256_variable": "ARM64_SHA256_EXPECTED_MANIFEST_SHA256",
+        "trusted_default_branch_bootstrap": ".github/workflows/arm64-equal-pin.yml",
+        "contents": "technical definitions, dependency versions and source hashes only"
+      },
       "expected_statement_gate": "tests/runner/check_arm64_equal_pin.py requires an approved manifest and selected hash outside candidate control; candidate generation never grants approval."
-    }
+    },
+    "checked_targets_evidence": "build/verification/checked-equal.json"
   },
   "trust_inventory": [
     "Review correspondence between the imported Lean FIPS transcription and the English FIPS document",

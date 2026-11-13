@@ -13,15 +13,24 @@ permissions:
 
 jobs:
   supporting-proofs:
-    # This job checks supporting Lean lemmas and ARM64 artifact identity.
-    # Its success is not a checked equal / fully verified library claim.
+    # Supporting checks precede the externally pinned ARM64 SHA-256 equal gate.
+    # Its technical receipt covers only the three recorded ARM64 library builds.
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           submodules: true
+      - name: Clear pre-existing bytecode and reject source symlinks
+        run: |
+          find tests platform -type l -name '__pycache__' -delete
+          find tests platform \( -type f -o -type l \) \( -name '*.pyc' -o -name '*.pyo' \) -delete
+          if [ -n "$(find tests platform .github -type l -print -quit)" ]; then
+            echo 'Symbolic links in CI source trees are not permitted' >&2
+            exit 1
+          fi
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with: { name: build, path: build }
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
@@ -38,6 +47,28 @@ jobs:
           lake exe cache get Mathlib.Data.List.Induction Mathlib.Data.List.Range Mathlib.Data.Nat.Find Mathlib.Data.Nat.ModEq Mathlib.Logic.Basic Mathlib.Tactic.IntervalCases Mathlib.Tactic.Linarith Mathlib.Tactic.NormNum Mathlib.Tactic.Ring
       - name: Check supporting statements, axioms, kernel replay, vectors and objects
         run: tests/runner/check_supporting_proofs.sh "$PWD/vectors"
+      - name: Check receipt consumption and trusted bootstrap guards
+        run: |
+          python3 -I tests/runner/test_tick_tables.py
+          python3 -I tests/runner/test_equal_bootstrap.py
+      - name: Check externally pinned ARM64 SHA-256 equal
+        env:
+          EXPECTED_MANIFEST_B64: ${{ vars.ARM64_SHA256_EXPECTED_MANIFEST_B64 }}
+          EXPECTED_MANIFEST_SHA256: ${{ vars.ARM64_SHA256_EXPECTED_MANIFEST_SHA256 }}
+        run: |
+          python3 -I - <<'PYTHON'
+          import base64
+          import os
+          from pathlib import Path
+          encoded = os.environ["EXPECTED_MANIFEST_B64"]
+          if not encoded or not os.environ["EXPECTED_MANIFEST_SHA256"]:
+              raise SystemExit("Externally selected ARM64 SHA-256 manifest and hash are required")
+          manifest = Path(os.environ["RUNNER_TEMP"]) / "arm64-sha256-expected.json"
+          manifest.write_bytes(base64.b64decode(encoded, validate=True))
+          PYTHON
+          python3 -I tests/runner/check_arm64_equal_pin.py \
+            --trusted-manifest "$RUNNER_TEMP/arm64-sha256-expected.json" \
+            --trusted-sha256 "$EXPECTED_MANIFEST_SHA256"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         if: always()
         with:
@@ -48,6 +79,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Clear pre-existing bytecode and reject source symlinks
+        run: |
+          find tests platform -type l -name '__pycache__' -delete
+          find tests platform \( -type f -o -type l \) \( -name '*.pyc' -o -name '*.pyo' \) -delete
+          if [ -n "$(find tests platform .github -type l -print -quit)" ]; then
+            echo 'Symbolic links in CI source trees are not permitted' >&2
+            exit 1
+          fi
       - name: Generate vectors
         run: python3 -I tests/generator/generate.py "$RUNNER_TEMP/vectors"
       - name: Build and check all targets
@@ -127,6 +168,16 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Clear pre-existing bytecode and reject source symlinks
+        run: |
+          find tests platform -type l -name '__pycache__' -delete
+          find tests platform \( -type f -o -type l \) \( -name '*.pyc' -o -name '*.pyo' \) -delete
+          if [ -n "$(find tests platform .github -type l -print -quit)" ]; then
+            echo 'Symbolic links in CI source trees are not permitted' >&2
+            exit 1
+          fi
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with: { name: build, path: build }
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
@@ -145,21 +196,41 @@ jobs:
   # On a push to main, commit them when they changed. When main has moved on,
   # the push is skipped: the newer run writes the tables then.
   results:
-    needs: [build, linux, windows, macos]
+    needs: [build, linux, windows, macos, supporting-proofs]
     if: always()
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Clear pre-existing bytecode and reject source symlinks
+        run: |
+          find tests platform -type l -name '__pycache__' -delete
+          find tests platform \( -type f -o -type l \) \( -name '*.pyc' -o -name '*.pyo' \) -delete
+          if [ -n "$(find tests platform .github -type l -print -quit)" ]; then
+            echo 'Symbolic links in CI source trees are not permitted' >&2
+            exit 1
+          fi
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         continue-on-error: true
         with: { pattern: results-*, path: results, merge-multiple: true }
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         continue-on-error: true
         with: { name: build, path: build }
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        continue-on-error: true
+        with: { name: supporting-proof-checks, path: proof-checks }
       - name: Write the tick tables
-        run: python3 -I tests/runner/tick_tables.py results build
+        env:
+          SUPPORTING_PROOFS_RESULT: ${{ needs.supporting-proofs.result }}
+        run: |
+          if [ "$SUPPORTING_PROOFS_RESULT" = success ] && [ -f proof-checks/checked-equal.json ]; then
+            python3 -I tests/runner/tick_tables.py results build proof-checks/checked-equal.json
+          else
+            python3 -I tests/runner/tick_tables.py results build
+          fi
       - name: Commit the tick tables
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |

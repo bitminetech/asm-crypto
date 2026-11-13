@@ -81,3 +81,14 @@ produces candidate review evidence. It does not approve that evidence.
 `check_arm64_equal_pin.py` compares an externally selected approved manifest and
 expected type, in addition to the separate proof/artifact checks. The repository
 does not mark a target checked merely because its candidate theorem compiles.
+
+The external manifest records definitions, versions and cryptographic hashes.
+Review identities, personal statements and approval attestations are not
+required or stored. Repository-level technical pin variables supply the expected
+manifest and hash. A default-branch bootstrap checks pinned validator bytes
+before loading candidate code. Each checked receipt binds the expected statement,
+complete checked source snapshot and current object/archive bytes.
+
+Only strictly recognized, generated Results tables are excluded from the
+requirements hash. Changing any surrounding requirement still invalidates the
+pin; unrecognized Results content is rejected.

@@ -1,0 +1,93 @@
+# GitHub loads workflow_run definitions from the default branch. Candidate PRs
+# cannot replace this bootstrap before their source pin has been checked.
+name: ARM64 SHA-256 external pin
+
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  check-external-pin:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out trusted default-branch bootstrap
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted
+          persist-credentials: false
+      - name: Select the successful candidate CI run
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -I - <<'PYTHON'
+          import json
+          import os
+          import runpy
+          import subprocess
+          from pathlib import Path
+          validate = runpy.run_path("trusted/tests/runner/check_arm64_equal_bootstrap.py")["validate_ci_run"]
+          repository = os.environ["GITHUB_REPOSITORY"]
+          def api(path):
+              return json.loads(subprocess.check_output(["gh", "api", "repos/" + repository + path], text=True))
+          event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+          registered = api("/actions/workflows/ci.yml")
+          if os.environ["GITHUB_EVENT_NAME"] == "workflow_run":
+              selected = event["workflow_run"]
+              expected_sha = selected["head_sha"]
+              run_id = selected["id"]
+          else:
+              expected_sha = os.environ["GITHUB_SHA"]
+              runs = api("/actions/workflows/ci.yml/runs?head_sha=" + expected_sha + "&status=success&per_page=100")["workflow_runs"]
+              selected = next((r for r in runs if r["head_sha"] == expected_sha and r["conclusion"] == "success"), None)
+              if selected is None:
+                  raise SystemExit("No successful CI run for this commit")
+              run_id = selected["id"]
+          if type(run_id) is not int or run_id <= 0:
+              raise SystemExit("Invalid candidate CI run ID")
+          run = api("/actions/runs/" + str(run_id))
+          sha, run_id = validate(run, registered, repository, expected_sha)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("sha=" + sha + "\nrun_id=" + str(run_id) + "\n")
+          PYTHON
+      - name: Check out candidate without running its code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ steps.candidate.outputs.sha }}
+          path: candidate
+          persist-credentials: false
+      - name: Download that run's proof evidence
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: supporting-proof-checks
+          path: proof-checks
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.candidate.outputs.run_id }}
+      - name: Download that run's library builds
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: build
+          path: build
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.candidate.outputs.run_id }}
+      - name: Validate external pin before importing candidate validators
+        env:
+          EXPECTED_MANIFEST_B64: ${{ vars.ARM64_SHA256_EXPECTED_MANIFEST_B64 }}
+          EXPECTED_MANIFEST_SHA256: ${{ vars.ARM64_SHA256_EXPECTED_MANIFEST_SHA256 }}
+        run: |
+          python3 -I trusted/tests/runner/check_arm64_equal_bootstrap.py \
+            --candidate candidate --evidence proof-checks --build build \
+            --output checked/checked-equal.json
+      - name: Publish checked technical receipt
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: arm64-equal-checked
+          path: checked/checked-equal.json

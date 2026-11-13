@@ -5,12 +5,16 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from prepare_arm64_equal_review import source_paths as pinned_source_paths, source_digest
 
 
 def main():
     root = Path(__file__).resolve().parents[2]
     output = root / "build/verification"
-    source_paths = sorted(set(
+    source_paths = sorted(set(pinned_source_paths(root) +
         [p for p in (root / "lean").rglob("*.lean") if "Imports" not in p.relative_to(root / "lean").parts]
         + list((root / "tests/runner").rglob("*.lean"))
         + list((root / "tests/runner").glob("*.py"))
@@ -22,7 +26,7 @@ def main():
                                     "README.md", "docs/reference/sha-256.md",
                                     ".github/workflows/ci.yml",
                                     "lean/verification-scope.json", "lean/Models/arm64-sha256.text.hex")]))
-    source_hashes = {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
+    source_hashes = {str(p.relative_to(root)): source_digest(root, p)
                      for p in source_paths}
     scope = json.loads((root / "lean/verification-scope.json").read_text())
     report = {
