@@ -2,7 +2,7 @@
 
 Cryptographic primitives for Ethereum, in assembly.
 
-SHA-256 for SSZ; the primitives of discv5 and ENR: Keccak-256, HMAC and HKDF with SHA-256, AES-128 in CTR and GCM, and secp256k1; and the primitives of libp2p: X25519, ChaCha20-Poly1305 (with Poly1305 on its own) and ECDSA P-256.
+SHA-256 for SSZ; the primitives of discv5 and ENR: Keccak-256, HMAC and HKDF with SHA-256, AES-128 in CTR and GCM, and secp256k1; and the primitives of libp2p: X25519, ChaCha20-Poly1305 (with Poly1305 on its own), ECDSA P-256, SHA-512 and Ed25519.
 
 Standard: [asm-standard@2a19d3f](https://github.com/bitminetech/asm-standard/blob/2a19d3f7fa737af1c01720b6e891703e53a682aa/ARCHITECTURE.md)
 
@@ -23,6 +23,8 @@ Standard: [asm-standard@2a19d3f](https://github.com/bitminetech/asm-standard/blo
 | [docs/reference/chacha20-poly1305.md](docs/reference/chacha20-poly1305.md) | ChaCha20-Poly1305 |
 | [docs/reference/x25519.md](docs/reference/x25519.md) | X25519 |
 | [docs/reference/p256.md](docs/reference/p256.md) | P-256 |
+| [docs/reference/sha-512.md](docs/reference/sha-512.md) | SHA-512 |
+| [docs/reference/ed25519.md](docs/reference/ed25519.md) | Ed25519 |
 | [include/crypto.inc](include/crypto.inc) | Constants: shared, SHA-256, the key status codes |
 | [include/keccak.inc](include/keccak.inc) | Constants: Keccak-256 |
 | [include/hmac.inc](include/hmac.inc) | Constants: HMAC and HKDF |
@@ -31,6 +33,8 @@ Standard: [asm-standard@2a19d3f](https://github.com/bitminetech/asm-standard/blo
 | [include/chacha20.inc](include/chacha20.inc) | Constants: ChaCha20, Poly1305 and ChaCha20-Poly1305 |
 | [include/x25519.inc](include/x25519.inc) | Constants: X25519 |
 | [include/p256.inc](include/p256.inc) | Constants: P-256 |
+| [include/sha512.inc](include/sha512.inc) | Constants: SHA-512 |
+| [include/ed25519.inc](include/ed25519.inc) | Constants: Ed25519 |
 
 ## Targets
 

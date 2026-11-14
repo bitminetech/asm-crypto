@@ -1,6 +1,7 @@
 """
 Write the vector files for Keccak-256, HMAC-SHA-256, HKDF-SHA-256, AES-128
-(CTR and GCM), secp256k1, ChaCha20-Poly1305, X25519 and P-256.
+(CTR and GCM), secp256k1, ChaCha20-Poly1305, X25519, P-256, SHA-512 and
+Ed25519.
 
 Usage: python3 -I primitives.py OUT_DIR
 Environment: SECP256K1_LIBRARY, the libsecp256k1 shared library that
@@ -8,8 +9,10 @@ run.sh builds at the pinned commit.
 
 Expected results:
 - Keccak-256: the Keccak team's CompactFIPS202.py, at the pinned XKCP commit.
-- HMAC, HKDF, AES, ChaCha20-Poly1305, X25519, P-256: the pinned
+- HMAC, HKDF, AES, ChaCha20-Poly1305, X25519, P-256, Ed25519: the pinned
   `cryptography` package (OpenSSL); P-256 signatures with its RFC 6979 nonces.
+  Ed25519 public key checks follow RFC 8032 section 5.1.3, written out here.
+- SHA-512: Python hashlib.
 - secp256k1: libsecp256k1 at the pinned commit, through its C interface.
 - Official vectors (NIST, RFC, Wycheproof, devp2p) carry their own results. The
   script checks that the reference agrees with each one it uses.
@@ -31,8 +34,8 @@ import urllib.request
 import zipfile
 
 from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives import hashes, hmac as chmac, poly1305
-from cryptography.hazmat.primitives.asymmetric import ec, utils as ecutils, x25519
+from cryptography.hazmat.primitives import hashes, hmac as chmac, poly1305, serialization
+from cryptography.hazmat.primitives.asymmetric import ec, ed25519, utils as ecutils, x25519
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM, ChaCha20Poly1305
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF, HKDFExpand
@@ -62,6 +65,9 @@ SOURCES = {
     "rfc8439.txt": (RFC + "rfc8439.txt", "25bef70fbf7a07ff45c2fe4cb7c6ce954eac687413d8610603268b4e4415324c"),
     "rfc6979.txt": (RFC + "rfc6979.txt", "456e8f17558fdbd206f968b96fc6f1b4a71ea331ab30ad17f711ab3adaa7d701"),
     "186-4ecdsatestvectors.zip": (NIST + "dss/186-4ecdsatestvectors.zip", "fe47cc92b4cee418236125c9ffbcd9bb01c8c34e74a4ba195d954bcb72824752"),
+    "shabytetestvectors.zip": (NIST + "shs/shabytetestvectors.zip", "929ef80b7b3418aca026643f6f248815913b60e01741a44bba9e118067f4c9b8"),
+    "ed25519_test.json": (WYCHEPROOF + "ed25519_test.json", "ea80ffebac085e21cb9d3e903e7fa2b448d96702da5b31f061d0b83b430b74b3"),
+    "rfc8032.txt": (RFC + "rfc8032.txt", "ed63657ff389301282b169b0abde9b5dd2c7e4d524fdfa5da6ff3094fc93c4c3"),
 }
 
 # include/crypto.inc, include/hmac.inc, include/aes.inc, include/chacha20.inc and include/x25519.inc
@@ -71,11 +77,16 @@ CHACHA_FAIL, X25519_ZERO = 6, 7
 KIND_KECCAK, KIND_HMAC, KIND_HKDF, KIND_CTR, KIND_GCM = 1, 2, 3, 4, 5
 KIND_PUBLIC_KEY, KIND_DECOMPRESS, KIND_ECDH, KIND_SIGN, KIND_VERIFY = 6, 7, 8, 9, 10
 KIND_CHACHA, KIND_X25519, KIND_P256_PUBLIC_KEY, KIND_P256_SIGN, KIND_P256_VERIFY = 11, 12, 13, 14, 15
-KIND_POLY1305 = 16
+KIND_POLY1305, KIND_SHA512, KIND_ED25519_PUBLIC_KEY, KIND_ED25519_SIGN, KIND_ED25519_VERIFY = 16, 17, 18, 19, 20
 
 # P-256 (FIPS 186-5 / SP 800-186): the field prime and the group order.
 P256_P = 2**256 - 2**224 + 2**192 + 2**96 - 1
 P256_N = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551
+
+# Ed25519 (RFC 8032 section 5.1): the field prime, the group order L and d.
+ED_P = 2**255 - 19
+ED_L = 2**252 + 27742317777372353535851937790883648493
+ED_D = (-121665 * pow(121666, ED_P - 2, ED_P)) % ED_P
 
 N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
@@ -433,6 +444,100 @@ def p256_verify_case(f, name, pub, hash32, sig64, want=None):
     if want is not None and (status, valid) != want:
         fail(f"{name}: cryptography gives {(status, valid)}, the official result is {want}")
     f.add(KIND_P256_VERIFY, name, pub + hash32 + sig64 + u64(status) + u64(valid))
+
+
+def sha512_case(f, name, msg, want=None):
+    digest = hashlib.sha512(msg).digest()
+    if want is not None and digest != want:
+        fail(f"{name}: hashlib does not give the official SHA-512 digest")
+    f.add(KIND_SHA512, name, blob(msg) + digest)
+
+
+def ed25519_decodes(pub):
+    """True when the 32 bytes decode to a point by RFC 8032 section 5.1.3."""
+    y = int.from_bytes(pub, "little")
+    sign, y = y >> 255, y & ((1 << 255) - 1)
+    if y >= ED_P:
+        return False
+    u, v = (y * y - 1) % ED_P, (ED_D * y * y + 1) % ED_P
+    x = u * pow(v, 3, ED_P) * pow(u * pow(v, 7, ED_P), (ED_P - 5) // 8, ED_P) % ED_P
+    if v * x * x % ED_P == (-u) % ED_P and u != 0:
+        x = x * pow(2, (ED_P - 1) // 4, ED_P) % ED_P
+    elif v * x * x % ED_P != u:
+        return False
+    return not (x == 0 and sign)
+
+
+class Ed25519:
+    """Ed25519 through the pinned cryptography package."""
+
+    @staticmethod
+    def public_key(priv):
+        return ed25519.Ed25519PrivateKey.from_private_bytes(priv).public_key().public_bytes(
+            serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+
+    @staticmethod
+    def sign(priv, msg):
+        return ed25519.Ed25519PrivateKey.from_private_bytes(priv).sign(msg)
+
+    @staticmethod
+    def verify(pub, msg, sig):
+        """(status, valid) as crypto_ed25519_verify gives them."""
+        if not ed25519_decodes(pub):
+            return INVALID_PUBLIC_KEY, 0
+        if int.from_bytes(sig[32:], "little") >= ED_L:
+            return OK, 0
+        try:
+            ed25519.Ed25519PublicKey.from_public_bytes(pub).verify(sig, msg)
+            return OK, 1
+        except InvalidSignature:
+            return OK, 0
+
+
+def ed25519_pub_case(f, name, priv, want=None):
+    pub = Ed25519.public_key(priv)
+    if want is not None and pub != want:
+        fail(f"{name}: cryptography does not give the official public key")
+    f.add(KIND_ED25519_PUBLIC_KEY, name, priv + pub)
+    return pub
+
+
+def ed25519_sign_case(f, name, priv, msg, want=None):
+    sig = Ed25519.sign(priv, msg)
+    if want is not None and sig != want:
+        fail(f"{name}: cryptography does not give the official signature")
+    f.add(KIND_ED25519_SIGN, name, priv + blob(msg) + sig)
+    return sig
+
+
+def ed25519_verify_case(f, name, pub, msg, sig, want=None):
+    status, valid = Ed25519.verify(pub, msg, sig)
+    if want is not None and (status, valid) != want:
+        fail(f"{name}: the reference gives {(status, valid)}, the official result is {want}")
+    f.add(KIND_ED25519_VERIFY, name, pub + blob(msg) + sig + u64(status) + u64(valid))
+
+
+def rfc8032_ed25519(text):
+    """The tests of RFC 8032 section 7.1: (name, secret, public, message, signature)."""
+    start = text.index("\n7.1.  Test Vectors for Ed25519\n")
+    section = text[start:text.index("\n7.2.  Test Vectors for Ed25519ctx\n", start)]
+    tests = []
+    for chunk in section.split("-----TEST ")[1:]:
+        name = chunk.splitlines()[0].strip()
+        fields, label = {}, None
+        for line in chunk.splitlines()[1:]:
+            line = line.strip()
+            m = re.match(r"(SECRET KEY|PUBLIC KEY|MESSAGE|SIGNATURE)\b", line)
+            if m:
+                label = m.group(1)
+                fields[label] = ""
+            elif label and re.fullmatch(r"[0-9a-f]+", line):
+                fields[label] += line
+        tests.append((name, hexb(fields["SECRET KEY"]), hexb(fields["PUBLIC KEY"]), hexb(fields["MESSAGE"]),
+                      hexb(fields["SIGNATURE"])))
+    if len(tests) != 5:
+        fail(f"rfc8032.txt: {len(tests)} Ed25519 tests in section 7.1, 5 expected")
+    return tests
 
 
 # ---------------------------------------------------------------- Official vectors
@@ -1093,6 +1198,92 @@ def main(out):
         if point[0] >> 256 or point[1] >> 256:
             continue
         p256_verify_case(g, f"verify_{name}", b"\x04" + point[0].to_bytes(32, "big") + point[1].to_bytes(32, "big"), hashes_[5], sig)
+
+    # SHA-512: NIST CAVP byte-oriented messages (FIPS 180-4).
+    cv = f("sha512-cavp.bin")
+    with zipfile.ZipFile(io.BytesIO(fetch(out, "shabytetestvectors.zip"))) as z:
+        for name in ("SHA512ShortMsg.rsp", "SHA512LongMsg.rsp"):
+            records = []
+            for line in z.read("shabytetestvectors/" + name).decode().splitlines():
+                if "=" in line and not line.startswith("["):
+                    k, v = [t.strip() for t in line.split("=", 1)]
+                    if k == "Len":
+                        records.append({})
+                    if records:
+                        records[-1][k] = v
+            if len(records) < 64:
+                fail(f"{name}: {len(records)} messages")
+            for i, r in enumerate(records):
+                bits = int(r["Len"])
+                if bits % 8:
+                    fail(f"{name}: a message of {bits} bits")
+                sha512_case(cv, f"{name[:-4].lower()}/{i}", hexb(r["Msg"])[: bits // 8], hexb(r["MD"]))
+
+    # SHA-512: every length up to 300 bytes, and the block edges.
+    g = f("sha512-generated.bin")
+    for n in list(range(0, 301)) + [383, 384, 385, 511, 512, 513, 1000, 4096, 65536, 100000]:
+        sha512_case(g, f"length_{n}", rb(n))
+    for n in (111, 112, 113, 127, 128, 129, 239, 240, 255, 256):
+        sha512_case(g, f"zeros_{n}", bytes(n))
+        sha512_case(g, f"ones_{n}", b"\xff" * n)
+
+    # Ed25519: RFC 8032 section 7.1.
+    r8 = f("ed25519-rfc8032.bin")
+    for name, priv, pub, msg, sig in rfc8032_ed25519(fetch(out, "rfc8032.txt").decode()):
+        ed25519_pub_case(r8, f"rfc8032/{name}/public_key", priv, pub)
+        ed25519_sign_case(r8, f"rfc8032/{name}/sign", priv, msg, sig)
+        ed25519_verify_case(r8, f"rfc8032/{name}/verify", pub, msg, sig, (OK, 1))
+
+    # Ed25519: Wycheproof. A key that does not decode gives INVALID_PUBLIC_KEY; an acceptable case takes the reference result.
+    w = f("ed25519-wycheproof.bin")
+    for group in json.loads(fetch(out, "ed25519_test.json"))["testGroups"]:
+        pub = hexb(group["publicKey"]["pk"])
+        for t in group["tests"]:
+            sig = hexb(t["sig"])
+            if len(sig) != 64:
+                continue
+            if t["result"] == "acceptable":
+                want = None
+            elif not ed25519_decodes(pub):
+                want = (INVALID_PUBLIC_KEY, 0)
+            else:
+                want = (OK, int(t["result"] == "valid"))
+            ed25519_verify_case(w, f"wycheproof/{t['tcId']}", pub, hexb(t["msg"]), sig, want)
+
+    # Ed25519: generated keys, signatures and checks.
+    g = f("ed25519-generated.bin")
+    lengths = (0, 1, 31, 32, 33, 63, 64, 65, 100, 111, 112, 127, 128, 129, 255, 256, 1000, 4096)
+    privs = [bytes(32), b"\xff" * 32] + [rb(32) for _ in range(150)]
+    for i, priv in enumerate(privs):
+        pub = ed25519_pub_case(g, f"public_key_{i}", priv)
+        msg = rb(lengths[i % len(lengths)])
+        sig = ed25519_sign_case(g, f"sign_{i}", priv, msg)
+        ed25519_verify_case(g, f"verify_{i}", pub, msg, sig, (OK, 1))
+        flipped = bytearray(sig)
+        flipped[rng.randrange(64)] ^= 1 << rng.randrange(8)
+        ed25519_verify_case(g, f"verify_{i}_flipped_signature", pub, msg, bytes(flipped))
+        if msg:
+            other = bytearray(msg)
+            other[rng.randrange(len(msg))] ^= 1 << rng.randrange(8)
+            ed25519_verify_case(g, f"verify_{i}_flipped_message", pub, bytes(other), sig, (OK, 0))
+        ed25519_verify_case(g, f"verify_{i}_other_key", Ed25519.public_key(rb(32)), msg, sig, (OK, 0))
+        s = int.from_bytes(sig[32:], "little")
+        for name, sv in (("s_plus_l", s + ED_L), ("s_l", ED_L), ("s_max", 2**256 - 1)):
+            if sv < 2**256:
+                ed25519_verify_case(g, f"verify_{i}_{name}", pub, msg, sig[:32] + sv.to_bytes(32, "little"), (OK, 0))
+        if i < 20:
+            ry = int.from_bytes(sig[:32], "little") & ((1 << 255) - 1)
+            if ry + ED_P < 2**255:
+                r_bad = (ry + ED_P) | (int.from_bytes(sig[:32], "little") & (1 << 255))
+                ed25519_verify_case(g, f"verify_{i}_r_plus_p", pub, msg, r_bad.to_bytes(32, "little") + sig[32:], (OK, 0))
+    msg, sig = b"edge", Ed25519.sign(privs[2], b"edge")
+    for y in (ED_P, ED_P + 1, ED_P + 18, 2**255 - 1, 1, 0, ED_P - 1):
+        for sign in (0, 1):
+            pub = (y | (sign << 255)).to_bytes(32, "little")
+            ed25519_verify_case(g, f"verify_key_y_{y:x}_sign_{sign}", pub, msg, sig)
+    for y in range(2, 60):
+        pub = y.to_bytes(32, "little")
+        ed25519_verify_case(g, f"verify_key_small_y_{y}", pub, msg, sig)
 
     manifest = []
     for name in sorted(files):

@@ -63,6 +63,14 @@ CRYPTO_ABI uint64_t crypto_x25519(const void *scalar, const void *u, void *resul
 CRYPTO_ABI uint64_t crypto_p256_public_key(const void *private_key, void *public_key);
 CRYPTO_ABI uint64_t crypto_p256_sign(const void *private_key, const void *hash, void *signature);
 CRYPTO_ABI uint64_t crypto_p256_verify(const void *public_key, const void *hash, const void *signature, void *valid);
+CRYPTO_ABI uint64_t crypto_sha512(const void *message, void *digest);
+CRYPTO_ABI uint64_t crypto_sha512_init(void *state);
+CRYPTO_ABI uint64_t crypto_sha512_update(void *state, const void *message);
+CRYPTO_ABI uint64_t crypto_sha512_final(void *state, void *digest);
+CRYPTO_ABI uint64_t crypto_ed25519_public_key(const void *private_key, void *public_key);
+CRYPTO_ABI uint64_t crypto_ed25519_sign(const void *private_key, const void *message, void *signature);
+CRYPTO_ABI uint64_t crypto_ed25519_verify(const void *public_key, const void *message, const void *signature,
+                                          void *valid);
 
 /*
  * ABI and stack check. abi_call sets every register the callee must keep to a
@@ -81,14 +89,16 @@ CRYPTO_ABI void abi_call(abi_ctx *ctx);
 
 enum { F_SHA256, F_KECCAK, F_HMAC, F_EXTRACT, F_EXPAND, F_CTR, F_GCM_AE, F_GCM_AD, F_PUBLIC_KEY, F_DECOMPRESS,
        F_ECDH, F_SIGN, F_VERIFY, F_CHACHA_ENC, F_CHACHA_DEC, F_POLY1305_MAC, F_X25519, F_P256_PUBLIC_KEY, F_P256_SIGN,
-       F_P256_VERIFY, F_COUNT };
+       F_P256_VERIFY, F_SHA512, F_SHA512_INIT, F_SHA512_UPDATE, F_SHA512_FINAL, F_ED25519_PUBLIC_KEY, F_ED25519_SIGN,
+       F_ED25519_VERIFY, F_COUNT };
 static const char *const fn_name[F_COUNT] = {
     "crypto_sha256", "crypto_keccak256", "crypto_hmac_sha256", "crypto_hkdf_extract", "crypto_hkdf_expand",
     "crypto_aes128_ctr", "crypto_aes128_gcm_ae", "crypto_aes128_gcm_ad", "crypto_secp256k1_public_key",
     "crypto_secp256k1_decompress", "crypto_secp256k1_ecdh", "crypto_secp256k1_sign", "crypto_secp256k1_verify",
     "crypto_chacha20_aead_encrypt", "crypto_chacha20_aead_decrypt", "crypto_poly1305_mac", "crypto_x25519",
     "crypto_p256_public_key",
-    "crypto_p256_sign", "crypto_p256_verify",
+    "crypto_p256_sign", "crypto_p256_verify", "crypto_sha512", "crypto_sha512_init", "crypto_sha512_update",
+    "crypto_sha512_final", "crypto_ed25519_public_key", "crypto_ed25519_sign", "crypto_ed25519_verify",
 };
 static uint64_t stack_peak[F_COUNT], abi_fault[F_COUNT], fn_cases[F_COUNT], fn_bad[F_COUNT];
 
@@ -103,7 +113,9 @@ static uint64_t checked_call(int fn, const void *const *args, size_t n) {
         (const void *)crypto_secp256k1_verify, (const void *)crypto_chacha20_aead_encrypt,
         (const void *)crypto_chacha20_aead_decrypt, (const void *)crypto_poly1305_mac, (const void *)crypto_x25519,
         (const void *)crypto_p256_public_key,
-        (const void *)crypto_p256_sign, (const void *)crypto_p256_verify,
+        (const void *)crypto_p256_sign, (const void *)crypto_p256_verify, (const void *)crypto_sha512,
+        (const void *)crypto_sha512_init, (const void *)crypto_sha512_update, (const void *)crypto_sha512_final,
+        (const void *)crypto_ed25519_public_key, (const void *)crypto_ed25519_sign, (const void *)crypto_ed25519_verify,
     };
     abi_ctx c;
     memset(&c, 0, sizeof c);
@@ -134,7 +146,8 @@ static const char *ALL_FILES[] = {
     "chacha20-poly1305-rfc.bin", "chacha20-poly1305-wycheproof.bin", "chacha20-poly1305-generated.bin",
     "poly1305-rfc.bin", "poly1305-generated.bin",
     "x25519-rfc.bin", "x25519-wycheproof.bin", "x25519-generated.bin", "p256-rfc6979.bin", "p256-cavp.bin",
-    "p256-wycheproof.bin", "p256-generated.bin",
+    "p256-wycheproof.bin", "p256-generated.bin", "sha512-cavp.bin", "sha512-generated.bin", "ed25519-rfc8032.bin",
+    "ed25519-wycheproof.bin", "ed25519-generated.bin",
 };
 
 static uint64_t rd64(const uint8_t *p) {
@@ -372,7 +385,8 @@ static int run_large(cursor *c, uint64_t n) {
 enum { HKDF_LENGTH = 2, GCM_FAIL = 3, INVALID_PRIVATE_KEY = 4, INVALID_PUBLIC_KEY = 5, CHACHA_FAIL = 6, X25519_ZERO = 7,
        BUFFER_TOO_SMALL = 1 };
 enum { K_KECCAK = 1, K_HMAC, K_HKDF, K_CTR, K_GCM, K_PUBLIC_KEY, K_DECOMPRESS, K_ECDH, K_SIGN, K_VERIFY, K_CHACHA, K_X25519,
-       K_P256_PUBLIC_KEY, K_P256_SIGN, K_P256_VERIFY, K_POLY1305 };
+       K_P256_PUBLIC_KEY, K_P256_SIGN, K_P256_VERIFY, K_POLY1305, K_SHA512, K_ED25519_PUBLIC_KEY, K_ED25519_SIGN,
+       K_ED25519_VERIFY };
 
 #define GUARD 16
 #define FILL 0x5A
@@ -636,6 +650,68 @@ static int case_verify(cursor *c, const char *name, int fn, size_t pub_len) {
     return note(fn, ok, c->name, name);
 }
 
+/*
+ * SHA-512: crypto_sha512 on the whole message, then the same message in three
+ * parts through crypto_sha512_init, crypto_sha512_update and crypto_sha512_final.
+ */
+static int case_sha512(cursor *c, const char *name) {
+    blob msg = take_blob(c);
+    const uint8_t *want = take(c, 64);
+    input m = in_list(msg.p, msg.n);
+    output d = out_new(64);
+    uint64_t status = CALL(F_SHA512, m.p, d.p);
+    int ok = status == 0 && out_guards(&d) && memcmp(d.p, want, 64) == 0;
+    ok &= in_done(&m);
+    out_free(&d);
+    note(F_SHA512, ok, c->name, name);
+
+    uint64_t cut[4] = {0, msg.n / 3, msg.n - msg.n / 5, msg.n};
+    output st = out_new(200), d2 = out_new(64);
+    int parts = CALL(F_SHA512_INIT, st.p) == 0;
+    for (int i = 0; i < 3; i++) {
+        input part = in_list(msg.p + cut[i], cut[i + 1] - cut[i]);
+        parts &= CALL(F_SHA512_UPDATE, st.p, part.p) == 0;
+        parts &= in_done(&part);
+    }
+    parts &= CALL(F_SHA512_FINAL, st.p, d2.p) == 0;
+    parts &= out_guards(&st) && out_guards(&d2) && memcmp(d2.p, want, 64) == 0;
+    out_free(&st);
+    out_free(&d2);
+    note(F_SHA512_INIT, parts, c->name, name);
+    note(F_SHA512_UPDATE, parts, c->name, name);
+    note(F_SHA512_FINAL, parts, c->name, name);
+    return ok && parts;
+}
+
+/* Ed25519 sign: a 32-byte private key and a message, against a 64-byte signature. */
+static int case_ed25519_sign(cursor *c, const char *name) {
+    const uint8_t *priv = take(c, 32);
+    blob msg = take_blob(c);
+    const uint8_t *want = take(c, 64);
+    input k = in_bytes(priv, 32), m = in_list(msg.p, msg.n);
+    output sig = out_new(64);
+    uint64_t status = CALL(F_ED25519_SIGN, k.p, m.p, sig.p);
+    int ok = status == 0 && out_guards(&sig) && memcmp(sig.p, want, 64) == 0;
+    ok &= in_done(&k) & in_done(&m);
+    out_free(&sig);
+    return note(F_ED25519_SIGN, ok, c->name, name);
+}
+
+/* Ed25519 verify: a 32-byte public key, a message, a 64-byte signature, against a status and valid. */
+static int case_ed25519_verify(cursor *c, const char *name) {
+    const uint8_t *pub = take(c, 32);
+    blob msg = take_blob(c);
+    const uint8_t *sig = take(c, 64);
+    uint64_t want_status = take64(c), want_valid = take64(c);
+    input p = in_bytes(pub, 32), m = in_list(msg.p, msg.n), s = in_bytes(sig, 64);
+    output v = out_new(8);
+    uint64_t status = CALL(F_ED25519_VERIFY, p.p, m.p, s.p, v.p);
+    int ok = status == want_status && out_guards(&v) && (status != 0 || rd64(v.p) == want_valid);
+    ok &= in_done(&p) & in_done(&m) & in_done(&s);
+    out_free(&v);
+    return note(F_ED25519_VERIFY, ok, c->name, name);
+}
+
 /* One CRYPTOV2 file: each case is its kind, its name, then the fields of that kind. */
 static int run_primitives(cursor *c, uint64_t n) {
     int bad = 0;
@@ -693,6 +769,12 @@ static int run_primitives(cursor *c, uint64_t n) {
             out_free(&t);
             note(F_POLY1305_MAC, ok, c->name, name);
         }
+        else if (kind == K_SHA512) ok = case_sha512(c, name);
+        else if (kind == K_ED25519_PUBLIC_KEY) {
+            const uint8_t *priv = take(c, 32);
+            ok = case_fixed(F_ED25519_PUBLIC_KEY, priv, 32, NULL, 0, 0, take(c, 32), 32, c->name, name);
+        } else if (kind == K_ED25519_SIGN) ok = case_ed25519_sign(c, name);
+        else if (kind == K_ED25519_VERIFY) ok = case_ed25519_verify(c, name);
         else {
             fprintf(stderr, "%s: unknown kind %llu\n", c->name, (unsigned long long)kind);
             exit(2);

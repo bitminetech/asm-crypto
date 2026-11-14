@@ -13,7 +13,7 @@ tests/generator/run.sh ~/.cache/asm-crypto/vectors
 | Script | Writes | Needs |
 |---|---|---|
 | `generate.py` | The SHA-256 files, and `manifest.txt` | Python 3, standard library only |
-| `run.sh` | The Keccak-256, HMAC, HKDF, AES, secp256k1, ChaCha20-Poly1305, X25519 and P-256 files, and `manifest-primitives.txt` | Docker; it runs `primitives.py` in the image of [platform/linux/Dockerfile](../../platform/linux/Dockerfile) |
+| `run.sh` | The Keccak-256, HMAC, HKDF, AES, secp256k1, ChaCha20-Poly1305, X25519, P-256, SHA-512 and Ed25519 files, and `manifest-primitives.txt` | Docker; it runs `primitives.py` in the image of [platform/linux/Dockerfile](../../platform/linux/Dockerfile) |
 
 Each manifest lists each file, its case count and its SHA-256.
 
@@ -81,6 +81,11 @@ Each file starts with the 8 bytes `SHA256V1`, then `kind`, then the number of ca
 | `p256-cavp.bin` | NIST `186-4ecdsatestvectors.zip`: `KeyPair.rsp`, `PKV.rsp`, `SigGen.rsp`, `SigVer.rsp`, P-256 | the 3 P-256 functions |
 | `p256-wycheproof.bin` | Wycheproof `ecdsa_secp256r1_sha256_p1363_test.json` | `crypto_p256_verify` |
 | `p256-generated.bin` | Generated keys, hashes, signatures and points, `cryptography` | the 3 P-256 functions |
+| `sha512-cavp.bin` | NIST `shabytetestvectors.zip`: `SHA512ShortMsg.rsp` and `SHA512LongMsg.rsp` | the 4 SHA-512 functions |
+| `sha512-generated.bin` | Generated messages, Python `hashlib` | the 4 SHA-512 functions |
+| `ed25519-rfc8032.bin` | RFC 8032 section 7.1 | the 3 Ed25519 functions |
+| `ed25519-wycheproof.bin` | Wycheproof `ed25519_test.json` | `crypto_ed25519_verify` |
+| `ed25519-generated.bin` | Generated keys, messages, signatures and public keys, `cryptography` | the 3 Ed25519 functions |
 
 The pins of each source are in the document of its functions in [docs/reference/](../../docs/reference/).
 
@@ -108,6 +113,10 @@ Each file starts with the 8 bytes `CRYPTOV2`, then the number of cases. Each cas
 | 14, P-256 sign | 32-byte private key, 32-byte hash, `status`, 64-byte signature |
 | 15, P-256 verify | 65-byte public key, 32-byte hash, 64-byte signature, `status`, `valid` |
 | 16, Poly1305 | 32-byte key, blob message, 16-byte tag |
+| 17, SHA-512 | blob message, 64-byte digest |
+| 18, Ed25519 public key | 32-byte private key, 32-byte public key |
+| 19, Ed25519 sign | 32-byte private key, blob message, 64-byte signature |
+| 20, Ed25519 verify | 32-byte public key, blob message, 64-byte signature, `status`, `valid` |
 
 - `status` is the status code the function must return. When it is not 0, the bytes after it are zero and are not compared.
 - An HKDF case also tests Extract: its PRK is HMAC(salt, IKM).

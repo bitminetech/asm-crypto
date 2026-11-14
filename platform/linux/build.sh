@@ -16,7 +16,7 @@ esac
 
 mkdir -p "$out"
 objects=""
-for name in sha256 keccak hmac aes secp256k1 chacha20 x25519 p256; do
+for name in sha256 keccak hmac aes secp256k1 chacha20 x25519 p256 sha512 ed25519; do
     clang --target=$target $march -I"$root/include" -I"$root/platform/linux" \
         -c "$root/asm/core/$isa/$name.s" -o "$out/$name.o"
     objects="$objects $out/$name.o"

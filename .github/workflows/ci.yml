@@ -91,7 +91,7 @@ jobs:
           fi
       - name: Generate vectors
         run: python3 -I tests/generator/generate.py "$RUNNER_TEMP/vectors"
-      - name: Generate Keccak-256, HMAC, HKDF, AES, secp256k1, ChaCha20-Poly1305, X25519 and P-256 vectors
+      - name: Generate Keccak-256, HMAC, HKDF, AES, secp256k1, ChaCha20-Poly1305, X25519, P-256, SHA-512 and Ed25519 vectors
         run: tests/generator/run.sh "$RUNNER_TEMP/vectors"
       - name: Build and check all targets
         run: |
