@@ -68,6 +68,10 @@ SOURCES = {
     "shabytetestvectors.zip": (NIST + "shs/shabytetestvectors.zip", "929ef80b7b3418aca026643f6f248815913b60e01741a44bba9e118067f4c9b8"),
     "ed25519_test.json": (WYCHEPROOF + "ed25519_test.json", "ea80ffebac085e21cb9d3e903e7fa2b448d96702da5b31f061d0b83b430b74b3"),
     "rfc8032.txt": (RFC + "rfc8032.txt", "ed63657ff389301282b169b0abde9b5dd2c7e4d524fdfa5da6ff3094fc93c4c3"),
+    "rfc5903.txt": (RFC + "rfc5903.txt", "939fab548a6e6bb49a5b3c4dd24a3c5df54a46645447b2d6f4df4fd88ff2d69f"),
+    "ecccdhtestvectors.zip": (NIST + "components/ecccdhtestvectors.zip", "5fff092551f2d72e89a3d9362711878708f9a14b502f0dfae819649105b0ea39"),
+    "ecdh_secp256r1_ecpoint_test.json": (WYCHEPROOF + "ecdh_secp256r1_ecpoint_test.json",
+                                         "648f16d077caf2400d02331ca51f44744c72c799830c8d0595d0b18b6dd9f886"),
 }
 
 # include/crypto.inc, include/hmac.inc, include/aes.inc, include/chacha20.inc and include/x25519.inc
@@ -78,6 +82,7 @@ KIND_KECCAK, KIND_HMAC, KIND_HKDF, KIND_CTR, KIND_GCM = 1, 2, 3, 4, 5
 KIND_PUBLIC_KEY, KIND_DECOMPRESS, KIND_ECDH, KIND_SIGN, KIND_VERIFY = 6, 7, 8, 9, 10
 KIND_CHACHA, KIND_X25519, KIND_P256_PUBLIC_KEY, KIND_P256_SIGN, KIND_P256_VERIFY = 11, 12, 13, 14, 15
 KIND_POLY1305, KIND_SHA512, KIND_ED25519_PUBLIC_KEY, KIND_ED25519_SIGN, KIND_ED25519_VERIFY = 16, 17, 18, 19, 20
+KIND_P256_ECDH = 21
 
 # P-256 (FIPS 186-5 / SP 800-186): the field prime and the group order.
 P256_P = 2**256 - 2**224 + 2**192 + 2**96 - 1
@@ -422,6 +427,17 @@ class P256:
         except InvalidSignature:
             return OK, 0
 
+    @staticmethod
+    def ecdh(pub, priv):
+        """(status, shared) as crypto_p256_ecdh gives them: the public key is checked first."""
+        key = P256.load(pub)
+        if key is None:
+            return INVALID_PUBLIC_KEY, None
+        k = P256.private(priv)
+        if k is None:
+            return INVALID_PRIVATE_KEY, None
+        return OK, k.exchange(ec.ECDH(), key)
+
 
 def p256_pub_case(f, name, priv, want=None):
     pub = P256.public_key(priv)
@@ -444,6 +460,14 @@ def p256_verify_case(f, name, pub, hash32, sig64, want=None):
     if want is not None and (status, valid) != want:
         fail(f"{name}: cryptography gives {(status, valid)}, the official result is {want}")
     f.add(KIND_P256_VERIFY, name, pub + hash32 + sig64 + u64(status) + u64(valid))
+
+
+def p256_ecdh_case(f, name, pub, priv, want=None):
+    status, shared = P256.ecdh(pub, priv)
+    if want is not None and (status, shared) != want:
+        fail(f"{name}: cryptography gives {(status, shared)}, the official result is {want}")
+    f.add(KIND_P256_ECDH, name, pub + priv + u64(status) + (shared or bytes(32)))
+    return shared
 
 
 def sha512_case(f, name, msg, want=None):
@@ -751,6 +775,19 @@ def rfc6979_p256(text):
         r, s = (int(g, 16) for g in m.groups())
         sigs.append((msg.encode(), r.to_bytes(32, "big") + s.to_bytes(32, "big")))
     return x.to_bytes(32, "big"), b"\x04" + ux.to_bytes(32, "big") + uy.to_bytes(32, "big"), sigs
+
+
+def rfc5903_p256(text):
+    """The keys i and r, the public keys g^i and g^r, and the shared x girx of RFC 5903 section 8.1."""
+    sec = rfc_section(text, "8.1.  256-Bit Random ECP Group", "8.2.  384-Bit Random ECP Group")
+    def value(label):
+        m = re.search(r"^" + label + r":\n((?: [0-9A-F]{8})+)\n", sec, re.M)
+        if not m:
+            fail(f"rfc 5903: no {label}")
+        return int(m.group(1).replace(" ", ""), 16).to_bytes(32, "big")
+    gi = b"\x04" + value("gix") + value("giy")
+    gr = b"\x04" + value("grx") + value("gry")
+    return value("i"), gi, value("r"), gr, value("girx")
 
 
 def cavp_ecdsa(text):
@@ -1284,6 +1321,71 @@ def main(out):
     for y in range(2, 60):
         pub = y.to_bytes(32, "little")
         ed25519_verify_case(g, f"verify_key_small_y_{y}", pub, msg, sig)
+
+    # P-256 ECDH: RFC 5903 section 8.1, each side with the public key of the other.
+    r5 = f("p256-rfc5903.bin")
+    i_, gi, r_, gr, girx = rfc5903_p256(fetch(out, "rfc5903.txt").decode())
+    p256_pub_case(r5, "rfc5903/8.1/public_key_i", i_, gi)
+    p256_pub_case(r5, "rfc5903/8.1/public_key_r", r_, gr)
+    p256_ecdh_case(r5, "rfc5903/8.1/i", gr, i_, (OK, girx))
+    p256_ecdh_case(r5, "rfc5903/8.1/r", gi, r_, (OK, girx))
+
+    # P-256 ECDH: NIST CAVP ECC CDH primitive (SP 800-56A section 5.7.1.2), P-256.
+    cv = f("p256-ecdh-cavp.bin")
+    with zipfile.ZipFile(io.BytesIO(fetch(out, "ecccdhtestvectors.zip"))) as z:
+        records = [x for x in cavp_ecdsa(z.read("KAS_ECC_CDH_PrimitiveTest.txt").decode())
+                   if x["_section"] == "P-256" and "ZIUT" in x]
+    if len(records) != 25:
+        fail(f"ecccdh: {len(records)} P-256 cases")
+    for r in records:
+        pub = b"\x04" + int(r["QCAVSx"], 16).to_bytes(32, "big") + int(r["QCAVSy"], 16).to_bytes(32, "big")
+        p256_ecdh_case(cv, f"cdh/{r['COUNT']}", pub, int(r["dIUT"], 16).to_bytes(32, "big"), (OK, hexb(r["ZIUT"])))
+
+    # P-256 ECDH: Wycheproof, the uncompressed public keys.
+    w = f("p256-ecdh-wycheproof.bin")
+    for group in json.loads(fetch(out, "ecdh_secp256r1_ecpoint_test.json"))["testGroups"]:
+        for t in group["tests"]:
+            pub = hexb(t["public"])
+            if len(pub) != 65:
+                continue
+            priv = int(t["private"], 16)
+            if not 0 < priv < P256_N:
+                fail(f"ecdh wycheproof {t['tcId']}: private key out of range")
+            want = (OK, hexb(t["shared"])) if t["result"] == "valid" else (INVALID_PUBLIC_KEY, None)
+            if t["result"] == "acceptable":
+                fail(f"ecdh wycheproof {t['tcId']}: acceptable")
+            p256_ecdh_case(w, f"wycheproof/{t['tcId']}", pub, priv.to_bytes(32, "big"), want)
+
+    # P-256 ECDH: generated keys and points.
+    g = f("p256-ecdh-generated.bin")
+    edges = [1, 2, 3, P256_N - 1, P256_N - 2, (P256_N - 1) // 2, (P256_N + 1) // 2, 1 << 255, (1 << 128) + 1]
+    privs = [k.to_bytes(32, "big") for k in edges] + [rb(32) for _ in range(150)]
+    privs = [k for k in privs if P256.private(k) is not None]
+    for i, a in enumerate(privs):
+        b = privs[rng.randrange(len(privs))]
+        shared = p256_ecdh_case(g, f"ecdh_{i}", P256.public_key(b), a)
+        p256_ecdh_case(g, f"ecdh_{i}_other_side", P256.public_key(a), b, (OK, shared))
+    pubs = [P256.public_key(privs[9])]
+    for k in (0, P256_N, P256_N + 1, (1 << 256) - 1):
+        p256_ecdh_case(g, f"ecdh_bad_private_{k:x}", pubs[0], k.to_bytes(32, "big"), (INVALID_PRIVATE_KEY, None))
+        p256_ecdh_case(g, f"ecdh_bad_both_{k:x}", b"\x05" + pubs[0][1:], k.to_bytes(32, "big"), (INVALID_PUBLIC_KEY, None))
+    for prefix in (0, 2, 3, 5, 6, 7, 0xFF):
+        p256_ecdh_case(g, f"ecdh_prefix_{prefix:02x}", bytes([prefix]) + pubs[0][1:], privs[0], (INVALID_PUBLIC_KEY, None))
+    for xv, yv in ((P256_P, 1), (1, P256_P), ((1 << 256) - 1, 0), (0, 0)) + tuple((rng.randrange(P256_P), rng.randrange(P256_P)) for _ in range(20)):
+        p256_ecdh_case(g, f"ecdh_point_{xv:x}_{yv:x}", b"\x04" + xv.to_bytes(32, "big") + yv.to_bytes(32, "big"), privs[0])
+    for xv in range(1, 40):
+        yv = p256_sqrt((xv ** 3 - 3 * xv + 0x5AC635D8AA3A93E7B3EBBD55769886BC651D06B0CC53B0F63BCE3C3E27D2604B) % P256_P)
+        if yv is None:
+            continue
+        p256_ecdh_case(g, f"ecdh_small_x_{xv}", b"\x04" + xv.to_bytes(32, "big") + yv.to_bytes(32, "big"), privs[10])
+        point = b"\x04" + (xv + P256_P).to_bytes(32, "big") + yv.to_bytes(32, "big")
+        p256_ecdh_case(g, f"ecdh_small_x_{xv}_plus_p", point, privs[10], (INVALID_PUBLIC_KEY, None))
+    x0, y0 = int.from_bytes(pubs[0][1:33], "big"), int.from_bytes(pubs[0][33:], "big")
+    for name, (xv, yv) in (("x_plus_p", (x0 + P256_P, y0)), ("y_plus_p", (x0, y0 + P256_P)), ("negated_y", (x0, P256_P - y0)),
+                           ("y_plus_1", (x0, (y0 + 1) % P256_P))):
+        if xv >> 256 or yv >> 256:
+            continue
+        p256_ecdh_case(g, f"ecdh_{name}", b"\x04" + xv.to_bytes(32, "big") + yv.to_bytes(32, "big"), privs[10])
 
     manifest = []
     for name in sorted(files):

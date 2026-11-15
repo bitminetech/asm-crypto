@@ -1,7 +1,8 @@
 /*
- * P-256 (secp256r1) for x86-64 (System V AMD64 psABI): public keys, and
- * ECDSA signing (RFC 6979 nonces) and verification, for the TLS
- * certificates of libp2p. AT&T syntax. Baseline x86-64 instructions only.
+ * P-256 (secp256r1) for x86-64 (System V AMD64 psABI): public keys, ECDH
+ * for the TLS 1.3 key exchange, and ECDSA signing (RFC 6979 nonces) and
+ * verification, for the TLS certificates of libp2p. AT&T syntax. Baseline
+ * x86-64 instructions only.
  * Requirements: docs/reference/p256.md. Layouts: include/p256.inc.
  *
  * The functions and their steps follow the ARM64 file one for one, with the
@@ -244,6 +245,49 @@ FUNCTION crypto_p256_public_key
     mov     $CRYPTO_OK, %eax
 9:  LEAVE   K_FRAME
 END_FUNCTION crypto_p256_public_key
+
+/* ---------------------------------------------------------------- ECDH */
+
+.set E_D, 0
+.set E_Q, 32
+.set E_P, 128
+.set E_XY, 224
+.set E_FRAME, 296
+
+/*
+ * crypto_p256_ecdh(public_key, private_key, shared) -> status: the x of d * Q.
+ * rbx public_key, rbp private_key, r12 shared.
+ */
+FUNCTION crypto_p256_ecdh
+    ENTER   E_FRAME
+    mov     %rdi, %rbx
+    mov     %rsi, %rbp
+    mov     %rdx, %r12
+    lea     E_Q(%rsp), %rdi
+    mov     %rbx, %rsi
+    call    crypto_p256_point_load
+    test    %rax, %rax
+    jnz     9f
+    LOAD_BE %rbp
+    mov     $CRYPTO_INVALID_PRIVATE_KEY, %eax
+    IF_ZERO 9f
+    lea     321f(%rip), %rdx
+    BELOW   %rdx
+    mov     $CRYPTO_INVALID_PRIVATE_KEY, %eax
+    jae     9f
+    STORE_LIMBS %rsp, E_D
+    lea     E_P(%rsp), %rdi
+    lea     E_D(%rsp), %rsi
+    lea     E_Q(%rsp), %rdx
+    call    crypto_p256_point_mul
+    lea     E_XY(%rsp), %rdi
+    lea     E_P(%rsp), %rsi
+    call    crypto_p256_point_affine
+    LOAD_LIMBS %rsp, E_XY
+    STORE_BE %r12
+    mov     $CRYPTO_OK, %eax
+9:  LEAVE   E_FRAME
+END_FUNCTION crypto_p256_ecdh
 
 /* ---------------------------------------------------------------- ECDSA */
 

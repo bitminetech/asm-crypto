@@ -61,6 +61,7 @@ CRYPTO_ABI uint64_t crypto_chacha20_aead_decrypt(const void *key, const void *no
 CRYPTO_ABI uint64_t crypto_poly1305_mac(const void *key, const void *message, void *tag);
 CRYPTO_ABI uint64_t crypto_x25519(const void *scalar, const void *u, void *result);
 CRYPTO_ABI uint64_t crypto_p256_public_key(const void *private_key, void *public_key);
+CRYPTO_ABI uint64_t crypto_p256_ecdh(const void *public_key, const void *private_key, void *shared);
 CRYPTO_ABI uint64_t crypto_p256_sign(const void *private_key, const void *hash, void *signature);
 CRYPTO_ABI uint64_t crypto_p256_verify(const void *public_key, const void *hash, const void *signature, void *valid);
 CRYPTO_ABI uint64_t crypto_sha512(const void *message, void *digest);
@@ -88,15 +89,15 @@ typedef struct {
 CRYPTO_ABI void abi_call(abi_ctx *ctx);
 
 enum { F_SHA256, F_KECCAK, F_HMAC, F_EXTRACT, F_EXPAND, F_CTR, F_GCM_AE, F_GCM_AD, F_PUBLIC_KEY, F_DECOMPRESS,
-       F_ECDH, F_SIGN, F_VERIFY, F_CHACHA_ENC, F_CHACHA_DEC, F_POLY1305_MAC, F_X25519, F_P256_PUBLIC_KEY, F_P256_SIGN,
-       F_P256_VERIFY, F_SHA512, F_SHA512_INIT, F_SHA512_UPDATE, F_SHA512_FINAL, F_ED25519_PUBLIC_KEY, F_ED25519_SIGN,
-       F_ED25519_VERIFY, F_COUNT };
+       F_ECDH, F_SIGN, F_VERIFY, F_CHACHA_ENC, F_CHACHA_DEC, F_POLY1305_MAC, F_X25519, F_P256_PUBLIC_KEY, F_P256_ECDH,
+       F_P256_SIGN, F_P256_VERIFY, F_SHA512, F_SHA512_INIT, F_SHA512_UPDATE, F_SHA512_FINAL, F_ED25519_PUBLIC_KEY,
+       F_ED25519_SIGN, F_ED25519_VERIFY, F_COUNT };
 static const char *const fn_name[F_COUNT] = {
     "crypto_sha256", "crypto_keccak256", "crypto_hmac_sha256", "crypto_hkdf_extract", "crypto_hkdf_expand",
     "crypto_aes128_ctr", "crypto_aes128_gcm_ae", "crypto_aes128_gcm_ad", "crypto_secp256k1_public_key",
     "crypto_secp256k1_decompress", "crypto_secp256k1_ecdh", "crypto_secp256k1_sign", "crypto_secp256k1_verify",
     "crypto_chacha20_aead_encrypt", "crypto_chacha20_aead_decrypt", "crypto_poly1305_mac", "crypto_x25519",
-    "crypto_p256_public_key",
+    "crypto_p256_public_key", "crypto_p256_ecdh",
     "crypto_p256_sign", "crypto_p256_verify", "crypto_sha512", "crypto_sha512_init", "crypto_sha512_update",
     "crypto_sha512_final", "crypto_ed25519_public_key", "crypto_ed25519_sign", "crypto_ed25519_verify",
 };
@@ -112,7 +113,7 @@ static uint64_t checked_call(int fn, const void *const *args, size_t n) {
         (const void *)crypto_secp256k1_ecdh, (const void *)crypto_secp256k1_sign,
         (const void *)crypto_secp256k1_verify, (const void *)crypto_chacha20_aead_encrypt,
         (const void *)crypto_chacha20_aead_decrypt, (const void *)crypto_poly1305_mac, (const void *)crypto_x25519,
-        (const void *)crypto_p256_public_key,
+        (const void *)crypto_p256_public_key, (const void *)crypto_p256_ecdh,
         (const void *)crypto_p256_sign, (const void *)crypto_p256_verify, (const void *)crypto_sha512,
         (const void *)crypto_sha512_init, (const void *)crypto_sha512_update, (const void *)crypto_sha512_final,
         (const void *)crypto_ed25519_public_key, (const void *)crypto_ed25519_sign, (const void *)crypto_ed25519_verify,
@@ -147,7 +148,8 @@ static const char *ALL_FILES[] = {
     "poly1305-rfc.bin", "poly1305-generated.bin",
     "x25519-rfc.bin", "x25519-wycheproof.bin", "x25519-generated.bin", "p256-rfc6979.bin", "p256-cavp.bin",
     "p256-wycheproof.bin", "p256-generated.bin", "sha512-cavp.bin", "sha512-generated.bin", "ed25519-rfc8032.bin",
-    "ed25519-wycheproof.bin", "ed25519-generated.bin",
+    "ed25519-wycheproof.bin", "ed25519-generated.bin", "p256-rfc5903.bin", "p256-ecdh-cavp.bin",
+    "p256-ecdh-wycheproof.bin", "p256-ecdh-generated.bin",
 };
 
 static uint64_t rd64(const uint8_t *p) {
@@ -386,7 +388,7 @@ enum { HKDF_LENGTH = 2, GCM_FAIL = 3, INVALID_PRIVATE_KEY = 4, INVALID_PUBLIC_KE
        BUFFER_TOO_SMALL = 1 };
 enum { K_KECCAK = 1, K_HMAC, K_HKDF, K_CTR, K_GCM, K_PUBLIC_KEY, K_DECOMPRESS, K_ECDH, K_SIGN, K_VERIFY, K_CHACHA, K_X25519,
        K_P256_PUBLIC_KEY, K_P256_SIGN, K_P256_VERIFY, K_POLY1305, K_SHA512, K_ED25519_PUBLIC_KEY, K_ED25519_SIGN,
-       K_ED25519_VERIFY };
+       K_ED25519_VERIFY, K_P256_ECDH };
 
 #define GUARD 16
 #define FILL 0x5A
@@ -752,6 +754,10 @@ static int run_primitives(cursor *c, uint64_t n) {
             const uint8_t *priv = take(c, 32);
             uint64_t st = take64(c);
             ok = case_fixed(F_P256_PUBLIC_KEY, priv, 32, NULL, 0, st, take(c, 65), 65, c->name, name);
+        } else if (kind == K_P256_ECDH) {
+            const uint8_t *pub = take(c, 65), *priv = take(c, 32);
+            uint64_t st = take64(c);
+            ok = case_fixed(F_P256_ECDH, pub, 65, priv, 32, st, take(c, 32), 32, c->name, name);
         } else if (kind == K_P256_SIGN) {
             const uint8_t *priv = take(c, 32), *hash = take(c, 32);
             uint64_t st = take64(c);

@@ -77,10 +77,14 @@ Each file starts with the 8 bytes `SHA256V1`, then `kind`, then the number of ca
 | `x25519-rfc.bin` | RFC 7748 sections 5.2 and 6.1 | `crypto_x25519` |
 | `x25519-wycheproof.bin` | Wycheproof `x25519_test.json` | `crypto_x25519` |
 | `x25519-generated.bin` | Generated scalars and points, `cryptography` | `crypto_x25519` |
-| `p256-rfc6979.bin` | RFC 6979 section A.2.5, SHA-256 | the 3 P-256 functions |
-| `p256-cavp.bin` | NIST `186-4ecdsatestvectors.zip`: `KeyPair.rsp`, `PKV.rsp`, `SigGen.rsp`, `SigVer.rsp`, P-256 | the 3 P-256 functions |
+| `p256-rfc6979.bin` | RFC 6979 section A.2.5, SHA-256 | `crypto_p256_public_key`, `crypto_p256_sign`, `crypto_p256_verify` |
+| `p256-cavp.bin` | NIST `186-4ecdsatestvectors.zip`: `KeyPair.rsp`, `PKV.rsp`, `SigGen.rsp`, `SigVer.rsp`, P-256 | `crypto_p256_public_key`, `crypto_p256_sign`, `crypto_p256_verify` |
 | `p256-wycheproof.bin` | Wycheproof `ecdsa_secp256r1_sha256_p1363_test.json` | `crypto_p256_verify` |
-| `p256-generated.bin` | Generated keys, hashes, signatures and points, `cryptography` | the 3 P-256 functions |
+| `p256-generated.bin` | Generated keys, hashes, signatures and points, `cryptography` | `crypto_p256_public_key`, `crypto_p256_sign`, `crypto_p256_verify` |
+| `p256-rfc5903.bin` | RFC 5903 section 8.1 | `crypto_p256_public_key`, `crypto_p256_ecdh` |
+| `p256-ecdh-cavp.bin` | NIST `ecccdhtestvectors.zip`: `KAS_ECC_CDH_PrimitiveTest.txt`, P-256 | `crypto_p256_ecdh` |
+| `p256-ecdh-wycheproof.bin` | Wycheproof `ecdh_secp256r1_ecpoint_test.json` | `crypto_p256_ecdh` |
+| `p256-ecdh-generated.bin` | Generated keys and points, `cryptography` | `crypto_p256_ecdh` |
 | `sha512-cavp.bin` | NIST `shabytetestvectors.zip`: `SHA512ShortMsg.rsp` and `SHA512LongMsg.rsp` | the 4 SHA-512 functions |
 | `sha512-generated.bin` | Generated messages, Python `hashlib` | the 4 SHA-512 functions |
 | `ed25519-rfc8032.bin` | RFC 8032 section 7.1 | the 3 Ed25519 functions |
@@ -117,6 +121,7 @@ Each file starts with the 8 bytes `CRYPTOV2`, then the number of cases. Each cas
 | 18, Ed25519 public key | 32-byte private key, 32-byte public key |
 | 19, Ed25519 sign | 32-byte private key, blob message, 64-byte signature |
 | 20, Ed25519 verify | 32-byte public key, blob message, 64-byte signature, `status`, `valid` |
+| 21, P-256 ECDH | 65-byte public key, 32-byte private key, `status`, 32-byte secret |
 
 - `status` is the status code the function must return. When it is not 0, the bytes after it are zero and are not compared.
 - An HKDF case also tests Extract: its PRK is HMAC(salt, IKM).

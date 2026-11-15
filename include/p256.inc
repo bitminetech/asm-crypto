@@ -7,6 +7,7 @@
 .set CRYPTO_P256_PRIVATE_KEY_SIZE, 32
 .set CRYPTO_P256_PUBLIC_KEY_SIZE, 65    /* 0x04, then x, then y */
 .set CRYPTO_P256_SIGNATURE_SIZE, 64     /* r, then s */
+.set CRYPTO_P256_SHARED_SIZE, 32        /* the x of d * Q */
 
 /*
  * Internal layouts, as in secp256k1.inc. A number below a modulus m is 4
@@ -26,6 +27,7 @@
  * | Function                  | Role | Arguments                          | Requirements           | Allowed calls |
  * |---------------------------|------|------------------------------------|------------------------|---------------|
  * | crypto_p256_public_key    | L2   | private_key, public_key            | docs/reference/p256.md | crypto_p256_point_mul, crypto_p256_point_affine |
+ * | crypto_p256_ecdh          | L2   | public_key, private_key, shared    | docs/reference/p256.md | crypto_p256_point_load, crypto_p256_point_mul, crypto_p256_point_affine |
  * | crypto_p256_sign          | L2   | private_key, hash, signature       | docs/reference/p256.md | crypto_hmac_sha256, crypto_p256_point_mul, crypto_p256_point_affine, crypto_p256_mod_mul, crypto_p256_mod_add, crypto_p256_mod_pow |
  * | crypto_p256_verify        | L2   | public_key, hash, signature, valid | docs/reference/p256.md | crypto_p256_point_load, crypto_p256_point_mul, crypto_p256_point_add, crypto_p256_point_affine, crypto_p256_mod_mul, crypto_p256_mod_pow |
  * | crypto_p256_point_load    | L0   | point, public_key                  | docs/reference/p256.md | crypto_p256_mod_mul, crypto_p256_mod_add, crypto_p256_mod_sub |

@@ -1,6 +1,7 @@
 /*
- * P-256 (secp256r1) for ARM64 (AAPCS64): public keys, and ECDSA signing
- * (RFC 6979 nonces) and verification, for the TLS certificates of libp2p.
+ * P-256 (secp256r1) for ARM64 (AAPCS64): public keys, ECDH for the TLS 1.3
+ * key exchange, and ECDSA signing (RFC 6979 nonces) and verification, for
+ * the TLS certificates of libp2p.
  * Requirements: docs/reference/p256.md. Layouts: include/p256.inc.
  *
  * The same design as secp256k1.s: numbers are 4 limbs of 64 bits, least
@@ -231,6 +232,49 @@ FUNCTION crypto_p256_public_key
     mov     x0, #CRYPTO_OK
 9:  LEAVE   0, K_FRAME
 END_FUNCTION crypto_p256_public_key
+
+/* ---------------------------------------------------------------- ECDH */
+
+.set E_D, 0
+.set E_Q, 32
+.set E_P, 128
+.set E_XY, 224
+.set E_FRAME, 288
+
+/*
+ * crypto_p256_ecdh(public_key, private_key, shared) -> status: the x of d * Q.
+ * x19 public_key, x20 private_key, x21 shared.
+ */
+FUNCTION crypto_p256_ecdh
+    ENTER   0, E_FRAME
+    mov     x19, x0
+    mov     x20, x1
+    mov     x21, x2
+    add     x0, sp, #E_Q
+    mov     x1, x19
+    bl      crypto_p256_point_load
+    cbnz    x0, 9f
+    LOAD_BE x20
+    mov     x0, #CRYPTO_INVALID_PRIVATE_KEY
+    IF_ZERO 9f
+    adr     x17, 321f
+    BELOW   x17
+    b.hs    9f
+    add     x15, sp, #E_D
+    STORE_LIMBS x15
+    add     x0, sp, #E_P
+    add     x1, sp, #E_D
+    add     x2, sp, #E_Q
+    bl      crypto_p256_point_mul
+    add     x0, sp, #E_XY
+    add     x1, sp, #E_P
+    bl      crypto_p256_point_affine
+    add     x15, sp, #E_XY
+    LOAD_LIMBS x15
+    STORE_BE x21
+    mov     x0, #CRYPTO_OK
+9:  LEAVE   0, E_FRAME
+END_FUNCTION crypto_p256_ecdh
 
 /* ---------------------------------------------------------------- ECDSA */
 

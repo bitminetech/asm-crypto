@@ -1,9 +1,10 @@
 /*
- * P-256 (secp256r1) for RISC-V (RISC-V ELF psABI, LP64D): public keys, and
- * ECDSA signing (RFC 6979 nonces) and verification, for the TLS
- * certificates of libp2p. Baseline RV64GC instructions only: carries and
- * borrows come from sltu. Values at addresses that may not be 8-byte
- * aligned are read and written one byte at a time.
+ * P-256 (secp256r1) for RISC-V (RISC-V ELF psABI, LP64D): public keys, ECDH
+ * for the TLS 1.3 key exchange, and ECDSA signing (RFC 6979 nonces) and
+ * verification, for the TLS certificates of libp2p. Baseline RV64GC
+ * instructions only: carries and borrows come from sltu. Values at
+ * addresses that may not be 8-byte aligned are read and written one byte
+ * at a time.
  * Requirements: docs/reference/p256.md. Layouts: include/p256.inc.
  *
  * The functions and their steps follow the ARM64 file one for one, with the
@@ -303,6 +304,48 @@ FUNCTION crypto_p256_public_key
     li      a0, CRYPTO_OK
 9:  LEAVE   K_FRAME
 END_FUNCTION crypto_p256_public_key
+
+/* ---------------------------------------------------------------- ECDH */
+
+.set E_D, 0
+.set E_Q, 32
+.set E_P, 128
+.set E_XY, 224
+.set E_FRAME, 288
+
+/*
+ * crypto_p256_ecdh(public_key, private_key, shared) -> status: the x of d * Q.
+ * s1 public_key, s2 private_key, s3 shared.
+ */
+FUNCTION crypto_p256_ecdh
+    ENTER   E_FRAME
+    mv      s1, a0
+    mv      s2, a1
+    mv      s3, a2
+    addi    a0, sp, E_Q
+    mv      a1, s1
+    call    crypto_p256_point_load
+    bnez    a0, 9f
+    LOAD_BE s2
+    li      a0, CRYPTO_INVALID_PRIVATE_KEY
+    IF_ZERO 9f
+    lla     t5, 321f
+    BELOW   t5
+    li      a0, CRYPTO_INVALID_PRIVATE_KEY
+    beqz    t0, 9f
+    STORE_LIMBS sp, E_D
+    addi    a0, sp, E_P
+    addi    a1, sp, E_D
+    addi    a2, sp, E_Q
+    call    crypto_p256_point_mul
+    addi    a0, sp, E_XY
+    addi    a1, sp, E_P
+    call    crypto_p256_point_affine
+    LOAD_LIMBS sp, E_XY
+    STORE_BE s3
+    li      a0, CRYPTO_OK
+9:  LEAVE   E_FRAME
+END_FUNCTION crypto_p256_ecdh
 
 /* ---------------------------------------------------------------- ECDSA */
 
