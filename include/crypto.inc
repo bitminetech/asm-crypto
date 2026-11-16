@@ -7,8 +7,11 @@
 /* Status codes (ARCHITECTURE.md section 6). */
 .set CRYPTO_OK, 0
 .set CRYPTO_BUFFER_TOO_SMALL, 1
-.set CRYPTO_INVALID_PRIVATE_KEY, 4      /* secp256k1 and P-256: the private key is 0, or n or more */
-.set CRYPTO_INVALID_PUBLIC_KEY, 5       /* secp256k1 and P-256: the public key is not a point of the curve in the form the function takes */
+.set CRYPTO_INVALID_PRIVATE_KEY, 4      /* secp256k1, P-256 and BLS12-381: the private key is 0, or the group order or more */
+.set CRYPTO_INVALID_PUBLIC_KEY, 5       /* secp256k1, P-256 and BLS12-381: the public key is not a point of the curve in the form the function takes */
+.set CRYPTO_INVALID_SIGNATURE, 8        /* BLS12-381: a signature does not decode to a point of G2 */
+.set CRYPTO_EMPTY_LIST, 9               /* BLS12-381: a list the function needs at least one entry of is empty */
+.set CRYPTO_INVALID_ENCODING, 10        /* BLS12-381 and KZG: bytes do not encode a value in the form the function takes */
 
 /*
  * Byte list value (ARCHITECTURE.md section 6, a standalone list with one field).

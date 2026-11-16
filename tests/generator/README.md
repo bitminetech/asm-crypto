@@ -1,6 +1,6 @@
 # Vector generation
 
-Two scripts write binary case files to one output folder, which must be outside this repo. Both check the SHA-256 pin of every file they download.
+Two scripts write binary case files to one output folder, which must be outside this repo. Both check the SHA-256 pin of every file they read from a download.
 
 ```bash
 python3 -I tests/generator/generate.py ~/.cache/asm-crypto/vectors
@@ -13,19 +13,21 @@ tests/generator/run.sh ~/.cache/asm-crypto/vectors
 | Script | Writes | Needs |
 |---|---|---|
 | `generate.py` | The SHA-256 files, and `manifest.txt` | Python 3, standard library only |
-| `run.sh` | The Keccak-256, HMAC, HKDF, AES, secp256k1, ChaCha20-Poly1305, X25519, P-256, SHA-512 and Ed25519 files, and `manifest-primitives.txt` | Docker; it runs `primitives.py` in the image of [platform/linux/Dockerfile](../../platform/linux/Dockerfile) |
+| `run.sh` | The Keccak-256, HMAC, HKDF, AES, secp256k1, ChaCha20-Poly1305, X25519, P-256, SHA-512 and Ed25519 files, and `manifest-primitives.txt`; the BLS12-381 files, and `manifest-bls.txt`; the KZG files, and `manifest-kzg.txt` | Docker; it runs `primitives.py`, `bls.py` and `kzg.py` in the image of [platform/linux/Dockerfile](../../platform/linux/Dockerfile) |
 
 Each manifest lists each file, its case count and its SHA-256.
 
-`run.sh` keeps its downloads in `sources/`, the libsecp256k1 build and the Python environment in the output folder, so a second run downloads and builds nothing again.
+`run.sh` keeps its downloads in `sources/`, the libsecp256k1 build, the vector folders of cryptography-specs and the Python environment in the output folder, so a second run downloads and builds nothing again.
 
 | Reference | Pin |
 |---|---|
 | libsecp256k1 | [v0.8.0](https://github.com/bitcoin-core/secp256k1/tree/6e2c8bc4ecdc6e71dbe7a368f360d8d453ce435d), built with CMake and the ECDH module |
 | `cryptography` | 50.0.2 (OpenSSL 4.0.3), with `cffi` 2.1.1 and `pycparser` 3.12, by hash in [requirements.txt](requirements.txt) |
 | Keccak | `CompactFIPS202.py` at [XKCP@d20c8fc](https://github.com/XKCP/XKCP/tree/d20c8fcaecc543f816a0721d0dfc13b4cf27c14d) |
+| `py_arkworks_bls12381` | 0.5.0, with `pyyaml` 6.0.3, by hash in [requirements.txt](requirements.txt) |
+| cryptography-specs | [v0.3.0](https://github.com/ethereum/cryptography-specs/tree/bb6dfe55198243682bc2eaf94611af2dbce1be6f/tests/cryptography), the folders `bls`, `hash_to_curve` and `kzg`, and `EthLib/Cryptography/Kzg/TrustedSetupData.lean`, fetched with git |
 
-`primitives.py` stops when a reference disagrees with an official result that it uses.
+`primitives.py` and `bls.py` stop when a reference disagrees with an official result that they use.
 
 ## SHA-256 files
 
@@ -90,6 +92,10 @@ Each file starts with the 8 bytes `SHA256V1`, then `kind`, then the number of ca
 | `ed25519-rfc8032.bin` | RFC 8032 section 7.1 | the 3 Ed25519 functions |
 | `ed25519-wycheproof.bin` | Wycheproof `ed25519_test.json` | `crypto_ed25519_verify` |
 | `ed25519-generated.bin` | Generated keys, messages, signatures and public keys, `cryptography` | the 3 Ed25519 functions |
+| `bls-official.bin` | cryptography-specs `tests/cryptography/bls` (all but `aggregate_verify`) and `tests/cryptography/hash_to_curve` | the 16 BLS12-381 functions |
+| `bls-generated.bin` | Generated keys, messages, signatures, encodings and DSTs, `py_arkworks_bls12381` and the steps of the spec | the 16 BLS12-381 functions |
+| `kzg-official.bin` | The trusted setup of `TrustedSetupData.lean`, then cryptography-specs `tests/cryptography/kzg` | the 13 KZG functions |
+| `kzg-generated.bin` | Trusted setups with a list of the wrong length or a point that does not decompress | `crypto_kzg_trusted_setup_of_bytes` |
 
 The pins of each source are in the document of its functions in [docs/reference/](../../docs/reference/).
 
@@ -122,8 +128,38 @@ Each file starts with the 8 bytes `CRYPTOV2`, then the number of cases. Each cas
 | 19, Ed25519 sign | 32-byte private key, blob message, 64-byte signature |
 | 20, Ed25519 verify | 32-byte public key, blob message, 64-byte signature, `status`, `valid` |
 | 21, P-256 ECDH | 65-byte public key, 32-byte private key, `status`, 32-byte secret |
+| 22, BLS SkToPk | 32-byte secret key, `status`, 48-byte public key |
+| 23, BLS sign | 32-byte secret key, blob message, `status`, 96-byte signature |
+| 24, BLS verify | 48-byte public key, blob message, 96-byte signature, `valid` |
+| 25, BLS aggregate | blob of 96-byte signatures, `status`, 96-byte signature |
+| 26, BLS fast aggregate verify | blob of 48-byte public keys, blob message, 96-byte signature, `valid` |
+| 27, BLS KeyValidate | 48-byte public key, `valid` |
+| 28, BLS eth aggregate pubkeys | blob of 48-byte public keys, `status`, 48-byte public key |
+| 29, BLS eth fast aggregate verify | blob of 48-byte public keys, blob message, 96-byte signature, `valid` |
+| 30, G1 decode | 48 bytes, `status`, the 48 bytes of `crypto_bls_g1_compress` of the point |
+| 31, G2 decode | 96 bytes, `status`, the 96 bytes of `crypto_bls_g2_compress` of the point |
+| 32, G1 add | two 48-byte points, the 48-byte compressed sum |
+| 33, G1 neg | 48-byte point, the 48-byte compressed negation |
+| 34, expand_message_xmd | blob message, blob DST, `length`, `status`, blob uniform bytes |
+| 35, hash to G2 | blob message, blob DST, `status`, 192-byte affine point |
+| 36, KZG setup | blob of the G1 Lagrange points, blob of the G1 monomial points, blob of the G2 monomial points, `status` |
+| 37, blob to commitment | 131072-byte blob, `status`, 48-byte commitment |
+| 38, compute KZG proof | 131072-byte blob, 32-byte z, `status`, 48-byte proof, 32-byte y |
+| 39, verify KZG proof | 48-byte commitment, 32-byte z, 32-byte y, 48-byte proof, `status`, `valid` |
+| 40, compute blob proof | 131072-byte blob, 48-byte commitment, `status`, 48-byte proof |
+| 41, verify blob proof | 131072-byte blob, 48-byte commitment, 48-byte proof, `status`, `valid` |
+| 42, verify blob proof batch | blob of blobs, blob of 48-byte commitments, blob of 48-byte proofs, `status`, `valid` |
+| 43, compute challenge | 131072-byte blob, 48-byte commitment, `status`, 32-byte challenge |
+| 44, compute cells | 131072-byte blob, `status`, the 262144 bytes of the 128 cells |
+| 45, compute cells and proofs | 131072-byte blob, `status`, the 128 cells, the 6144 bytes of the 128 proofs |
+| 46, verify cell proof batch | blob of 48-byte commitments, blob of u64 cell indices, blob of 2048-byte cells, blob of 48-byte proofs, `status`, `valid` |
+| 47, recover cells and proofs | blob of u64 cell indices, blob of 2048-byte cells, `status`, the 128 cells, the 128 proofs |
+| 48, cell batch challenge | blob of 48-byte commitments, blob of u64 commitment indices, blob of u64 cell indices, blob of 2048-byte cells, blob of 48-byte proofs, `status`, 32-byte challenge |
 
 - `status` is the status code the function must return. When it is not 0, the bytes after it are zero and are not compared.
 - An HKDF case also tests Extract: its PRK is HMAC(salt, IKM).
 - A GCM case with `status` 3 (`CRYPTO_GCM_FAIL`) tests only `crypto_aes128_gcm_ad`, and its plaintext is empty.
 - A ChaCha20-Poly1305 case with `status` 6 (`CRYPTO_CHACHA20_POLY1305_FAIL`) tests only `crypto_chacha20_aead_decrypt`, and its plaintext is empty.
+- The points of G1 add and G1 neg cases go through `crypto_bls_g1_decode` first; they are valid.
+- A KZG setup case that decodes becomes the trusted setup of the KZG cases after it in its file.
+- An official KZG case with no output gets the status of the first check of the spec that fails; `kzg.py` writes the checks out.

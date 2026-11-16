@@ -1,10 +1,12 @@
 #!/bin/sh
 # Generate the Keccak-256, HMAC, HKDF, AES, secp256k1, ChaCha20-Poly1305,
-# X25519, P-256, SHA-512 and Ed25519 vectors inside the image from platform/linux/Dockerfile.
+# X25519, P-256, SHA-512, Ed25519, BLS12-381 and KZG vectors inside the image from
+# platform/linux/Dockerfile.
 # Usage: tests/generator/run.sh OUT_DIR    (OUT_DIR must be outside this repo)
 #
-# OUT_DIR keeps the downloads (sources/), the libsecp256k1 build and the
-# Python environment (.venv/), so a second run downloads and builds nothing again.
+# OUT_DIR keeps the downloads (sources/), the libsecp256k1 build, the vector
+# folders of cryptography-specs and the Python environment (.venv/), so a
+# second run downloads and builds nothing again.
 set -eu
 root=$(cd "$(dirname "$0")/../.." && pwd)
 mkdir -p "$1"
@@ -29,8 +31,21 @@ docker run --rm -v "$root:/src:ro" -v "$out:/out" asm-crypto-build sh -eu -c '
             -DSECP256K1_BUILD_EXHAUSTIVE_TESTS=OFF -DSECP256K1_BUILD_BENCHMARK=OFF >/dev/null
         cmake --build /out/sources/secp256k1-build -j >/dev/null
     fi
+    commit=bb6dfe55198243682bc2eaf94611af2dbce1be6f    # ethereum/cryptography-specs v0.3.0
+    specs=/out/sources/cryptography-specs
+    if [ "$(git -C $specs rev-parse HEAD 2>/dev/null)" != "$commit" ] ||
+       [ ! -f $specs/EthLib/Cryptography/Kzg/TrustedSetupData.lean ]; then
+        rm -rf $specs
+        git init -q $specs
+        git -C $specs sparse-checkout set --no-cone tests/cryptography/bls tests/cryptography/hash_to_curve \
+            tests/cryptography/kzg EthLib/Cryptography/Kzg/TrustedSetupData.lean 2>/dev/null
+        git -C $specs fetch -q --depth 1 --filter=blob:none https://github.com/ethereum/cryptography-specs $commit
+        git -C $specs checkout -q FETCH_HEAD
+    fi
     [ -x /out/.venv/bin/python ] || python3 -m venv /out/.venv
     /out/.venv/bin/pip install -q --disable-pip-version-check --require-hashes -r tests/generator/requirements.txt
     SECP256K1_LIBRARY=/out/sources/secp256k1-build/lib/libsecp256k1.so \
         /out/.venv/bin/python -I tests/generator/primitives.py /out
+    /out/.venv/bin/python -I tests/generator/bls.py /out
+    /out/.venv/bin/python -I tests/generator/kzg.py /out
 '

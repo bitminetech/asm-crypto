@@ -58,12 +58,13 @@ The record that `abi_call` reads and writes:
 | Offset | Field | Type | Meaning |
 |---|---|---|---|
 | 0 | `fn` | u64 | Address of the function to call |
-| 8 | `arg` | 5 u64 | The arguments |
+| 8 | `arg` | 5 u64 | Arguments 1 to 5 |
 | 48 | `paint` | u64 | Bytes of stack to paint below the call, a multiple of 8 |
 | 56 | `status` | u64 | The status the call returned |
 | 64 | `fault` | u64 | The mask of kept state that changed |
 | 72 | `stack` | u64 | Bytes of stack the call used |
 | 80 | `scratch` | 32 bytes | Workspace for `abi_call` |
+| 112 | `more` | 2 u64 | Arguments 6 and 7. On x86-64 the seventh is on the stack, above the stack the call uses |
 
 ## Tick tables
 

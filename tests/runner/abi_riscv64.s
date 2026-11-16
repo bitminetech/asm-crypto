@@ -96,6 +96,8 @@ FUNCTION abi_call
     ld      a2, 24(s11)
     ld      a3, 32(s11)
     ld      a4, 40(s11)
+    ld      a5, 112(s11)
+    ld      a6, 120(s11)
     ld      a0, 8(s11)
     jalr    t0
     li      t5, 0

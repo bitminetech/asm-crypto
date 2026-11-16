@@ -124,6 +124,7 @@ FUNCTION abi_call
     ldr     x16, [x28]
     ldp     x1, x2, [x28, #16]
     ldp     x3, x4, [x28, #32]
+    ldp     x5, x6, [x28, #112]
     ldr     x0, [x28, #8]
     blr     x16
     mov     x9, #0

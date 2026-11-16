@@ -2,7 +2,7 @@
 
 Cryptographic primitives for Ethereum, in assembly.
 
-SHA-256 for SSZ; the primitives of discv5 and ENR: Keccak-256, HMAC and HKDF with SHA-256, AES-128 in CTR and GCM, and secp256k1; and the primitives of libp2p: X25519, ChaCha20-Poly1305 (with Poly1305 on its own), P-256 (ECDSA and ECDH), SHA-512 and Ed25519.
+SHA-256 for SSZ; the primitives of discv5 and ENR: Keccak-256, HMAC and HKDF with SHA-256, AES-128 in CTR and GCM, and secp256k1; the primitives of libp2p: X25519, ChaCha20-Poly1305 (with Poly1305 on its own), P-256 (ECDSA and ECDH), SHA-512 and Ed25519; and for the consensus layer, the BLS signatures on BLS12-381, with hash to G2, and the KZG commitments of blobs and cells.
 
 Standard: [asm-standard@2a19d3f](https://github.com/bitminetech/asm-standard/blob/2a19d3f7fa737af1c01720b6e891703e53a682aa/ARCHITECTURE.md)
 
@@ -25,7 +25,12 @@ Standard: [asm-standard@2a19d3f](https://github.com/bitminetech/asm-standard/blo
 | [docs/reference/p256.md](docs/reference/p256.md) | P-256 |
 | [docs/reference/sha-512.md](docs/reference/sha-512.md) | SHA-512 |
 | [docs/reference/ed25519.md](docs/reference/ed25519.md) | Ed25519 |
-| [include/crypto.inc](include/crypto.inc) | Constants: shared, SHA-256, the key status codes |
+| [docs/reference/bls12-381.md](docs/reference/bls12-381.md) | BLS12-381: the fields, the groups and the pairing |
+| [docs/reference/hash-to-curve.md](docs/reference/hash-to-curve.md) | Hash to G2 (RFC 9380) |
+| [docs/reference/bls-signatures.md](docs/reference/bls-signatures.md) | BLS signatures |
+| [docs/reference/kzg.md](docs/reference/kzg.md) | KZG: the trusted setup and the blob functions |
+| [docs/reference/kzg-cells.md](docs/reference/kzg-cells.md) | KZG: the cell functions |
+| [include/crypto.inc](include/crypto.inc) | Constants: shared, SHA-256, the shared status codes |
 | [include/keccak.inc](include/keccak.inc) | Constants: Keccak-256 |
 | [include/hmac.inc](include/hmac.inc) | Constants: HMAC and HKDF |
 | [include/aes.inc](include/aes.inc) | Constants: AES, CTR and GCM |
@@ -35,6 +40,8 @@ Standard: [asm-standard@2a19d3f](https://github.com/bitminetech/asm-standard/blo
 | [include/p256.inc](include/p256.inc) | Constants: P-256 |
 | [include/sha512.inc](include/sha512.inc) | Constants: SHA-512 |
 | [include/ed25519.inc](include/ed25519.inc) | Constants: Ed25519 |
+| [include/bls12381.inc](include/bls12381.inc) | Constants: BLS12-381, hash to G2 and BLS signatures |
+| [include/kzg.inc](include/kzg.inc) | Constants: KZG |
 
 ## Targets
 

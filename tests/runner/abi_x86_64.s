@@ -24,6 +24,10 @@ FUNCTION abi_call
     push    %r14
     push    %r15
     push    %rdi
+    /* The seventh argument, at the stack pointer of the call: above the stack the call uses. */
+    sub     $16, %rsp
+    mov     120(%rdi), %rax
+    mov     %rax, (%rsp)
     /* Paint the stack below, from the top down, so each page is touched in order. */
     mov     48(%rdi), %rcx
     mov     %rsp, %rax
@@ -47,6 +51,7 @@ FUNCTION abi_call
     mov     24(%r15), %rdx
     mov     32(%r15), %rcx
     mov     40(%r15), %r8
+    mov     112(%r15), %r9
     mov     8(%r15), %rdi
     call    *%r11
     xor     %ecx, %ecx
@@ -82,7 +87,7 @@ FUNCTION abi_call
     bts     $63, %rcx
 15:
     mov     80(%rdi), %rsp
-    cmp     (%rsp), %r15
+    cmp     16(%rsp), %r15
     je      16f
     bts     $5, %rcx
 16:
@@ -124,7 +129,7 @@ FUNCTION abi_call
     ldmxcsr 88(%rdi)
     fldcw   92(%rdi)
     mov     %rcx, 64(%rdi)
-    add     $8, %rsp
+    add     $24, %rsp
     pop     %r15
     pop     %r14
     pop     %r13
