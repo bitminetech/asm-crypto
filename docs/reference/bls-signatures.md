@@ -1080,6 +1080,14 @@ The workspace of the hash to G2 and of the pairing.
 | ARM64 | ✅ | ✅ | ✅ |  |
 | RISC-V | ✅ |  |  |  |
 
+### `crypto_bls_fast_aggregate_verify_cached`
+
+| ISA | Linux | Windows | macOS | `equal` |
+|---|---|---|---|---|
+| x86-64 | ✅ | ✅ | ✅ |  |
+| ARM64 | ✅ | ✅ | ✅ |  |
+| RISC-V | ✅ |  |  |  |
+
 ### `crypto_bls_secret_key`
 
 | ISA | Linux | Windows | macOS | `equal` |
@@ -1111,6 +1119,14 @@ The workspace of the hash to G2 and of the pairing.
 | x86-64 | ✅ | ✅ | ✅ |  |
 | ARM64 | ✅ | ✅ | ✅ |  |
 | RISC-V | ✅ |  |  |  |
+
+### `crypto_bls_core_verify_point`
+
+| ISA | Linux | Windows | macOS | `equal` |
+|---|---|---|---|---|
+| x86-64 |  |  |  |  |
+| ARM64 |  |  |  |  |
+| RISC-V |  |  |  |  |
 
 ### `crypto_bls_fast_verify`
 
