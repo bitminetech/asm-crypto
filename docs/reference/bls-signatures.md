@@ -12,10 +12,12 @@
 - [`crypto_bls_key_validate`](#function-crypto_bls_key_validate): checks a public key.
 - [`crypto_bls_eth_aggregate_pubkeys`](#function-crypto_bls_eth_aggregate_pubkeys): adds public keys.
 - [`crypto_bls_eth_fast_aggregate_verify`](#function-crypto_bls_eth_fast_aggregate_verify): the fast aggregate check of Ethereum.
+- [`crypto_bls_fast_aggregate_verify_cached`](#function-crypto_bls_fast_aggregate_verify_cached): checks one signature by the keys at several indices, with a cache of checked keys.
 - [`crypto_bls_secret_key`](#function-crypto_bls_secret_key): reads a secret key as a number.
 - [`crypto_bls_key_validate_point`](#function-crypto_bls_key_validate_point): decompresses and checks a public key.
 - [`crypto_bls_aggregate_keys`](#function-crypto_bls_aggregate_keys): adds checked public keys.
 - [`crypto_bls_core_verify`](#function-crypto_bls_core_verify): checks a signature without the scratch check.
+- [`crypto_bls_core_verify_point`](#function-crypto_bls_core_verify_point): checks a signature against a point of G1.
 - [`crypto_bls_fast_verify`](#function-crypto_bls_fast_verify): checks one signature by several keys without the scratch check.
 
 ### Types
@@ -25,6 +27,9 @@
 - [`BlsSignature`](#type-blssignature): a compressed point of G2.
 - [`BlsPublicKeyList`](#type-blspublickeylist): a list of public keys.
 - [`BlsSignatureList`](#type-blssignaturelist): a list of signatures.
+- [`BlsIndexList`](#type-blsindexlist): a list of key indices.
+- [`BlsKeyCache`](#type-blskeycache): the checked keys of each index.
+- [`BlsKeyEntry`](#type-blskeyentry): one entry of a `BlsKeyCache`.
 - [`BlsScratch`](#type-blsscratch): the workspace of the hash and the pairing.
 
 ### Constants
@@ -39,6 +44,7 @@
 - It follows the proof of possession scheme of [draft-irtf-cfrg-bls-signature-04](https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-bls-signature-04), sections 2.3 to 2.8 and 3.3, with the ciphersuite `BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_`, and adds the Ethereum functions `ethAggregatePubkeys` and `ethFastAggregateVerify`.
 - DST: the 43 bytes `BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_`, the message tag of the ciphersuite.
 - The points, the pairing and the encodings are in [bls12-381.md](bls12-381.md); the hash to G2 is in [hash-to-curve.md](hash-to-curve.md).
+- `crypto_bls_fast_aggregate_verify_cached` is a custom function (ARCHITECTURE.md section 5): functionally equivalent to `fastAggregateVerify`, and to `verify` with one index.
 - Use: [consensus-specs](https://github.com/ethereum/consensus-specs/tree/313cbfe561517a81eb11607fea7c6985e562eaa9/specs) `313cbfe` calls `bls.Sign`, `bls.Verify`, `bls.Aggregate`, `bls.FastAggregateVerify`, `bls.KeyValidate`, `eth_aggregate_pubkeys` and `eth_fast_aggregate_verify`.
 - Use: a validator client checks that the public key of a keystore is the one of its secret key, with `SkToPk`.
 - The spec does not run in constant time. The time of `crypto_bls_sk_to_pk` and `crypto_bls_sign` depends on the secret key.
@@ -465,6 +471,72 @@ crypto_bls_eth_fast_aggregate_verify(public_keys, message, signature, scratch, v
 - Convention: the core ABI for each ISA (ARCHITECTURE.md section 6).
 - Argument order: `public_keys`, `message`, `signature`, `scratch`, `valid`.
 
+## Function `crypto_bls_fast_aggregate_verify_cached`
+
+Checks one signature of one message against the sum of the keys at several indices, with a cache of checked keys.
+
+### Signature
+
+```
+crypto_bls_fast_aggregate_verify_cached(keys, indices, cache, message, signature, scratch, valid) -> status
+```
+
+### Arguments
+
+| Name | Role | Type |
+|---|---|---|
+| `keys` | input | Key i: the `BlsPublicKey` at `keys` + i * `key_stride` of `cache` |
+| `indices` | input | `BlsIndexList` |
+| `cache` | state | `BlsKeyCache` |
+| `message` | input | [`ByteList`](sha-256.md#type-bytelist) |
+| `signature` | input | `BlsSignature` |
+| `scratch` | scratch | `BlsScratch` |
+| `valid` | output | [`Valid`](secp256k1.md#type-valid) |
+
+### Returns
+
+- `CRYPTO_OK`: `valid` holds 1 or 0.
+- `CRYPTO_BUFFER_TOO_SMALL`: `scratch` holds fewer than `CRYPTO_BLS_SCRATCH` + `count` of `message` bytes. Nothing is written.
+
+### Caller must
+
+- Pass a well formed `BlsIndexList` and `BlsKeyCache`, and a valid `ByteList` in `message`. They are not checked.
+- Hold key i at `keys` for each index i of `indices` below `count` of `cache`, with `keys` at a multiple of 8.
+- Start each entry of `cache` with status 0. After that, only this function writes the entries.
+- Not pass one `cache` to two calls at the same time.
+- Set the `size` field of `scratch` to its buffer size.
+- Keep `cache`, `scratch` and `valid` apart from each other and from the inputs.
+- Check a proof of possession of each key before it uses the key here: the scheme is safe from rogue keys only then (draft section 3.3).
+
+### Function does
+
+- Writes the result of `crypto_bls_fast_aggregate_verify` for the keys of the indices, in order, the message and the signature. With one index, that is the result of `crypto_bls_verify` for its key.
+- Checks `scratch` first.
+- Writes 0 when `indices` is empty, or an index is at or past `count` of `cache`.
+- Takes the point of a key from the entry of its index when the entry's status is not 0 and its key is the same 48 bytes. Else checks the key with `crypto_bls_key_validate_point` and writes the entry: status 1 with the key and its point, or status 2 with the key.
+- Writes 0 for a key of status 2.
+- Adds the points with `crypto_bls_g1_add`, and writes 0 when the sum is the point at infinity.
+- Checks the signature against the sum as `crypto_bls_core_verify` does, without the compressed form and subgroup check of the sum: every point is in G1, so the sum is.
+
+### Function never
+
+- Reads more than the `indices` header and its `count` entries, key i and entry i for each index i read, the fixed fields of `cache`, `signature`, the `ByteList` header and its `count` bytes, and the `size` field of `scratch`.
+- Writes more than the entries of the indices it reads, `scratch`, `valid` and its own stack.
+- Changes the fixed fields of `cache`.
+- Keeps a pointer after it returns.
+- Makes an OS call.
+
+### Limits
+
+- Stack: to be measured.
+
+### ABI
+
+- Role: L3.
+- Symbol: `crypto_bls_fast_aggregate_verify_cached` (`_crypto_bls_fast_aggregate_verify_cached` on macOS).
+- Convention: the core ABI for each ISA (ARCHITECTURE.md section 6).
+- Argument order: `keys`, `indices`, `cache`, `message`, `signature`, `scratch`, `valid`.
+
 ## Function `crypto_bls_secret_key`
 
 Reads a secret key as a number below r (`SecretKey.fromBytes`).
@@ -656,6 +728,57 @@ crypto_bls_core_verify(public_key, message, signature, work, valid) -> nothing
 - Convention: the core ABI for each ISA (ARCHITECTURE.md section 6). It returns no status.
 - Argument order: `public_key`, `message`, `signature`, `work`, `valid`.
 
+## Function `crypto_bls_core_verify_point`
+
+Runs `coreVerify` with the DST, with the key as a point of G1.
+
+### Signature
+
+```
+crypto_bls_core_verify_point(point, message, signature, work, valid) -> nothing
+```
+
+### Arguments
+
+| Name | Role | Type |
+|---|---|---|
+| `point` | input | [`G1Point`](bls12-381.md#type-g1point) |
+| `message` | input | [`ByteList`](sha-256.md#type-bytelist) |
+| `signature` | input | `BlsSignature` |
+| `work` | scratch | The `work` part of a `BlsScratch` |
+| `valid` | output | [`Valid`](secp256k1.md#type-valid) |
+
+### Caller must
+
+- Pass a point of G1 that is not the point at infinity. It is not checked.
+- Pass a valid `ByteList` in `message`. It is not checked.
+- Pass `work` of at least `CRYPTO_BLS_SCRATCH` - 8 + `count` of `message` bytes.
+- Keep `work` and `valid` apart from each other and from the inputs.
+
+### Function does
+
+- Writes 0 first.
+- Stops when the signature does not decompress to a point R of G2.
+- Hashes the message with `crypto_bls_hash_to_g2_point` and the DST, giving Q.
+- Writes the result of `crypto_bls_pairing_check` on the pairs (P, R) and (-point, Q), with P the generator of G1.
+
+### Function never
+
+- Reads more than `point`, `signature`, the `ByteList` header and its `count` bytes.
+- Writes more than `work`, `valid` and its own stack.
+- Makes an OS call.
+
+### Limits
+
+- Stack of its own: 80 bytes on x86-64 (return address included), 112 bytes on ARM64, 128 bytes on RISC-V.
+
+### ABI
+
+- Role: L0.
+- Symbol: `crypto_bls_core_verify_point`, local to its object.
+- Convention: the core ABI for each ISA (ARCHITECTURE.md section 6). It returns no status.
+- Argument order: `point`, `message`, `signature`, `work`, `valid`.
+
 ## Function `crypto_bls_fast_verify`
 
 Runs `fastAggregateVerify`, without the check of `crypto_bls_fast_aggregate_verify`.
@@ -786,6 +909,62 @@ A list of signatures.
 - The signatures follow each other from `offset`, 96 bytes each.
 - `offset` + 96 * `count` is at most `size`.
 
+## Type `BlsIndexList`
+
+A list of key indices.
+
+### Layout
+
+| Offset | Field | Type | Meaning |
+|---|---|---|---|
+| 0 | `size` | u64 | Total buffer size in bytes |
+| 8 | `offset` | u64 | Where the indices start, from the buffer start |
+| 16 | `count` | u64 | Number of indices |
+
+### Rules
+
+- The buffer starts at a multiple of 8.
+- `offset` is at least 24 and a multiple of 8.
+- The indices follow each other from `offset`, a u64 each.
+- `offset` + 8 * `count` is at most `size`.
+
+## Type `BlsKeyCache`
+
+The checked keys of each index.
+
+### Layout
+
+| Offset | Field | Type | Meaning |
+|---|---|---|---|
+| 0 | `size` | u64 | Total buffer size in bytes |
+| 8 | `key_stride` | u64 | Bytes from one key to the next at `keys` |
+| 16 | `offset` | u64 | Where the entries start, from the buffer start |
+| 24 | `count` | u64 | Number of entries |
+
+### Rules
+
+- The buffer starts at a multiple of 8.
+- `key_stride` is a multiple of 8.
+- `offset` is at least 32 and a multiple of 8.
+- Entry i is the `BlsKeyEntry` at `offset` + 152 * i.
+- `offset` + 152 * `count` is at most `size`.
+
+## Type `BlsKeyEntry`
+
+The check of one key.
+
+### Layout
+
+| Offset | Field | Type | Meaning |
+|---|---|---|---|
+| 0 | `status` | u64 | 0 empty; 1 the key passes `crypto_bls_key_validate`; 2 it fails |
+| 8 | `key` | `BlsPublicKey` | The key of the entry |
+| 56 | `point` | [`G1Xy`](bls12-381.md#type-g1xy) | With status 1: the point of the key |
+
+### Rules
+
+- 152 bytes.
+
 ## Type `BlsScratch`
 
 The workspace of the hash to G2 and of the pairing.
@@ -828,6 +1007,9 @@ The workspace of the hash to G2 and of the pairing.
   - Public keys and signatures at infinity, off the subgroup, and with the bad encodings of [bls12-381.md](bls12-381.md#test-vectors).
   - Aggregates of 1, 2, 3, 5 and 12 signatures of one message, checked with their keys and with a missing key; an empty list; lists with the point at infinity, a point off the subgroup and bad encodings.
   - Keys that cancel: a key and its negation, whose sum is the point at infinity.
+  - A key twice in one list, checked against the signature of the key twice and of the key once.
+- `crypto_bls_fast_aggregate_verify_cached`: every case above of `verify`, `fast_aggregate_verify` and `eth_fast_aggregate_verify` with at least one key, with the keys at a stride of 48 and the indices 0 to n - 1. Each runs with an empty cache, again with the cache it filled, and with a cache filled by the case before. The expected result is that of the case.
+- Built from those cases: the keys at a stride of 128 in another order, an index twice, and an index at `count` of the cache.
   - Expected results: `py_arkworks_bls12381` 0.5.0 for the points, the hash to G2, the subgroup checks and the pairing check, with the steps of `Signatures.lean` written out in [tests/generator/bls.py](../../tests/generator/bls.py).
 
 ## Results

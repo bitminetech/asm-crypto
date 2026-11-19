@@ -13,7 +13,7 @@ Declared interface:
   Dependencies table.
 
 Checks on the library archive of each of the 7 targets:
-- Exports: the global symbols are exactly the L2 functions.
+- Exports: the global symbols are exactly the L2 and L3 functions.
 - Names: every function starts with the library name.
 - Entries: every function in the archive has a documentation entry, and
   every documented function is in the archive.
@@ -90,7 +90,7 @@ def declared_roles():
                 elif line.startswith("## "):
                     function = None
                 elif function:
-                    m = re.match(r"- Role: (L[012])\.", line)
+                    m = re.match(r"- Role: (L[0123])\.", line)
                     if m:
                         roles[function] = m.group(1)
     for function, role in roles.items():
@@ -174,11 +174,11 @@ def check_target(os_name, isa, library, roles, deps):
     undefined -= set(defined)
 
     exported = {n for n, (_, g) in defined.items() if g}
-    l2 = {n for n, r in roles.items() if r == "L2"}
-    for name in sorted(exported - l2):
-        fail(target, f"exports {name}, which is not a declared L2 function")
-    for name in sorted(l2 - exported):
-        fail(target, f"does not export the L2 function {name}")
+    public = {n for n, r in roles.items() if r in ("L2", "L3")}
+    for name in sorted(exported - public):
+        fail(target, f"exports {name}, which is not a declared L2 or L3 function")
+    for name in sorted(public - exported):
+        fail(target, f"does not export the {roles[name]} function {name}")
     for name in sorted(defined):
         if not name.startswith(library + "_"):
             fail(target, f"function {name} does not start with {library}_")

@@ -12,8 +12,8 @@ Runs from the repo root.
 
 An OS cell gets a tick when that target's runner printed PASS for the
 function. A function with no vectors of its own (an L0 helper) is tested
-through the functions that call it: it gets a tick when every L2 function
-that reaches it passed on that target. A missing results file leaves the
+through the functions that call it: it gets a tick when every L2 or L3
+function that reaches it passed on that target. A missing results file leaves the
 cells of its target empty. Only ARM64 crypto_sha256 can receive an equal
 proof tick, from a current checked receipt covering all three ARM64 targets
 and passing ARM64 vectors on those targets. Missing or invalid receipts leave
@@ -149,14 +149,14 @@ def callers(build_dir, isa):
 
 
 def reaching_l2(function, graph, roles):
-    """The L2 functions that call function, directly or through others."""
+    """The L2 and L3 functions that call function, directly or through others."""
     seen, todo, found = set(), [function], set()
     while todo:
         for caller in graph.get(todo.pop(), ()):
             if caller in seen:
                 continue
             seen.add(caller)
-            if roles.get(caller) == "L2":
+            if roles.get(caller) in ("L2", "L3"):
                 found.add(caller)
             todo.append(caller)
     return found
@@ -168,7 +168,7 @@ def tick(function, role, os_name, isa, results_dir, graph, roles):
     ok = passed(results_dir, os_name, isa)
     if function in ok:
         return True
-    if role == "L2":
+    if role in ("L2", "L3"):
         return False
     tested_by = reaching_l2(function, graph, roles)
     return bool(tested_by) and tested_by <= ok

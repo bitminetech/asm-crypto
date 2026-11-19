@@ -2998,6 +2998,127 @@ FUNCTION crypto_bls_eth_fast_aggregate_verify
     LEAVE   0
 END_FUNCTION crypto_bls_eth_fast_aggregate_verify
 
+/*
+ * crypto_bls_core_verify_point(point, message, signature, work, valid):
+ * crypto_bls_core_verify with the key as a point of G1 that is not the point
+ * at infinity: the u64 1 when the signature decompresses into G2 and
+ * e(P, R) e(-point, H(message)) = 1, else 0. work as for crypto_bls_core_verify.
+ */
+LOCAL_FUNCTION crypto_bls_core_verify_point
+    ENTER   CV_SIZE
+    mv      s1, a0                          # point
+    mv      s2, a1                          # message
+    mv      s3, a2                          # signature
+    mv      s4, a3                          # work
+    mv      s5, a4                          # valid
+    sd      zero, 0(s5)
+    mv      a0, s3                          # R: decompress, subgroup check
+    ADDR    a1, s4, CV_G2A
+    call    crypto_bls_g2_uncompress
+    bnez    a0, 9f
+    C2      crypto_bls_g2_in_subgroup, s4, CV_G2A, sp, CV_V
+    ld      t0, CV_V(sp)
+    beqz    t0, 9f
+    COPY    s4, CV_G1B, s1, 0, 144          # -point
+    G2      crypto_bls_g1_neg, s4, CV_G1B, s4, CV_G1B
+    mv      a0, s2                          # Q = H(message)
+    lla     a1, 931f
+    ADDR    a2, s4, CV_AREA
+    ADDR    a3, s4, CV_G2B
+    call    crypto_bls_hash_to_g2_point
+    bnez    a0, 9f
+    lla     t0, 904f                        # P: the generator of G1
+    COPY    s4, CV_G1A, t0, 0, 96
+    SET_ONE s4, CV_G1A + 96
+    li      t0, 2
+    sd      t0, CV_PAIRS(s4)
+    mv      a0, s4
+    ADDR    a1, s4, CV_AREA
+    mv      a2, s5
+    call    crypto_bls_pairing_check
+9:  LEAVE   CV_SIZE
+END_FUNCTION crypto_bls_core_verify_point
+
+/*
+ * crypto_bls_fast_aggregate_verify_cached(keys, indices, cache, message,
+ * signature, scratch, valid) -> status: fastAggregateVerify of the keys at
+ * the indices, each key checked once through its cache entry.
+ * s1 keys, s2 the next index, s3 cache, s4 message, s5 signature, s6 work,
+ * s7 valid, s8 indices left, s9 key i, s10 entry i, s11 a status.
+ * Stack: the sum (G1Point) at 0, a point (G1Point) at 144.
+ */
+.set FC_ACC, 0
+.set FC_P, 144
+.set FC_SIZE, 288
+FUNCTION crypto_bls_fast_aggregate_verify_cached
+    ENTER   FC_SIZE
+    SCRATCH_CHECK a5, a3, 8f
+    mv      s1, a0
+    mv      s3, a2
+    mv      s4, a3
+    mv      s5, a4
+    addi    s6, a5, 8
+    mv      s7, a6
+    sd      zero, 0(s7)
+    ld      t0, CRYPTO_BLS_LIST_OFFSET(a1)
+    ld      s8, CRYPTO_BLS_LIST_COUNT(a1)
+    beqz    s8, 9f                          # no index: 0
+    add     s2, a1, t0
+    SET_ONE sp, FC_ACC                      # the sum: the point at infinity
+    SET_ONE sp, FC_ACC + 48
+    ZERO    sp, FC_ACC + 96, 48
+1:  ld      t0, 0(s2)                       # index i
+    addi    s2, s2, 8
+    ld      t1, CRYPTO_BLS_CACHE_COUNT(s3)
+    bgeu    t0, t1, 9f                      # at or past count: 0
+    ld      t1, CRYPTO_BLS_CACHE_KEY_STRIDE(s3)
+    mul     s9, t0, t1
+    add     s9, s9, s1
+    li      t1, CRYPTO_BLS_ENTRY_BYTES
+    mul     s10, t0, t1
+    ld      t1, CRYPTO_BLS_CACHE_OFFSET(s3)
+    add     s10, s10, t1
+    add     s10, s10, s3
+    ld      t0, CRYPTO_BLS_ENTRY_STATUS(s10)
+    beqz    t0, 3f                          # empty: check the key
+    EQUAL   s10, CRYPTO_BLS_ENTRY_KEY, s9, 0, 48
+    bnez    t0, 3f                          # the entry of another key: check this one
+    ld      t0, CRYPTO_BLS_ENTRY_STATUS(s10)
+    li      t1, 2
+    beq     t0, t1, 9f                      # a key that fails KeyValidate: 0
+    COPY    sp, FC_P, s10, CRYPTO_BLS_ENTRY_POINT, 96
+    SET_ONE sp, FC_P + 96
+    j       4f
+3:  mv      a0, s9                          # KeyValidate, then the entry
+    ADDR    a1, sp, FC_P
+    call    crypto_bls_key_validate_point
+    mv      s11, a0
+    COPY    s10, CRYPTO_BLS_ENTRY_KEY, s9, 0, 48
+    bnez    s11, 32f
+    COPY    s10, CRYPTO_BLS_ENTRY_POINT, sp, FC_P, 96
+    li      t0, 1
+    sd      t0, CRYPTO_BLS_ENTRY_STATUS(s10)
+    j       4f
+32: li      t0, 2
+    sd      t0, CRYPTO_BLS_ENTRY_STATUS(s10)
+    j       9f
+4:  G3      crypto_bls_g1_add, sp, FC_ACC, sp, FC_P, sp, FC_ACC
+    addi    s8, s8, -1
+    bnez    s8, 1b
+    IS_ZERO sp, FC_ACC + 96, 48             # the sum at infinity: 0
+    beqz    t0, 9f
+    ADDR    a0, sp, FC_ACC
+    mv      a1, s4
+    mv      a2, s5
+    mv      a3, s6
+    mv      a4, s7
+    call    crypto_bls_core_verify_point
+9:  li      a0, CRYPTO_OK
+    LEAVE   FC_SIZE
+8:  li      a0, CRYPTO_BUFFER_TOO_SMALL
+    LEAVE   FC_SIZE
+END_FUNCTION crypto_bls_fast_aggregate_verify_cached
+
 
 
 /* ---------------------------------------------------------------- Fr (Bls/Fr.lean), for KZG */

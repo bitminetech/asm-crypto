@@ -29,10 +29,25 @@
 .set CRYPTO_BLS_LIST_FIXED, 24
 
 /*
+ * A key cache (BlsKeyCache): size at 0, key_stride at 8, then the entries
+ * as a list: offset at 16, count at 24. Each entry (BlsKeyEntry) is status
+ * (0 empty, 1 valid, 2 invalid), the 48 key bytes, then the affine point:
+ * x and y in Montgomery form.
+ */
+.set CRYPTO_BLS_CACHE_KEY_STRIDE, 8
+.set CRYPTO_BLS_CACHE_OFFSET, 16
+.set CRYPTO_BLS_CACHE_COUNT, 24
+.set CRYPTO_BLS_CACHE_FIXED, 32
+.set CRYPTO_BLS_ENTRY_STATUS, 0
+.set CRYPTO_BLS_ENTRY_KEY, 8
+.set CRYPTO_BLS_ENTRY_POINT, 56
+.set CRYPTO_BLS_ENTRY_BYTES, 152
+
+/*
  * Scratch sizes: the size field of a scratch buffer is at least this many
  * bytes plus the count of the message (and of the DST where named).
  */
-.set CRYPTO_BLS_SCRATCH, 8192           /* sign, verify, fast_aggregate_verify, eth_fast_aggregate_verify: + message */
+.set CRYPTO_BLS_SCRATCH, 8192           /* sign, verify, the fast aggregate checks: + message */
 .set CRYPTO_BLS_H2C_SCRATCH, 4096       /* expand_message_xmd, hash_to_g2: + message + DST */
 
 /*
