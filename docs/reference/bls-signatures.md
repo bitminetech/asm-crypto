@@ -528,7 +528,7 @@ crypto_bls_fast_aggregate_verify_cached(keys, indices, cache, message, signature
 
 ### Limits
 
-- Stack: to be measured.
+- Stack: 3024 bytes on x86-64 (return address included), 3216 bytes on ARM64, 3392 bytes on RISC-V, callees included.
 
 ### ABI
 
