@@ -488,12 +488,267 @@ LOCAL_FUNCTION crypto_bls_fp_pow
     LEAVE   FW_SIZE
 END_FUNCTION crypto_bls_fp_pow
 
-/* crypto_bls_fp_inverse(result, a): a^(p - 2) (Fp.inverse); 0 gives 0. result may be a. */
+/*
+ * crypto_bls_fp_inverse(result, a): 1 / a (Fp.inverse); 0 gives 0. result may be a. The binary extended Euclid
+ * algorithm, in variable time: u = a, v = p, b = R^2, d = 0, with b a = u R^2 and d a = v R^2 mod p kept by each
+ * step. It halves u and b (mod p) while u is even, and v and d while v is even, then takes the smaller of u and v
+ * from the other, with b and d alike. When u = 1, b = R^2 / a, the Montgomery form of 1 / a for a in Montgomery
+ * form; when v = 1, d is. u r8 to r13, v r14, r15, rbx, rbp, rsi, rcx; b at 0(rsp), d at 48(rsp).
+ */
+.set FI_B, 0
+.set FI_D, 48
+.set FI_RESULT, 96
+.set FI_SIZE, 104
 LOCAL_FUNCTION crypto_bls_fp_inverse
-    ENTER   8
-    lea     917f(%rip), %rdx
-    call    crypto_bls_fp_pow
-    LEAVE   8
+    ENTER   FI_SIZE
+    mov     %rdi, FI_RESULT(%rsp)
+    mov     (%rsi), %r8                     /* u = a */
+    mov     8(%rsi), %r9
+    mov     16(%rsi), %r10
+    mov     24(%rsi), %r11
+    mov     32(%rsi), %r12
+    mov     40(%rsi), %r13
+    mov     %r8, %rax
+    or      %r9, %rax
+    or      %r10, %rax
+    or      %r11, %rax
+    or      %r12, %rax
+    or      %r13, %rax
+    jz      8f                              /* 0 gives 0 */
+    mov     900f(%rip), %r14                /* v = p */
+    mov     900f+8(%rip), %r15
+    mov     900f+16(%rip), %rbx
+    mov     900f+24(%rip), %rbp
+    mov     900f+32(%rip), %rsi
+    mov     900f+40(%rip), %rcx
+    mov     900f+BLS_FP_RECORD_R2+0(%rip), %rax                /* b = R^2, d = 0 */
+    mov     %rax, 0(%rsp)
+    movq    $0, 48(%rsp)
+    mov     900f+BLS_FP_RECORD_R2+8(%rip), %rax
+    mov     %rax, 8(%rsp)
+    movq    $0, 56(%rsp)
+    mov     900f+BLS_FP_RECORD_R2+16(%rip), %rax
+    mov     %rax, 16(%rsp)
+    movq    $0, 64(%rsp)
+    mov     900f+BLS_FP_RECORD_R2+24(%rip), %rax
+    mov     %rax, 24(%rsp)
+    movq    $0, 72(%rsp)
+    mov     900f+BLS_FP_RECORD_R2+32(%rip), %rax
+    mov     %rax, 32(%rsp)
+    movq    $0, 80(%rsp)
+    mov     900f+BLS_FP_RECORD_R2+40(%rip), %rax
+    mov     %rax, 40(%rsp)
+    movq    $0, 88(%rsp)
+1:
+    cmp     $1, %r8
+    jne     60f
+    mov     %r9, %rax
+    or      %r10, %rax
+    or      %r11, %rax
+    or      %r12, %rax
+    or      %r13, %rax
+    jz      6f
+60:
+    cmp     $1, %r14
+    jne     70f
+    mov     %r15, %rax
+    or      %rbx, %rax
+    or      %rbp, %rax
+    or      %rsi, %rax
+    or      %rcx, %rax
+    jz      7f
+70:
+    test    $1, %r8b
+    jnz     3f
+2:                                          /* u even: u / 2, b / 2 mod p */
+    shrd    $1, %r9, %r8
+    shrd    $1, %r10, %r9
+    shrd    $1, %r11, %r10
+    shrd    $1, %r12, %r11
+    shrd    $1, %r13, %r12
+    shr     $1, %r13
+    testb   $1, 0(%rsp)
+    jz      21f
+    mov     900f+0(%rip), %rax
+    add     %rax, 0(%rsp)
+    mov     900f+8(%rip), %rax
+    adc     %rax, 8(%rsp)
+    mov     900f+16(%rip), %rax
+    adc     %rax, 16(%rsp)
+    mov     900f+24(%rip), %rax
+    adc     %rax, 24(%rsp)
+    mov     900f+32(%rip), %rax
+    adc     %rax, 32(%rsp)
+    mov     900f+40(%rip), %rax
+    adc     %rax, 40(%rsp)
+21:
+    mov     8(%rsp), %rax
+    shrd    $1, %rax, 0(%rsp)
+    mov     16(%rsp), %rax
+    shrd    $1, %rax, 8(%rsp)
+    mov     24(%rsp), %rax
+    shrd    $1, %rax, 16(%rsp)
+    mov     32(%rsp), %rax
+    shrd    $1, %rax, 24(%rsp)
+    mov     40(%rsp), %rax
+    shrd    $1, %rax, 32(%rsp)
+    shrq    $1, 40(%rsp)
+    test    $1, %r8b
+    jz      2b
+3:  test    $1, %r14b
+    jnz     5f
+4:                                          /* v even: v / 2, d / 2 mod p */
+    shrd    $1, %r15, %r14
+    shrd    $1, %rbx, %r15
+    shrd    $1, %rbp, %rbx
+    shrd    $1, %rsi, %rbp
+    shrd    $1, %rcx, %rsi
+    shr     $1, %rcx
+    testb   $1, 48(%rsp)
+    jz      41f
+    mov     900f+0(%rip), %rax
+    add     %rax, 48(%rsp)
+    mov     900f+8(%rip), %rax
+    adc     %rax, 56(%rsp)
+    mov     900f+16(%rip), %rax
+    adc     %rax, 64(%rsp)
+    mov     900f+24(%rip), %rax
+    adc     %rax, 72(%rsp)
+    mov     900f+32(%rip), %rax
+    adc     %rax, 80(%rsp)
+    mov     900f+40(%rip), %rax
+    adc     %rax, 88(%rsp)
+41:
+    mov     56(%rsp), %rax
+    shrd    $1, %rax, 48(%rsp)
+    mov     64(%rsp), %rax
+    shrd    $1, %rax, 56(%rsp)
+    mov     72(%rsp), %rax
+    shrd    $1, %rax, 64(%rsp)
+    mov     80(%rsp), %rax
+    shrd    $1, %rax, 72(%rsp)
+    mov     88(%rsp), %rax
+    shrd    $1, %rax, 80(%rsp)
+    shrq    $1, 88(%rsp)
+    test    $1, %r14b
+    jz      4b
+5:  cmp     %r14, %r8                       /* u >= v: u - v, b - d; else v - u, d - b */
+    mov     %r9, %rax
+    sbb     %r15, %rax
+    mov     %r10, %rax
+    sbb     %rbx, %rax
+    mov     %r11, %rax
+    sbb     %rbp, %rax
+    mov     %r12, %rax
+    sbb     %rsi, %rax
+    mov     %r13, %rax
+    sbb     %rcx, %rax
+    jb      9f
+    sub     %r14, %r8
+    sbb     %r15, %r9
+    sbb     %rbx, %r10
+    sbb     %rbp, %r11
+    sbb     %rsi, %r12
+    sbb     %rcx, %r13
+    mov     48(%rsp), %rax
+    sub     %rax, 0(%rsp)
+    mov     56(%rsp), %rax
+    sbb     %rax, 8(%rsp)
+    mov     64(%rsp), %rax
+    sbb     %rax, 16(%rsp)
+    mov     72(%rsp), %rax
+    sbb     %rax, 24(%rsp)
+    mov     80(%rsp), %rax
+    sbb     %rax, 32(%rsp)
+    mov     88(%rsp), %rax
+    sbb     %rax, 40(%rsp)
+    jnc     51f
+    mov     900f+0(%rip), %rax
+    add     %rax, 0(%rsp)
+    mov     900f+8(%rip), %rax
+    adc     %rax, 8(%rsp)
+    mov     900f+16(%rip), %rax
+    adc     %rax, 16(%rsp)
+    mov     900f+24(%rip), %rax
+    adc     %rax, 24(%rsp)
+    mov     900f+32(%rip), %rax
+    adc     %rax, 32(%rsp)
+    mov     900f+40(%rip), %rax
+    adc     %rax, 40(%rsp)
+51:
+    jmp     1b
+9:
+    sub     %r8, %r14
+    sbb     %r9, %r15
+    sbb     %r10, %rbx
+    sbb     %r11, %rbp
+    sbb     %r12, %rsi
+    sbb     %r13, %rcx
+    mov     0(%rsp), %rax
+    sub     %rax, 48(%rsp)
+    mov     8(%rsp), %rax
+    sbb     %rax, 56(%rsp)
+    mov     16(%rsp), %rax
+    sbb     %rax, 64(%rsp)
+    mov     24(%rsp), %rax
+    sbb     %rax, 72(%rsp)
+    mov     32(%rsp), %rax
+    sbb     %rax, 80(%rsp)
+    mov     40(%rsp), %rax
+    sbb     %rax, 88(%rsp)
+    jnc     91f
+    mov     900f+0(%rip), %rax
+    add     %rax, 48(%rsp)
+    mov     900f+8(%rip), %rax
+    adc     %rax, 56(%rsp)
+    mov     900f+16(%rip), %rax
+    adc     %rax, 64(%rsp)
+    mov     900f+24(%rip), %rax
+    adc     %rax, 72(%rsp)
+    mov     900f+32(%rip), %rax
+    adc     %rax, 80(%rsp)
+    mov     900f+40(%rip), %rax
+    adc     %rax, 88(%rsp)
+91:
+    jmp     1b
+6:
+    mov     FI_RESULT(%rsp), %rdi
+    mov     0(%rsp), %rax
+    mov     %rax, 0(%rdi)
+    mov     8(%rsp), %rax
+    mov     %rax, 8(%rdi)
+    mov     16(%rsp), %rax
+    mov     %rax, 16(%rdi)
+    mov     24(%rsp), %rax
+    mov     %rax, 24(%rdi)
+    mov     32(%rsp), %rax
+    mov     %rax, 32(%rdi)
+    mov     40(%rsp), %rax
+    mov     %rax, 40(%rdi)
+    jmp     10f
+7:
+    mov     FI_RESULT(%rsp), %rdi
+    mov     48(%rsp), %rax
+    mov     %rax, 0(%rdi)
+    mov     56(%rsp), %rax
+    mov     %rax, 8(%rdi)
+    mov     64(%rsp), %rax
+    mov     %rax, 16(%rdi)
+    mov     72(%rsp), %rax
+    mov     %rax, 24(%rdi)
+    mov     80(%rsp), %rax
+    mov     %rax, 32(%rdi)
+    mov     88(%rsp), %rax
+    mov     %rax, 40(%rdi)
+    jmp     10f
+8:
+    movq    $0, 0(%rdi)
+    movq    $0, 8(%rdi)
+    movq    $0, 16(%rdi)
+    movq    $0, 24(%rdi)
+    movq    $0, 32(%rdi)
+    movq    $0, 40(%rdi)
+10: LEAVE   FI_SIZE
 END_FUNCTION crypto_bls_fp_inverse
 
 /*
@@ -748,6 +1003,80 @@ FUNCTION crypto_bls_g1_add
 9:  mov     $CRYPTO_OK, %eax
     LEAVE   GA_SIZE
 END_FUNCTION crypto_bls_g1_add
+
+/*
+ * crypto_bls_g1_add_affine(result, point, xy): point + (x, y), for the
+ * affine (x, y) of a point that is not the point at infinity
+ * (madd-2007-bl). Each coordinate is that of crypto_bls_g1_add with second =
+ * (x, y, 1): with z1z1 = Z1^2, u2 = x z1z1 and s2 = y Z1 z1z1, h = u2 - X1,
+ * hh = h^2, i = 4 hh, j = h i, r = 2 (s2 - Y1), v = X1 i, X3 = r^2 - j - 2 v,
+ * Y3 = r (v - X3) - 2 Y1 j, Z3 = (Z1 + h)^2 - z1z1 - hh = 2 Z1 h. result may
+ * be point.
+ */
+.set GB_Z1Z1, 0
+.set GB_U2, 48
+.set GB_S2, 96
+.set GB_H, 144
+.set GB_HH, 192
+.set GB_I, 240
+.set GB_J, 288
+.set GB_R, 336
+.set GB_V, 384
+.set GB_T, 432
+.set GB_X, 480
+.set GB_Y, 528
+.set GB_Z, 576
+.set GB_SIZE, 632
+LOCAL_FUNCTION crypto_bls_g1_add_affine
+    ENTER   GB_SIZE
+    mov     %rdi, %rbx                      /* result */
+    mov     %rsi, %rbp                      /* point */
+    mov     %rdx, %r12                      /* xy */
+    IS_ZERO %rbp, 96, 48
+    jnz     1f
+    COPY    %rbx, 0, %r12, 0, 96              /* point at infinity: (x, y, 1) */
+    SET_ONE %rbx, 96
+    LEAVE   GB_SIZE
+1:  FMUL    %rsp, GB_Z1Z1, %rbp, 96, %rbp, 96
+    FMUL    %rsp, GB_U2, %r12, 0, %rsp, GB_Z1Z1
+    FMUL    %rsp, GB_S2, %r12, 48, %rbp, 96
+    FMUL    %rsp, GB_S2, %rsp, GB_S2, %rsp, GB_Z1Z1
+    EQUAL   %rbp, 0, %rsp, GB_U2, 48
+    jnz     4f
+    EQUAL   %rbp, 48, %rsp, GB_S2, 48
+    jnz     3f
+    mov     %rbx, %rdi                      /* equal points: double */
+    mov     %rbp, %rsi
+    call    crypto_bls_g1_double
+    LEAVE   GB_SIZE
+3:  SET_ONE %rbx, 0                          /* opposite points: infinity */
+    SET_ONE %rbx, 48
+    ZERO    %rbx, 96, 48
+    LEAVE   GB_SIZE
+4:  FSUB    %rsp, GB_H, %rsp, GB_U2, %rbp, 0     /* h = u2 - X1 */
+    FMUL    %rsp, GB_HH, %rsp, GB_H, %rsp, GB_H   /* hh = h^2, i = 4 hh, j = h i */
+    FADD    %rsp, GB_I, %rsp, GB_HH, %rsp, GB_HH
+    FADD    %rsp, GB_I, %rsp, GB_I, %rsp, GB_I
+    FMUL    %rsp, GB_J, %rsp, GB_H, %rsp, GB_I
+    FSUB    %rsp, GB_R, %rsp, GB_S2, %rbp, 48    /* r = 2 (s2 - Y1) */
+    FADD    %rsp, GB_R, %rsp, GB_R, %rsp, GB_R
+    FMUL    %rsp, GB_V, %rbp, 0, %rsp, GB_I      /* v = X1 i */
+    FMUL    %rsp, GB_X, %rsp, GB_R, %rsp, GB_R    /* X3 = r^2 - j - 2 v */
+    FSUB    %rsp, GB_X, %rsp, GB_X, %rsp, GB_J
+    FSUB    %rsp, GB_X, %rsp, GB_X, %rsp, GB_V
+    FSUB    %rsp, GB_X, %rsp, GB_X, %rsp, GB_V
+    FSUB    %rsp, GB_T, %rsp, GB_V, %rsp, GB_X    /* Y3 = r (v - X3) - 2 Y1 j */
+    FMUL    %rsp, GB_Y, %rsp, GB_R, %rsp, GB_T
+    FMUL    %rsp, GB_T, %rbp, 48, %rsp, GB_J
+    FADD    %rsp, GB_T, %rsp, GB_T, %rsp, GB_T
+    FSUB    %rsp, GB_Y, %rsp, GB_Y, %rsp, GB_T
+    FADD    %rsp, GB_T, %rbp, 96, %rsp, GB_H     /* Z3 = (Z1 + h)^2 - z1z1 - hh */
+    FMUL    %rsp, GB_T, %rsp, GB_T, %rsp, GB_T
+    FSUB    %rsp, GB_T, %rsp, GB_T, %rsp, GB_Z1Z1
+    FSUB    %rsp, GB_Z, %rsp, GB_T, %rsp, GB_HH
+    COPY    %rbx, 0, %rsp, GB_X, 144
+    LEAVE   GB_SIZE
+END_FUNCTION crypto_bls_g1_add_affine
 
 /* crypto_bls_g1_neg(point, negated) -> status: (X, -Y, Z) (G1.neg). */
 FUNCTION crypto_bls_g1_neg
@@ -2278,7 +2607,7 @@ LOCAL_FUNCTION crypto_bls_aggregate_keys
     call    crypto_bls_key_validate_point
     test    %rax, %rax
     jnz     9f
-    G3      crypto_bls_g1_add, %rsp, AK_ACC, %rsp, AK_P, %rsp, AK_ACC
+    C3      crypto_bls_g1_add_affine, %rsp, AK_ACC, %rsp, AK_ACC, %rsp, AK_P  /* the key has Z = 1 */
     add     $48, %r12
     sub     $1, %r13
     jnz     1b
@@ -2551,158 +2880,308 @@ LOCAL_FUNCTION crypto_bls_fp12_frobenius
 END_FUNCTION crypto_bls_fp12_frobenius
 
 /*
- * crypto_bls_fp12_pow(result, base, exponent): base^e (Fp12.powNat), with e
- * the u64 at exponent, a public value. result must not be base.
+ * crypto_bls_fp12_cyclotomic_square(result, a): a^2 for a in the cyclotomic
+ * subgroup (Granger and Scott). With a = (r0, r4, r3) + (r2, r1, r5) w:
+ * (t0, t1), (t2, t3), (t4, t5) are the squares of r0 + r1 y, r2 + r3 y and
+ * r4 + r5 y with y^2 = xi: t = a0 b, a0^2 + xi b^2 = (a0 + b)(xi b + a0) - t
+ * - xi t, 2 t. Then r0' = 3 t0 - 2 r0, r1' = 3 t1 + 2 r1, r2' = 3 xi t5 +
+ * 2 r2, r3' = 3 t4 - 2 r3, r4' = 3 t2 - 2 r4, r5' = 3 t3 + 2 r5. result may
+ * be a.
  */
-LOCAL_FUNCTION crypto_bls_fp12_pow
+.set CS_T0, 0
+.set CS_T1, 96
+.set CS_T2, 192
+.set CS_T3, 288
+.set CS_T4, 384
+.set CS_T5, 480
+.set CS_A, 576
+.set CS_B, 672
+.set CS_SIZE, 776
+/* (t0, t1) = (a0^2 + xi b^2, 2 a0 b) for a0 at a(rbp), b at b(rbp). */
+.macro CYC_SQ4 a, b, t0, t1
+    F2MUL   %rsp, \t1, %rbp, \a, %rbp, \b
+    F2ADD   %rsp, CS_A, %rbp, \a, %rbp, \b
+    F2NR    %rsp, CS_B, %rbp, \b
+    F2ADD   %rsp, CS_B, %rsp, CS_B, %rbp, \a
+    F2MUL   %rsp, CS_A, %rsp, CS_A, %rsp, CS_B
+    F2SUB   %rsp, CS_A, %rsp, CS_A, %rsp, \t1
+    F2NR    %rsp, CS_B, %rsp, \t1
+    F2SUB   %rsp, \t0, %rsp, CS_A, %rsp, CS_B
+    F2ADD   %rsp, \t1, %rsp, \t1, %rsp, \t1
+.endm
+/* z(rbx) = 3 t - 2 z (CYC_MINUS) or 3 t + 2 z (CYC_PLUS), t at t(rsp), z at z(rbp). */
+.macro CYC_MINUS z, t
+    F2SUB   %rsp, CS_A, %rsp, \t, %rbp, \z
+    F2ADD   %rsp, CS_A, %rsp, CS_A, %rsp, CS_A
+    F2ADD   %rbx, \z, %rsp, CS_A, %rsp, \t
+.endm
+.macro CYC_PLUS z, t
+    F2ADD   %rsp, CS_A, %rsp, \t, %rbp, \z
+    F2ADD   %rsp, CS_A, %rsp, CS_A, %rsp, CS_A
+    F2ADD   %rbx, \z, %rsp, CS_A, %rsp, \t
+.endm
+LOCAL_FUNCTION crypto_bls_fp12_cyclotomic_square
+    ENTER   CS_SIZE
+    mov     %rdi, %rbx
+    mov     %rsi, %rbp
+    CYC_SQ4 0, 384, CS_T0, CS_T1            /* r0 + r1 y */
+    CYC_SQ4 288, 192, CS_T2, CS_T3          /* r2 + r3 y */
+    CYC_SQ4 96, 480, CS_T4, CS_T5           /* r4 + r5 y */
+    CYC_MINUS 0, CS_T0
+    CYC_PLUS 384, CS_T1
+    F2NR    %rsp, CS_B, %rsp, CS_T5         /* r2' = 3 xi t5 + 2 r2 */
+    CYC_PLUS 288, CS_B
+    CYC_MINUS 192, CS_T4
+    CYC_MINUS 96, CS_T2
+    CYC_PLUS 480, CS_T3
+    LEAVE   CS_SIZE
+END_FUNCTION crypto_bls_fp12_cyclotomic_square
+
+/*
+ * crypto_bls_fp12_cyclotomic_pow(result, base, exponent): base^e
+ * (Fp12.powNat) for base in the cyclotomic subgroup, with e the u64 at
+ * exponent, a public value. Starts with base at the top set bit of e, then
+ * squares with crypto_bls_fp12_cyclotomic_square, and multiplies by base where
+ * a bit of e is 1. result must not be base.
+ */
+LOCAL_FUNCTION crypto_bls_fp12_cyclotomic_pow
     ENTER   8
     mov     %rdi, %rbx
     mov     %rsi, %rbp
     mov     (%rdx), %r12
-    SET_ONE %rbx, 0
-    ZERO    %rbx, 48, 528
     test    %r12, %r12
-    jz      9f
-    bsr     %r12, %r13                      /* the top set bit */
-1:  F12MUL  %rbx, 0, %rbx, 0, %rbx, 0
+    jnz     1f
+    SET_ONE %rbx, 0                         /* e = 0: 1 */
+    ZERO    %rbx, 48, 528
+    LEAVE   8
+1:  COPY    %rbx, 0, %rbp, 0, 576
+    bsr     %r12, %r13                      /* the bit below the top set bit */
+    sub     $1, %r13
+    js      9f
+2:  C2      crypto_bls_fp12_cyclotomic_square, %rbx, 0, %rbx, 0
     mov     %r12, %rax
     mov     %r13d, %ecx
     shr     %cl, %rax
     test    $1, %al
-    jz      2f
+    jz      3f
     F12MUL  %rbx, 0, %rbx, 0, %rbp, 0
-2:  sub     $1, %r13
-    jns     1b
+3:  sub     $1, %r13
+    jns     2b
 9:  LEAVE   8
-END_FUNCTION crypto_bls_fp12_pow
+END_FUNCTION crypto_bls_fp12_cyclotomic_pow
 
 /* ---------------------------------------------------------------- Pairing (Pairing.lean) */
 
-/* The line value c0 + c2 w^2 + c3 w^3 (lineValue) at rd + od, from the Fp2 values at rs + c0, c2 and c3. */
-.macro LINE rd, od, rs, c0, c2, c3
-    COPY    \rd, \od, \rs, \c0, 96
-    COPY    \rd, \od + 96, \rs, \c2, 96
-    ZERO    \rd, \od + 192, 192
-    COPY    \rd, \od + 384, \rs, \c3, 96
-    ZERO    \rd, \od + 480, 96
-.endm
+/*
+ * A line value c0 + c2 w^2 + c3 w^3 (lineValue) is kept as its three Fp2
+ * values: c0 at 0, c2 at 96, c3 at 192 (288 bytes). In Fp12 = Fp6[w] it is
+ * (c0 + c2 v) + (c3 v) w.
+ */
 
 /*
- * crypto_bls_miller_double(f, t, p, work): millerDouble: with T the G2
- * point at t and P = (xp, yp) at p, f = f^2 l with l the tangent line at T,
- * then T = 2 T. work holds 1248 bytes: the line, then the temporaries.
+ * crypto_bls_fp12_square(result, a): a^2: with a = a0 + a1 w and t = a0 a1,
+ * c0 = (a0 + a1)(a0 + a1 v) - t - t v, c1 = 2 t. result may be a.
  */
-.set MD_XX, 576
-.set MD_ZZ, 672
-.set MD_A, 768
-.set MD_C0, 864
-.set MD_C2, 960
-.set MD_C3, 1056
-.set MD_U, 1152
+.set SQ_T, 0
+.set SQ_A, 288
+.set SQ_B, 576
+.set SQ_SIZE, 872
+LOCAL_FUNCTION crypto_bls_fp12_square
+    ENTER   SQ_SIZE
+    mov     %rdi, %rbx
+    mov     %rsi, %rbp
+    F6MUL   %rsp, SQ_T, %rbp, 0, %rbp, 288      /* t = a0 a1 */
+    F6ADD   %rsp, SQ_A, %rbp, 0, %rbp, 288      /* (a0 + a1)(a0 + a1 v) */
+    C2      crypto_bls_fp6_mul_v, %rsp, SQ_B, %rbp, 288
+    F6ADD   %rsp, SQ_B, %rsp, SQ_B, %rbp, 0
+    F6MUL   %rsp, SQ_A, %rsp, SQ_A, %rsp, SQ_B
+    F6SUB   %rsp, SQ_A, %rsp, SQ_A, %rsp, SQ_T
+    C2      crypto_bls_fp6_mul_v, %rsp, SQ_B, %rsp, SQ_T
+    F6SUB   %rbx, 0, %rsp, SQ_A, %rsp, SQ_B      /* c0 */
+    F6ADD   %rbx, 288, %rsp, SQ_T, %rsp, SQ_T    /* c1 = 2 t */
+    LEAVE   SQ_SIZE
+END_FUNCTION crypto_bls_fp12_square
+
+/*
+ * crypto_bls_fp12_mul_line(f, line): f = f l, with l = (c0 + c2 v) + (c3 v) w
+ * the line value at line. With f = a + b w: t0 = a (c0 + c2 v), t1 = b c3 v,
+ * c1 = (a + b)(c0 + (c2 + c3) v) - t0 - t1, c0 = t0 + t1 v. Each product by
+ * x0 + x1 v takes 5 Fp2 products: with v0 = a0 x0 and v1 = a1 x1, it is
+ * (v0 + xi a2 x1) + ((a0 + a1)(x0 + x1) - v0 - v1) v + (a2 x0 + v1) v^2.
+ */
+.set LM_T0, 0
+.set LM_T1, 288
+.set LM_S, 576
+.set LM_X, 864
+.set LM_V0, 960
+.set LM_V1, 1056
+.set LM_U, 1152
+.set LM_W, 1248
+.set LM_SIZE, 1352
+/* rd + od = (ra + oa) (x0 + x1 v), x0 at rx + ox, x1 at ry + oy; rd + od apart from ra + oa. */
+.macro MUL01 rd, od, ra, oa, rx, ox, ry, oy
+    F2MUL   %rsp, LM_V0, \ra, \oa, \rx, \ox
+    F2MUL   %rsp, LM_V1, \ra, \oa + 96, \ry, \oy
+    F2ADD   %rsp, LM_U, \ra, \oa, \ra, \oa + 96
+    F2ADD   %rsp, LM_W, \rx, \ox, \ry, \oy
+    F2MUL   %rsp, LM_U, %rsp, LM_U, %rsp, LM_W
+    F2SUB   %rsp, LM_U, %rsp, LM_U, %rsp, LM_V0
+    F2SUB   \rd, \od + 96, %rsp, LM_U, %rsp, LM_V1
+    F2MUL   %rsp, LM_W, \ra, \oa + 192, \ry, \oy
+    F2NR    %rsp, LM_W, %rsp, LM_W
+    F2ADD   \rd, \od, %rsp, LM_V0, %rsp, LM_W
+    F2MUL   %rsp, LM_W, \ra, \oa + 192, \rx, \ox
+    F2ADD   \rd, \od + 192, %rsp, LM_W, %rsp, LM_V1
+.endm
+LOCAL_FUNCTION crypto_bls_fp12_mul_line
+    ENTER   LM_SIZE
+    mov     %rdi, %rbx                         /* f */
+    mov     %rsi, %rbp                         /* line */
+    MUL01   %rsp, LM_T0, %rbx, 0, %rbp, 0, %rbp, 96      /* t0 = a (c0 + c2 v) */
+    F2MUL   %rsp, LM_T1 + 96, %rbx, 288, %rbp, 192      /* t1 = b c3 v = (xi b2 c3, b0 c3, b1 c3) */
+    F2MUL   %rsp, LM_T1 + 192, %rbx, 384, %rbp, 192
+    F2MUL   %rsp, LM_T1, %rbx, 480, %rbp, 192
+    F2NR    %rsp, LM_T1, %rsp, LM_T1
+    F6ADD   %rsp, LM_S, %rbx, 0, %rbx, 288      /* c1 = (a + b)(c0 + (c2 + c3) v) - t0 - t1 */
+    F2ADD   %rsp, LM_X, %rbp, 96, %rbp, 192
+    MUL01   %rbx, 288, %rsp, LM_S, %rbp, 0, %rsp, LM_X
+    F6SUB   %rbx, 288, %rbx, 288, %rsp, LM_T0
+    F6SUB   %rbx, 288, %rbx, 288, %rsp, LM_T1
+    C2      crypto_bls_fp6_mul_v, %rsp, LM_T1, %rsp, LM_T1  /* c0 = t0 + t1 v */
+    F6ADD   %rbx, 0, %rsp, LM_T0, %rsp, LM_T1
+    LEAVE   LM_SIZE
+END_FUNCTION crypto_bls_fp12_mul_line
+
+/*
+ * crypto_bls_miller_double(line, t, p, work): the line of millerDouble: with
+ * T the G2 point at t and P = (xp, yp) at p, the tangent line at T, valued
+ * at P, then T = 2 T. work holds 384 bytes of temporaries.
+ */
+.set MD_XX, 0
+.set MD_ZZ, 96
+.set MD_A, 192
+.set MD_U, 288
 LOCAL_FUNCTION crypto_bls_miller_double
     ENTER   8
-    mov     %rdi, %rbx                      /* f */
-    mov     %rsi, %rbp                      /* T */
-    mov     %rdx, %r12                      /* P */
-    mov     %rcx, %r13                      /* work */
-    F2MUL   %r13, MD_XX, %rbp, 0, %rbp, 0   /* xx = X^2, zz = Z^2 */
+    mov     %rdi, %rbx                         /* line */
+    mov     %rsi, %rbp                         /* T */
+    mov     %rdx, %r12                         /* P */
+    mov     %rcx, %r13                         /* work */
+    F2MUL   %r13, MD_XX, %rbp, 0, %rbp, 0       /* xx = X^2, zz = Z^2 */
     F2MUL   %r13, MD_ZZ, %rbp, 192, %rbp, 192
-    F2ADD   %r13, MD_A, %r13, MD_XX, %r13, MD_XX    /* 3 xx */
+    F2ADD   %r13, MD_A, %r13, MD_XX, %r13, MD_XX  /* 3 xx */
     F2ADD   %r13, MD_A, %r13, MD_A, %r13, MD_XX
-    F2MUL   %r13, MD_C0, %r13, MD_A, %rbp, 0        /* c0 = 3 xx X - 2 Y^2 */
+    F2MUL   %rbx, 0, %r13, MD_A, %rbp, 0        /* c0 = 3 xx X - 2 Y^2 */
     F2MUL   %r13, MD_U, %rbp, 96, %rbp, 96
     F2ADD   %r13, MD_U, %r13, MD_U, %r13, MD_U
-    F2SUB   %r13, MD_C0, %r13, MD_C0, %r13, MD_U
-    F2MUL   %r13, MD_C2, %r13, MD_A, %r13, MD_ZZ    /* c2 = -(3 xx zz xp) */
-    C3      crypto_bls_fp2_mul_fp, %r13, MD_C2, %r13, MD_C2, %r12, 0
-    C2      crypto_bls_fp2_neg, %r13, MD_C2, %r13, MD_C2
-    F2ADD   %r13, MD_C3, %rbp, 96, %rbp, 96         /* c3 = 2 Y zz Z yp */
-    F2MUL   %r13, MD_C3, %r13, MD_C3, %r13, MD_ZZ
-    F2MUL   %r13, MD_C3, %r13, MD_C3, %rbp, 192
-    C3      crypto_bls_fp2_mul_fp, %r13, MD_C3, %r13, MD_C3, %r12, 48
+    F2SUB   %rbx, 0, %rbx, 0, %r13, MD_U
+    F2MUL   %rbx, 96, %r13, MD_A, %r13, MD_ZZ    /* c2 = -(3 xx zz xp) */
+    C3      crypto_bls_fp2_mul_fp, %rbx, 96, %rbx, 96, %r12, 0
+    C2      crypto_bls_fp2_neg, %rbx, 96, %rbx, 96
+    F2ADD   %rbx, 192, %rbp, 96, %rbp, 96       /* c3 = 2 Y zz Z yp */
+    F2MUL   %rbx, 192, %rbx, 192, %r13, MD_ZZ
+    F2MUL   %rbx, 192, %rbx, 192, %rbp, 192
+    C3      crypto_bls_fp2_mul_fp, %rbx, 192, %rbx, 192, %r12, 48
     C2      crypto_bls_g2_double, %rbp, 0, %rbp, 0
-    F12MUL  %rbx, 0, %rbx, 0, %rbx, 0
-    LINE    %r13, 0, %r13, MD_C0, MD_C2, MD_C3
-    F12MUL  %rbx, 0, %rbx, 0, %r13, 0
     LEAVE   8
 END_FUNCTION crypto_bls_miller_double
 
 /*
- * crypto_bls_miller_add(f, t, q, p, work): millerAdd: with Q = (xq, yq) at
- * q, f = f l with l the line through T and Q, then T = T + Q. work holds
- * 1536 bytes: the line, Q in Jacobian coordinates, then the temporaries.
+ * crypto_bls_miller_add(line, t, q, p, work): the line of millerAdd: with
+ * Q = (xq, yq) at q, the line through T and Q, valued at P, then T = T + Q.
+ * work holds 672 bytes: Q in Jacobian coordinates, then the temporaries.
  */
-.set MA_ZZ, 864
-.set MA_N, 960
-.set MA_D, 1056
-.set MA_U, 1152
-.set MA_C0, 1248
-.set MA_C2, 1344
-.set MA_C3, 1440
+.set MA_ZZ, 288
+.set MA_N, 384
+.set MA_D, 480
+.set MA_U, 576
 LOCAL_FUNCTION crypto_bls_miller_add
     ENTER   8
-    mov     %rdi, %rbx                      /* f */
-    mov     %rsi, %rbp                      /* T */
-    mov     %rdx, %r12                      /* Q */
-    mov     %rcx, %r13                      /* P */
-    mov     %r8, %r14                       /* work */
-    F2MUL   %r14, MA_ZZ, %rbp, 192, %rbp, 192       /* zz = Z^2 */
-    F2MUL   %r14, MA_N, %r12, 96, %r14, MA_ZZ       /* n = yq zz Z - Y */
+    mov     %rdi, %rbx                         /* line */
+    mov     %rsi, %rbp                         /* T */
+    mov     %rdx, %r12                         /* Q */
+    mov     %rcx, %r13                         /* P */
+    mov     %r8, %r14                         /* work */
+    F2MUL   %r14, MA_ZZ, %rbp, 192, %rbp, 192   /* zz = Z^2 */
+    F2MUL   %r14, MA_N, %r12, 96, %r14, MA_ZZ    /* n = yq zz Z - Y */
     F2MUL   %r14, MA_N, %r14, MA_N, %rbp, 192
     F2SUB   %r14, MA_N, %r14, MA_N, %rbp, 96
-    F2MUL   %r14, MA_D, %r12, 0, %r14, MA_ZZ        /* d = (xq zz - X) Z */
+    F2MUL   %r14, MA_D, %r12, 0, %r14, MA_ZZ     /* d = (xq zz - X) Z */
     F2SUB   %r14, MA_D, %r14, MA_D, %rbp, 0
     F2MUL   %r14, MA_D, %r14, MA_D, %rbp, 192
-    F2MUL   %r14, MA_C0, %r14, MA_N, %r12, 0        /* c0 = n xq - d yq */
+    F2MUL   %rbx, 0, %r14, MA_N, %r12, 0        /* c0 = n xq - d yq */
     F2MUL   %r14, MA_U, %r14, MA_D, %r12, 96
-    F2SUB   %r14, MA_C0, %r14, MA_C0, %r14, MA_U
-    C3      crypto_bls_fp2_mul_fp, %r14, MA_C2, %r14, MA_N, %r13, 0  /* c2 = -(n xp) */
-    C2      crypto_bls_fp2_neg, %r14, MA_C2, %r14, MA_C2
-    C3      crypto_bls_fp2_mul_fp, %r14, MA_C3, %r14, MA_D, %r13, 48 /* c3 = d yp */
-    COPY    %r14, 576, %r12, 0, 192         /* Q = (xq, yq, 1) */
-    SET_ONE %r14, 768
-    ZERO    %r14, 816, 48
-    C3      crypto_bls_g2_add, %rbp, 0, %rbp, 0, %r14, 576
-    LINE    %r14, 0, %r14, MA_C0, MA_C2, MA_C3
-    F12MUL  %rbx, 0, %rbx, 0, %r14, 0
+    F2SUB   %rbx, 0, %rbx, 0, %r14, MA_U
+    C3      crypto_bls_fp2_mul_fp, %rbx, 96, %r14, MA_N, %r13, 0  /* c2 = -(n xp) */
+    C2      crypto_bls_fp2_neg, %rbx, 96, %rbx, 96
+    C3      crypto_bls_fp2_mul_fp, %rbx, 192, %r14, MA_D, %r13, 48  /* c3 = d yp */
+    COPY    %r14, 0, %r12, 0, 192             /* Q = (xq, yq, 1) */
+    SET_ONE %r14, 192
+    ZERO    %r14, 240, 48
+    C3      crypto_bls_g2_add, %rbp, 0, %rbp, 0, %r14, 0
     LEAVE   8
 END_FUNCTION crypto_bls_miller_add
 
 /*
- * crypto_bls_miller_loop(f, q, p, work): millerLoop for |x|: T = Q, f = 1,
- * then for each bit of |x| below its top bit, a double step, and an add
- * step on a set bit. work holds 1824 bytes: T, then the work of the steps.
+ * crypto_bls_miller_loop(f, pairs, count, work): the product of
+ * millerLoop(Q_i, P_i) for the count pairs, in one loop: each pair entry
+ * (576 bytes) holds Q = (xq, yq) at 0, P = (xp, yp) at 192 and its T at 288.
+ * T_i = Q_i and f = 1; then for each bit of |x| below its top bit, f = f^2
+ * (not for the first bit, where f = 1), then for each pair the double step,
+ * f = f l, and on a set bit for each pair the add step, f = f l. work holds
+ * 960 bytes: the line, then the work of the steps.
  */
+.set ML_LINE, 0
+.set ML_STEP, 288
 LOCAL_FUNCTION crypto_bls_miller_loop
     ENTER   8
     mov     %rdi, %rbx                      /* f */
-    mov     %rsi, %rbp                      /* Q */
-    mov     %rdx, %r12                      /* P */
-    mov     %rcx, %r13                      /* work: T at 0, step work at 288 */
-    COPY    %r13, 0, %rbp, 0, 192           /* T = (xq, yq, 1) */
-    SET_ONE %r13, 192
-    ZERO    %r13, 240, 48
+    mov     %rsi, %rbp                      /* the pairs */
+    mov     %rdx, %r12                      /* count */
+    mov     %rcx, %r13                      /* work */
+    mov     %rbp, %r15                      /* T_i = (xq, yq, 1) */
+    mov     %r12, (%rsp)
+0:  COPY    %r15, 288, %r15, 0, 192
+    SET_ONE %r15, 480
+    ZERO    %r15, 528, 48
+    add     $576, %r15
+    subq    $1, (%rsp)
+    jnz     0b
     SET_ONE %rbx, 0                         /* f = 1 */
     ZERO    %rbx, 48, 528
-    mov     927f(%rip), %r14                /* |x| */
-    mov     $62, %r15d                      /* bits 62 to 0; bit 63 is the top bit */
-1:  mov     %rbx, %rdi
-    mov     %r13, %rsi
-    mov     %r12, %rdx
-    lea     288(%r13), %rcx
+    mov     $62, %r14d                      /* bits 62 to 0; bit 63 is the top bit */
+1:  cmp     $62, %r14
+    je      2f
+    C2      crypto_bls_fp12_square, %rbx, 0, %rbx, 0
+2:  mov     %rbp, %r15
+    mov     %r12, (%rsp)
+3:  lea     ML_LINE(%r13), %rdi             /* the double step of each pair */
+    lea     288(%r15), %rsi
+    lea     192(%r15), %rdx
+    lea     ML_STEP(%r13), %rcx
     call    crypto_bls_miller_double
-    mov     %r14, %rax
-    mov     %r15d, %ecx
+    C2      crypto_bls_fp12_mul_line, %rbx, 0, %r13, ML_LINE
+    add     $576, %r15
+    subq    $1, (%rsp)
+    jnz     3b
+    mov     927f(%rip), %rax                /* |x| */
+    mov     %r14d, %ecx
     shr     %cl, %rax
     test    $1, %al
-    jz      2f
-    mov     %rbx, %rdi
-    mov     %r13, %rsi
-    mov     %rbp, %rdx
-    mov     %r12, %rcx
-    lea     288(%r13), %r8
+    jz      5f
+    mov     %rbp, %r15
+    mov     %r12, (%rsp)
+4:  lea     ML_LINE(%r13), %rdi             /* the add step of each pair */
+    lea     288(%r15), %rsi
+    mov     %r15, %rdx
+    lea     192(%r15), %rcx
+    lea     ML_STEP(%r13), %r8
     call    crypto_bls_miller_add
-2:  sub     $1, %r15
+    C2      crypto_bls_fp12_mul_line, %rbx, 0, %r13, ML_LINE
+    add     $576, %r15
+    subq    $1, (%rsp)
+    jnz     4b
+5:  sub     $1, %r14
     jns     1b
     LEAVE   8
 END_FUNCTION crypto_bls_miller_loop
@@ -2730,14 +3209,14 @@ LOCAL_FUNCTION crypto_bls_final_exponentiation
     C2      crypto_bls_fp12_frobenius, %r12, FE_M, %r12, FE_T   /* m = frob(frob(t)) t */
     C2      crypto_bls_fp12_frobenius, %r12, FE_M, %r12, FE_M
     F12MUL  %r12, FE_M, %r12, FE_M, %r12, FE_T
-    C3      crypto_bls_fp12_pow, %r12, FE_U, %r12, FE_M, %r13, 16   /* a = (m^((|x| + 1) / 3))^(|x| + 1) */
-    C3      crypto_bls_fp12_pow, %r12, FE_A, %r12, FE_U, %r13, 8
-    C3      crypto_bls_fp12_pow, %r12, FE_U, %r12, FE_A, %r13, 0    /* b = frob(a) conj(a^|x|) */
+    C3      crypto_bls_fp12_cyclotomic_pow, %r12, FE_U, %r12, FE_M, %r13, 16   /* a = (m^((|x| + 1) / 3))^(|x| + 1) */
+    C3      crypto_bls_fp12_cyclotomic_pow, %r12, FE_A, %r12, FE_U, %r13, 8
+    C3      crypto_bls_fp12_cyclotomic_pow, %r12, FE_U, %r12, FE_A, %r13, 0    /* b = frob(a) conj(a^|x|) */
     C2      crypto_bls_fp12_conjugate, %r12, FE_U, %r12, FE_U
     C2      crypto_bls_fp12_frobenius, %r12, FE_B, %r12, FE_A
     F12MUL  %r12, FE_B, %r12, FE_B, %r12, FE_U
-    C3      crypto_bls_fp12_pow, %r12, FE_U, %r12, FE_B, %r13, 0    /* c = (b^|x|)^|x| frob(frob(b)) conj(b) */
-    C3      crypto_bls_fp12_pow, %r12, FE_C, %r12, FE_U, %r13, 0
+    C3      crypto_bls_fp12_cyclotomic_pow, %r12, FE_U, %r12, FE_B, %r13, 0    /* c = (b^|x|)^|x| frob(frob(b)) conj(b) */
+    C3      crypto_bls_fp12_cyclotomic_pow, %r12, FE_C, %r12, FE_U, %r13, 0
     C2      crypto_bls_fp12_frobenius, %r12, FE_U, %r12, FE_B
     C2      crypto_bls_fp12_frobenius, %r12, FE_U, %r12, FE_U
     F12MUL  %r12, FE_C, %r12, FE_C, %r12, FE_U
@@ -2751,15 +3230,31 @@ END_FUNCTION crypto_bls_final_exponentiation
  * crypto_bls_pairing_check(pairs, work, valid): pairingCheck: the u64 1 when
  * the product of e(P_i, Q_i) is 1, else 0. pairs holds a u64 count, then the
  * pairs, each a G1 point and a G2 point (432 bytes). A pair with a point at
- * infinity counts as 1. work holds 4608 bytes.
+ * infinity counts as 1. The other pairs go in groups of up to PC_GROUP to
+ * crypto_bls_miller_loop, in affine coordinates; it multiplies the conj of
+ * each group's product. work holds 4608 bytes.
  */
+.set PC_GROUP, 4
 .set PC_ACC, 0
 .set PC_F, 576
-.set PC_PA, 1152
-.set PC_QA, 1248
-.set PC_ML, 1440
+.set PC_E, 1152
+.set PC_ML, PC_E + 576 * PC_GROUP
 .set PC_R, 576
 .set PC_FE, 1152
+.if PC_ML + 960 > 4608
+.error "pairing_check work"
+.endif
+/* The group of r15 pairs: acc = acc conj(their product); r15 = 0. */
+.macro PC_FLUSH
+    lea     PC_F(%rbp), %rdi
+    lea     PC_E(%rbp), %rsi
+    mov     %r15, %rdx
+    lea     PC_ML(%rbp), %rcx
+    call    crypto_bls_miller_loop
+    C2      crypto_bls_fp12_conjugate, %rbp, PC_F, %rbp, PC_F
+    F12MUL  %rbp, PC_ACC, %rbp, PC_ACC, %rbp, PC_F
+    xor     %r15d, %r15d
+.endm
 LOCAL_FUNCTION crypto_bls_pairing_check
     ENTER   8
     mov     %rdi, %rbx
@@ -2767,32 +3262,35 @@ LOCAL_FUNCTION crypto_bls_pairing_check
     mov     %rdx, %r12                      /* valid */
     mov     (%rbx), %r13                    /* count */
     lea     8(%rbx), %r14                   /* the first pair */
+    xor     %r15d, %r15d                    /* pairs in the group */
     SET_ONE %rbp, PC_ACC
     ZERO    %rbp, PC_ACC + 48, 528
     test    %r13, %r13
-    jz      3f
+    jz      5f
 1:  IS_ZERO %r14, 96, 48                    /* skip a point at infinity */
     jz      2f
     IS_ZERO %r14, 144 + 192, 96
     jz      2f
-    C2      crypto_bls_g1_affine, %rbp, PC_PA, %r14, 0
-    C2      crypto_bls_g2_affine, %rbp, PC_QA, %r14, 144
-    lea     PC_F(%rbp), %rdi
-    lea     PC_QA(%rbp), %rsi
-    lea     PC_PA(%rbp), %rdx
-    lea     PC_ML(%rbp), %rcx
-    call    crypto_bls_miller_loop
-    C2      crypto_bls_fp12_conjugate, %rbp, PC_F, %rbp, PC_F
-    F12MUL  %rbp, PC_ACC, %rbp, PC_ACC, %rbp, PC_F
+    imul    $576, %r15, %rbx                /* the entry: Q, then P */
+    lea     PC_E(%rbp,%rbx), %rbx
+    C2      crypto_bls_g2_affine, %rbx, 0, %r14, 144
+    C2      crypto_bls_g1_affine, %rbx, 192, %r14, 0
+    add     $1, %r15
+    cmp     $PC_GROUP, %r15
+    jne     2f
+    PC_FLUSH
 2:  add     $432, %r14
     sub     $1, %r13
     jnz     1b
-3:  C3      crypto_bls_final_exponentiation, %rbp, PC_R, %rbp, PC_ACC, %rbp, PC_FE
+    test    %r15, %r15
+    jz      5f
+    PC_FLUSH
+5:  C3      crypto_bls_final_exponentiation, %rbp, PC_R, %rbp, PC_ACC, %rbp, PC_FE
     lea     900f+BLS_FP_RECORD_ONE(%rip), %r9       /* is it 1? */
     EQUAL   %rbp, PC_R, %r9, 0, 48
-    jnz     4f
+    jnz     6f
     IS_ZERO %rbp, PC_R + 48, 528
-4:  setz    %al
+6:  setz    %al
     movzbl  %al, %eax
     mov     %rax, (%r12)
     LEAVE   8
@@ -3040,7 +3538,6 @@ FUNCTION crypto_bls_fast_aggregate_verify_cached
     cmpq    $2, CRYPTO_BLS_ENTRY_STATUS(%r15)
     je      9f                              /* a key that fails KeyValidate: 0 */
     COPY    %rsp, FC_P, %r15, CRYPTO_BLS_ENTRY_POINT, 96
-    SET_ONE %rsp, FC_P + 96
     jmp     4f
 3:  mov     %r14, %rdi                      /* KeyValidate, then the entry */
     lea     FC_P(%rsp), %rsi
@@ -3054,7 +3551,7 @@ FUNCTION crypto_bls_fast_aggregate_verify_cached
     jmp     4f
 32: movq    $2, CRYPTO_BLS_ENTRY_STATUS(%r15)
     jmp     9f
-4:  G3      crypto_bls_g1_add, %rsp, FC_ACC, %rsp, FC_P, %rsp, FC_ACC
+4:  C3      crypto_bls_g1_add_affine, %rsp, FC_ACC, %rsp, FC_ACC, %rsp, FC_P  /* the affine point */
     subq    $1, FC_LEFT(%rsp)
     jnz     1b
     IS_ZERO %rsp, FC_ACC + 96, 48           /* the sum at infinity: 0 */

@@ -515,7 +515,7 @@ crypto_bls_fast_aggregate_verify_cached(keys, indices, cache, message, signature
 - Writes 0 when `indices` is empty, or an index is at or past `count` of `cache`.
 - Takes the point of a key from the entry of its index when the entry's status is not 0 and its key is the same 48 bytes. Else checks the key with `crypto_bls_key_validate_point` and writes the entry: status 1 with the key and its point, or status 2 with the key.
 - Writes 0 for a key of status 2.
-- Adds the points with `crypto_bls_g1_add`, and writes 0 when the sum is the point at infinity.
+- Adds the points with `crypto_bls_g1_add_affine`, and writes 0 when the sum is the point at infinity. The sum is the one `crypto_bls_g1_add` gives, coordinate for coordinate.
 - Checks the signature against the sum as `crypto_bls_core_verify` does, without the compressed form and subgroup check of the sum: every point is in G1, so the sum is.
 
 ### Function never
@@ -660,7 +660,7 @@ crypto_bls_aggregate_keys(public_keys, point) -> status
 ### Function does
 
 - Stops at the first key that fails its check.
-- Adds with `crypto_bls_g1_add`.
+- Adds with `crypto_bls_g1_add_affine`: each checked key has Z = 1, so its first 96 bytes are its affine (x, y). The sum is the one `crypto_bls_g1_add` gives, coordinate for coordinate.
 
 ### Function never
 
