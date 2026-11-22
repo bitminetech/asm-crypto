@@ -451,39 +451,67 @@ END_FUNCTION crypto_bls_fp_neg
 /*
  * crypto_bls_fp_pow(result, base, exponent): base^e (Fp.powNat), with e the
  * 6 little-endian limbs at exponent, a public value. result may be base.
- * rbx result, rbp exponent, r12 bit index.
+ * A 4-bit fixed window: the table base^0 to base^15, then from the top
+ * nonzero nibble of e, acc = acc^16 and acc = acc base^n for each lower
+ * nibble n that is not 0; e = 0 gives 1.
+ * rbx result, rbp exponent, r12 nibble index, r13 the table entry.
  */
 .set FW_ACC, 0
-.set FW_BASE, 48
-.set FW_SIZE, 104
+.set FW_TAB, 48
+.set FW_SIZE, 48 + 16 * 48 + 8
 LOCAL_FUNCTION crypto_bls_fp_pow
     ENTER   FW_SIZE
     mov     %rdi, %rbx
     mov     %rdx, %rbp
-    COPY    %rsp, FW_BASE, %rsi, 0, 48
-    SET_ONE %rsp, FW_ACC
-    mov     $383, %r12d
-1:  mov     %r12, %rcx                      /* skip the zero bits above the top set bit */
-    shr     $6, %rcx
+    SET_ONE %rsp, FW_TAB                    /* the table: base^0 to base^15 */
+    COPY    %rsp, FW_TAB + 48, %rsi, 0, 48
+    lea     (FW_TAB + 96)(%rsp), %r13
+    mov     $2, %r12d
+0:  mov     %r13, %rdi
+    lea     -48(%r13), %rsi
+    lea     (FW_TAB + 48)(%rsp), %rdx
+    call    crypto_bls_fp_mul
+    add     $48, %r13
+    add     $1, %r12
+    cmp     $16, %r12
+    jb      0b
+    mov     $95, %r12d                      /* nibble index */
+1:  mov     %r12, %rcx                      /* skip the zero nibbles above the top one */
+    shr     $4, %rcx
     mov     (%rbp,%rcx,8), %rax
     mov     %r12, %rcx
+    shl     $2, %rcx
     shr     %cl, %rax
-    test    $1, %al
+    and     $15, %eax
     jnz     2f
     sub     $1, %r12
     jns     1b
+    SET_ONE %rsp, FW_ACC                    /* e = 0: 1 */
     jmp     4f
-2:  FMUL    %rsp, FW_ACC, %rsp, FW_ACC, %rsp, FW_ACC
+2:  imul    $48, %rax, %rax                 /* acc = base^n for the top nibble */
+    lea     FW_TAB(%rsp,%rax), %r13
+    COPY    %rsp, FW_ACC, %r13, 0, 48
+    sub     $1, %r12
+    js      4f
+3:  FMUL    %rsp, FW_ACC, %rsp, FW_ACC, %rsp, FW_ACC
+    FMUL    %rsp, FW_ACC, %rsp, FW_ACC, %rsp, FW_ACC
+    FMUL    %rsp, FW_ACC, %rsp, FW_ACC, %rsp, FW_ACC
+    FMUL    %rsp, FW_ACC, %rsp, FW_ACC, %rsp, FW_ACC
     mov     %r12, %rcx
-    shr     $6, %rcx
+    shr     $4, %rcx
     mov     (%rbp,%rcx,8), %rax
     mov     %r12, %rcx
+    shl     $2, %rcx
     shr     %cl, %rax
-    test    $1, %al
-    jz      3f
-    FMUL    %rsp, FW_ACC, %rsp, FW_ACC, %rsp, FW_BASE
-3:  sub     $1, %r12
-    jns     2b
+    and     $15, %eax
+    jz      31f
+    imul    $48, %rax, %rax
+    lea     FW_TAB(%rsp,%rax), %rdx
+    lea     FW_ACC(%rsp), %rdi
+    lea     FW_ACC(%rsp), %rsi
+    call    crypto_bls_fp_mul
+31: sub     $1, %r12
+    jns     3b
 4:  COPY    %rbx, 0, %rsp, FW_ACC, 48
     LEAVE   FW_SIZE
 END_FUNCTION crypto_bls_fp_pow

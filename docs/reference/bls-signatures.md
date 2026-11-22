@@ -148,7 +148,7 @@ crypto_bls_sign(secret_key, message, scratch, signature) -> status
 
 ### Limits
 
-- Stack: 2368 bytes on x86-64 (return address included), 2624 bytes on ARM64, 2720 bytes on RISC-V, callees included.
+- Stack: 2464 bytes on x86-64 (return address included), 2624 bytes on ARM64, 2768 bytes on RISC-V, callees included.
 
 ### ABI
 

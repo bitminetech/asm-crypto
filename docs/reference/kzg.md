@@ -112,7 +112,7 @@ crypto_kzg_trusted_setup_of_bytes(g1_lagrange, g1_monomial, g2_monomial, setting
 
 ### Limits
 
-- Stack: 1168 bytes on x86-64 (return address included), 1296 bytes on ARM64, 1424 bytes on RISC-V, callees included.
+- Stack: 1888 bytes on x86-64 (return address included), 2016 bytes on ARM64, 2144 bytes on RISC-V, callees included.
 
 ### ABI
 

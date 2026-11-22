@@ -601,29 +601,70 @@ END_FUNCTION crypto_bls_fp_neg
 /*
  * crypto_bls_fp_pow(result, base, exponent): base^e (Fp.powNat), with e the
  * 6 little-endian limbs at exponent, a public value. result may be base.
- * Square and multiply from the top set bit of e; e = 0 gives 1.
+ * A 4-bit fixed window: the table base^0 to base^15, then from the top
+ * nonzero nibble of e, acc = acc^16 and acc = acc base^n for each lower
+ * nibble n that is not 0; e = 0 gives 1.
  */
 .set FW_ACC, 0
-.set FW_BASE, 48
-.set FW_SIZE, 96
+.set FW_TAB, 48
+.set FW_SIZE, 48 + 16 * 48
 LOCAL_FUNCTION crypto_bls_fp_pow
     ENTER   FW_SIZE
     mv      s1, a0
     mv      s2, a2
-    COPY    sp, FW_BASE, a1, 0, 48
-    SET_ONE sp, FW_ACC
-    li      s3, 383                         # bit index
-1:  BIT     s2, s3                          # skip the zero bits above the top set bit
-    bnez    t0, 2f
+    SET_ONE sp, FW_TAB                      # the table: base^0 to base^15
+    COPY    sp, FW_TAB + 48, a1, 0, 48
+    addi    s4, sp, FW_TAB + 96
+    li      s3, 2
+0:  mv      a0, s4
+    addi    a1, s4, -48
+    addi    a2, sp, FW_TAB + 48
+    call    crypto_bls_fp_mul
+    addi    s4, s4, 48
+    addi    s3, s3, 1
+    li      t0, 16
+    bltu    s3, t0, 0b
+    li      s3, 95                          # nibble index
+1:  srli    t0, s3, 4                       # skip the zero nibbles above the top one
+    slli    t0, t0, 3
+    add     t0, s2, t0
+    ld      t0, 0(t0)
+    slli    t1, s3, 2
+    srl     t0, t0, t1
+    andi    s5, t0, 15
+    bnez    s5, 2f
     addi    s3, s3, -1
     bgez    s3, 1b
+    SET_ONE sp, FW_ACC                      # e = 0: 1
     j       4f
-2:  FMUL    sp, FW_ACC, sp, FW_ACC, sp, FW_ACC
-    BIT     s2, s3
-    beqz    t0, 3f
-    FMUL    sp, FW_ACC, sp, FW_ACC, sp, FW_BASE
-3:  addi    s3, s3, -1
-    bgez    s3, 2b
+2:  li      t0, 48                          # acc = base^n for the top nibble
+    mul     t0, s5, t0
+    add     s4, sp, t0
+    addi    s4, s4, FW_TAB
+    COPY    sp, FW_ACC, s4, 0, 48
+    addi    s3, s3, -1
+    bltz    s3, 4f
+3:  FMUL    sp, FW_ACC, sp, FW_ACC, sp, FW_ACC
+    FMUL    sp, FW_ACC, sp, FW_ACC, sp, FW_ACC
+    FMUL    sp, FW_ACC, sp, FW_ACC, sp, FW_ACC
+    FMUL    sp, FW_ACC, sp, FW_ACC, sp, FW_ACC
+    srli    t0, s3, 4
+    slli    t0, t0, 3
+    add     t0, s2, t0
+    ld      t0, 0(t0)
+    slli    t1, s3, 2
+    srl     t0, t0, t1
+    andi    s5, t0, 15
+    beqz    s5, 31f
+    li      t0, 48
+    mul     t0, s5, t0
+    add     a2, sp, t0
+    addi    a2, a2, FW_TAB
+    addi    a0, sp, FW_ACC
+    addi    a1, sp, FW_ACC
+    call    crypto_bls_fp_mul
+31: addi    s3, s3, -1
+    bgez    s3, 3b
 4:  COPY    s1, 0, sp, FW_ACC, 48
     LEAVE   FW_SIZE
 END_FUNCTION crypto_bls_fp_pow
