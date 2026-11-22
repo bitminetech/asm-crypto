@@ -302,6 +302,108 @@ LOCAL_FUNCTION crypto_bls_fp_mul
     LEAF_LEAVE
 END_FUNCTION crypto_bls_fp_mul
 
+/* The bodies of crypto_bls_fp_add, crypto_bls_fp_sub and crypto_bls_fp_neg on the elements at x0 + o, x1 + o and x2 + o. Use x3 to x16. */
+.macro FP_ADD_AT o
+    ldp     x3, x4, [x1, #\o]
+    ldp     x5, x6, [x1, #(\o + 16)]
+    ldp     x7, x8, [x1, #(\o + 32)]
+    ldp     x9, x10, [x2, #\o]
+    ldp     x11, x12, [x2, #(\o + 16)]
+    ldp     x13, x14, [x2, #(\o + 32)]
+    adds    x3, x3, x9
+    adcs    x4, x4, x10
+    adcs    x5, x5, x11
+    adcs    x6, x6, x12
+    adcs    x7, x7, x13
+    adcs    x8, x8, x14
+    adc     x15, xzr, xzr
+    adr     x16, 900f
+    ldp     x9, x10, [x16]
+    ldp     x11, x12, [x16, #16]
+    ldp     x13, x14, [x16, #32]
+    subs    x9, x3, x9
+    sbcs    x10, x4, x10
+    sbcs    x11, x5, x11
+    sbcs    x12, x6, x12
+    sbcs    x13, x7, x13
+    sbcs    x14, x8, x14
+    sbcs    xzr, x15, xzr
+    csel    x3, x9, x3, hs
+    csel    x4, x10, x4, hs
+    csel    x5, x11, x5, hs
+    csel    x6, x12, x6, hs
+    csel    x7, x13, x7, hs
+    csel    x8, x14, x8, hs
+    stp     x3, x4, [x0, #\o]
+    stp     x5, x6, [x0, #(\o + 16)]
+    stp     x7, x8, [x0, #(\o + 32)]
+.endm
+.macro FP_SUB_AT o
+    ldp     x3, x4, [x1, #\o]
+    ldp     x5, x6, [x1, #(\o + 16)]
+    ldp     x7, x8, [x1, #(\o + 32)]
+    ldp     x9, x10, [x2, #\o]
+    ldp     x11, x12, [x2, #(\o + 16)]
+    ldp     x13, x14, [x2, #(\o + 32)]
+    subs    x3, x3, x9
+    sbcs    x4, x4, x10
+    sbcs    x5, x5, x11
+    sbcs    x6, x6, x12
+    sbcs    x7, x7, x13
+    sbcs    x8, x8, x14
+    sbc     x15, xzr, xzr                   /* all ones on a borrow */
+    adr     x16, 900f
+    ldp     x9, x10, [x16]
+    ldp     x11, x12, [x16, #16]
+    ldp     x13, x14, [x16, #32]
+    and     x9, x9, x15
+    and     x10, x10, x15
+    and     x11, x11, x15
+    and     x12, x12, x15
+    and     x13, x13, x15
+    and     x14, x14, x15
+    adds    x3, x3, x9
+    adcs    x4, x4, x10
+    adcs    x5, x5, x11
+    adcs    x6, x6, x12
+    adcs    x7, x7, x13
+    adc     x8, x8, x14
+    stp     x3, x4, [x0, #\o]
+    stp     x5, x6, [x0, #(\o + 16)]
+    stp     x7, x8, [x0, #(\o + 32)]
+.endm
+.macro FP_NEG_AT o
+    ldp     x3, x4, [x1, #\o]
+    ldp     x5, x6, [x1, #(\o + 16)]
+    ldp     x7, x8, [x1, #(\o + 32)]
+    orr     x15, x3, x4
+    orr     x15, x15, x5
+    orr     x15, x15, x6
+    orr     x15, x15, x7
+    orr     x15, x15, x8
+    cmp     x15, #0
+    csetm   x15, ne                         /* all ones when a != 0 */
+    adr     x16, 900f
+    ldp     x9, x10, [x16]
+    ldp     x11, x12, [x16, #16]
+    ldp     x13, x14, [x16, #32]
+    subs    x9, x9, x3
+    sbcs    x10, x10, x4
+    sbcs    x11, x11, x5
+    sbcs    x12, x12, x6
+    sbcs    x13, x13, x7
+    sbc     x14, x14, x8
+    and     x9, x9, x15
+    and     x10, x10, x15
+    and     x11, x11, x15
+    and     x12, x12, x15
+    and     x13, x13, x15
+    and     x14, x14, x15
+    stp     x9, x10, [x0, #\o]
+    stp     x11, x12, [x0, #(\o + 16)]
+    stp     x13, x14, [x0, #(\o + 32)]
+.endm
+
 /* crypto_bls_fp_add(result, a, b): a + b mod p, for a, b < p. result may be a or b. */
 LOCAL_FUNCTION crypto_bls_fp_add
     UNWIND_END_PROLOGUE
@@ -1265,6 +1367,9 @@ END_FUNCTION crypto_bls_g1_compress
 .macro F2MUL ra, oa, rb, ob, rc, oc
     C3      crypto_bls_fp2_mul, \ra, \oa, \rb, \ob, \rc, \oc
 .endm
+.macro F2SQR ra, oa, rb, ob
+    C2      crypto_bls_fp2_square, \ra, \oa, \rb, \ob
+.endm
 .macro F2ADD ra, oa, rb, ob, rc, oc
     C3      crypto_bls_fp2_add, \ra, \oa, \rb, \ob, \rc, \oc
 .endm
@@ -1274,58 +1379,1258 @@ END_FUNCTION crypto_bls_g1_compress
 
 /* crypto_bls_fp2_add(result, a, b): a + b (Fp2.add). result may be a or b. */
 LOCAL_FUNCTION crypto_bls_fp2_add
-    ENTER   0
-    mov     x19, x0
-    mov     x20, x1
-    mov     x21, x2
-    FADD    x19, 0, x20, 0, x21, 0
-    FADD    x19, 48, x20, 48, x21, 48
-    LEAVE   0
+    UNWIND_END_PROLOGUE
+    FP_ADD_AT 0
+    FP_ADD_AT 48
+    ret
 END_FUNCTION crypto_bls_fp2_add
 
 /* crypto_bls_fp2_sub(result, a, b): a - b (Fp2.sub). result may be a or b. */
 LOCAL_FUNCTION crypto_bls_fp2_sub
-    ENTER   0
-    mov     x19, x0
-    mov     x20, x1
-    mov     x21, x2
-    FSUB    x19, 0, x20, 0, x21, 0
-    FSUB    x19, 48, x20, 48, x21, 48
-    LEAVE   0
+    UNWIND_END_PROLOGUE
+    FP_SUB_AT 0
+    FP_SUB_AT 48
+    ret
 END_FUNCTION crypto_bls_fp2_sub
 
 /* crypto_bls_fp2_neg(result, a): -a (Fp2.neg). result may be a. */
 LOCAL_FUNCTION crypto_bls_fp2_neg
-    ENTER   0
-    mov     x19, x0
-    mov     x20, x1
-    C2      crypto_bls_fp_neg, x19, 0, x20, 0
-    C2      crypto_bls_fp_neg, x19, 48, x20, 48
-    LEAVE   0
+    UNWIND_END_PROLOGUE
+    FP_NEG_AT 0
+    FP_NEG_AT 48
+    ret
 END_FUNCTION crypto_bls_fp2_neg
 
-/*
- * crypto_bls_fp2_mul(result, a, b): a * b = (a0 b0 - a1 b1, a0 b1 + a1 b0)
- * (Fp2.mul). result may be a or b.
- */
 .set M2_T0, 0
 .set M2_T1, 48
 .set M2_T2, 96
 .set M2_T3, 144
 .set M2_SIZE, 192
+
+/*
+ * crypto_bls_fp2_mul(result, a, b): a * b (Fp2.mul) with three products and
+ * two Montgomery reductions, in one leaf. With P0 = a0 b0, P1 = a1 b1 and
+ * P2 = (a0 + a1)(b0 + b1) as 768-bit numbers: c1 = REDC(P2 - P0 - P1) and
+ * c0 = REDC(P0 - P1, plus p^2 when it is negative). Both inputs of REDC are
+ * below 2 p^2, so REDC gives below 2 p, and one subtraction of p ends it.
+ * result may be a or b: all of a and b is read first. P0 at sp + 0, P1 at
+ * sp + 96, P2 at sp + 192; a x26, b x28, the p record x27; a product's limbs
+ * x9 to x17, x19 to x21.
+ */
+.set FM_SAVE, 288
+.set FM_SIZE, 384
 LOCAL_FUNCTION crypto_bls_fp2_mul
+    sub     sp, sp, #FM_SIZE
+    UNWIND_ALLOC FM_SIZE
+    stp     x19, x20, [sp, #FM_SAVE]
+    UNWIND_SAVE_REGP x19, x20, FM_SAVE, FM_SIZE
+    stp     x21, x22, [sp, #FM_SAVE + 16]
+    UNWIND_SAVE_REGP x21, x22, FM_SAVE + 16, FM_SIZE
+    stp     x23, x24, [sp, #FM_SAVE + 32]
+    UNWIND_SAVE_REGP x23, x24, FM_SAVE + 32, FM_SIZE
+    stp     x25, x26, [sp, #FM_SAVE + 48]
+    UNWIND_SAVE_REGP x25, x26, FM_SAVE + 48, FM_SIZE
+    stp     x27, x28, [sp, #FM_SAVE + 64]
+    UNWIND_SAVE_REGP x27, x28, FM_SAVE + 64, FM_SIZE
+    UNWIND_END_PROLOGUE
+    mov     x26, x1                         /* a */
+    mov     x28, x2                         /* b */
+    ldp     x3, x4, [x26, #0]
+    ldp     x5, x6, [x26, #16]
+    ldp     x7, x8, [x26, #32]
+    mov     x25, x28
+    ldr     x22, [x25, #0]
+    mul     x9, x3, x22
+    mul     x10, x4, x22
+    mul     x11, x5, x22
+    mul     x12, x6, x22
+    mul     x13, x7, x22
+    mul     x14, x8, x22
+    umulh   x23, x3, x22
+    adds    x10, x10, x23
+    umulh   x23, x4, x22
+    adcs    x11, x11, x23
+    umulh   x23, x5, x22
+    adcs    x12, x12, x23
+    umulh   x23, x6, x22
+    adcs    x13, x13, x23
+    umulh   x23, x7, x22
+    adcs    x14, x14, x23
+    umulh   x23, x8, x22
+    adc     x15, x23, xzr
+    ldr     x22, [x25, #8]
+    mul     x23, x3, x22
+    adds    x10, x10, x23
+    mul     x23, x4, x22
+    adcs    x11, x11, x23
+    mul     x23, x5, x22
+    adcs    x12, x12, x23
+    mul     x23, x6, x22
+    adcs    x13, x13, x23
+    mul     x23, x7, x22
+    adcs    x14, x14, x23
+    mul     x23, x8, x22
+    adcs    x15, x15, x23
+    adc     x16, xzr, xzr
+    umulh   x23, x3, x22
+    adds    x11, x11, x23
+    umulh   x23, x4, x22
+    adcs    x12, x12, x23
+    umulh   x23, x5, x22
+    adcs    x13, x13, x23
+    umulh   x23, x6, x22
+    adcs    x14, x14, x23
+    umulh   x23, x7, x22
+    adcs    x15, x15, x23
+    umulh   x23, x8, x22
+    adcs    x16, x16, x23
+    ldr     x22, [x25, #16]
+    mul     x23, x3, x22
+    adds    x11, x11, x23
+    mul     x23, x4, x22
+    adcs    x12, x12, x23
+    mul     x23, x5, x22
+    adcs    x13, x13, x23
+    mul     x23, x6, x22
+    adcs    x14, x14, x23
+    mul     x23, x7, x22
+    adcs    x15, x15, x23
+    mul     x23, x8, x22
+    adcs    x16, x16, x23
+    adc     x17, xzr, xzr
+    umulh   x23, x3, x22
+    adds    x12, x12, x23
+    umulh   x23, x4, x22
+    adcs    x13, x13, x23
+    umulh   x23, x5, x22
+    adcs    x14, x14, x23
+    umulh   x23, x6, x22
+    adcs    x15, x15, x23
+    umulh   x23, x7, x22
+    adcs    x16, x16, x23
+    umulh   x23, x8, x22
+    adcs    x17, x17, x23
+    ldr     x22, [x25, #24]
+    mul     x23, x3, x22
+    adds    x12, x12, x23
+    mul     x23, x4, x22
+    adcs    x13, x13, x23
+    mul     x23, x5, x22
+    adcs    x14, x14, x23
+    mul     x23, x6, x22
+    adcs    x15, x15, x23
+    mul     x23, x7, x22
+    adcs    x16, x16, x23
+    mul     x23, x8, x22
+    adcs    x17, x17, x23
+    adc     x19, xzr, xzr
+    umulh   x23, x3, x22
+    adds    x13, x13, x23
+    umulh   x23, x4, x22
+    adcs    x14, x14, x23
+    umulh   x23, x5, x22
+    adcs    x15, x15, x23
+    umulh   x23, x6, x22
+    adcs    x16, x16, x23
+    umulh   x23, x7, x22
+    adcs    x17, x17, x23
+    umulh   x23, x8, x22
+    adcs    x19, x19, x23
+    ldr     x22, [x25, #32]
+    mul     x23, x3, x22
+    adds    x13, x13, x23
+    mul     x23, x4, x22
+    adcs    x14, x14, x23
+    mul     x23, x5, x22
+    adcs    x15, x15, x23
+    mul     x23, x6, x22
+    adcs    x16, x16, x23
+    mul     x23, x7, x22
+    adcs    x17, x17, x23
+    mul     x23, x8, x22
+    adcs    x19, x19, x23
+    adc     x20, xzr, xzr
+    umulh   x23, x3, x22
+    adds    x14, x14, x23
+    umulh   x23, x4, x22
+    adcs    x15, x15, x23
+    umulh   x23, x5, x22
+    adcs    x16, x16, x23
+    umulh   x23, x6, x22
+    adcs    x17, x17, x23
+    umulh   x23, x7, x22
+    adcs    x19, x19, x23
+    umulh   x23, x8, x22
+    adcs    x20, x20, x23
+    ldr     x22, [x25, #40]
+    mul     x23, x3, x22
+    adds    x14, x14, x23
+    mul     x23, x4, x22
+    adcs    x15, x15, x23
+    mul     x23, x5, x22
+    adcs    x16, x16, x23
+    mul     x23, x6, x22
+    adcs    x17, x17, x23
+    mul     x23, x7, x22
+    adcs    x19, x19, x23
+    mul     x23, x8, x22
+    adcs    x20, x20, x23
+    adc     x21, xzr, xzr
+    umulh   x23, x3, x22
+    adds    x15, x15, x23
+    umulh   x23, x4, x22
+    adcs    x16, x16, x23
+    umulh   x23, x5, x22
+    adcs    x17, x17, x23
+    umulh   x23, x6, x22
+    adcs    x19, x19, x23
+    umulh   x23, x7, x22
+    adcs    x20, x20, x23
+    umulh   x23, x8, x22
+    adcs    x21, x21, x23
+    stp     x9, x10, [sp, #0]
+    stp     x11, x12, [sp, #16]
+    stp     x13, x14, [sp, #32]
+    stp     x15, x16, [sp, #48]
+    stp     x17, x19, [sp, #64]
+    stp     x20, x21, [sp, #80]
+    ldp     x3, x4, [x26, #48]
+    ldp     x5, x6, [x26, #64]
+    ldp     x7, x8, [x26, #80]
+    add     x25, x28, #48
+    ldr     x22, [x25, #0]
+    mul     x9, x3, x22
+    mul     x10, x4, x22
+    mul     x11, x5, x22
+    mul     x12, x6, x22
+    mul     x13, x7, x22
+    mul     x14, x8, x22
+    umulh   x23, x3, x22
+    adds    x10, x10, x23
+    umulh   x23, x4, x22
+    adcs    x11, x11, x23
+    umulh   x23, x5, x22
+    adcs    x12, x12, x23
+    umulh   x23, x6, x22
+    adcs    x13, x13, x23
+    umulh   x23, x7, x22
+    adcs    x14, x14, x23
+    umulh   x23, x8, x22
+    adc     x15, x23, xzr
+    ldr     x22, [x25, #8]
+    mul     x23, x3, x22
+    adds    x10, x10, x23
+    mul     x23, x4, x22
+    adcs    x11, x11, x23
+    mul     x23, x5, x22
+    adcs    x12, x12, x23
+    mul     x23, x6, x22
+    adcs    x13, x13, x23
+    mul     x23, x7, x22
+    adcs    x14, x14, x23
+    mul     x23, x8, x22
+    adcs    x15, x15, x23
+    adc     x16, xzr, xzr
+    umulh   x23, x3, x22
+    adds    x11, x11, x23
+    umulh   x23, x4, x22
+    adcs    x12, x12, x23
+    umulh   x23, x5, x22
+    adcs    x13, x13, x23
+    umulh   x23, x6, x22
+    adcs    x14, x14, x23
+    umulh   x23, x7, x22
+    adcs    x15, x15, x23
+    umulh   x23, x8, x22
+    adcs    x16, x16, x23
+    ldr     x22, [x25, #16]
+    mul     x23, x3, x22
+    adds    x11, x11, x23
+    mul     x23, x4, x22
+    adcs    x12, x12, x23
+    mul     x23, x5, x22
+    adcs    x13, x13, x23
+    mul     x23, x6, x22
+    adcs    x14, x14, x23
+    mul     x23, x7, x22
+    adcs    x15, x15, x23
+    mul     x23, x8, x22
+    adcs    x16, x16, x23
+    adc     x17, xzr, xzr
+    umulh   x23, x3, x22
+    adds    x12, x12, x23
+    umulh   x23, x4, x22
+    adcs    x13, x13, x23
+    umulh   x23, x5, x22
+    adcs    x14, x14, x23
+    umulh   x23, x6, x22
+    adcs    x15, x15, x23
+    umulh   x23, x7, x22
+    adcs    x16, x16, x23
+    umulh   x23, x8, x22
+    adcs    x17, x17, x23
+    ldr     x22, [x25, #24]
+    mul     x23, x3, x22
+    adds    x12, x12, x23
+    mul     x23, x4, x22
+    adcs    x13, x13, x23
+    mul     x23, x5, x22
+    adcs    x14, x14, x23
+    mul     x23, x6, x22
+    adcs    x15, x15, x23
+    mul     x23, x7, x22
+    adcs    x16, x16, x23
+    mul     x23, x8, x22
+    adcs    x17, x17, x23
+    adc     x19, xzr, xzr
+    umulh   x23, x3, x22
+    adds    x13, x13, x23
+    umulh   x23, x4, x22
+    adcs    x14, x14, x23
+    umulh   x23, x5, x22
+    adcs    x15, x15, x23
+    umulh   x23, x6, x22
+    adcs    x16, x16, x23
+    umulh   x23, x7, x22
+    adcs    x17, x17, x23
+    umulh   x23, x8, x22
+    adcs    x19, x19, x23
+    ldr     x22, [x25, #32]
+    mul     x23, x3, x22
+    adds    x13, x13, x23
+    mul     x23, x4, x22
+    adcs    x14, x14, x23
+    mul     x23, x5, x22
+    adcs    x15, x15, x23
+    mul     x23, x6, x22
+    adcs    x16, x16, x23
+    mul     x23, x7, x22
+    adcs    x17, x17, x23
+    mul     x23, x8, x22
+    adcs    x19, x19, x23
+    adc     x20, xzr, xzr
+    umulh   x23, x3, x22
+    adds    x14, x14, x23
+    umulh   x23, x4, x22
+    adcs    x15, x15, x23
+    umulh   x23, x5, x22
+    adcs    x16, x16, x23
+    umulh   x23, x6, x22
+    adcs    x17, x17, x23
+    umulh   x23, x7, x22
+    adcs    x19, x19, x23
+    umulh   x23, x8, x22
+    adcs    x20, x20, x23
+    ldr     x22, [x25, #40]
+    mul     x23, x3, x22
+    adds    x14, x14, x23
+    mul     x23, x4, x22
+    adcs    x15, x15, x23
+    mul     x23, x5, x22
+    adcs    x16, x16, x23
+    mul     x23, x6, x22
+    adcs    x17, x17, x23
+    mul     x23, x7, x22
+    adcs    x19, x19, x23
+    mul     x23, x8, x22
+    adcs    x20, x20, x23
+    adc     x21, xzr, xzr
+    umulh   x23, x3, x22
+    adds    x15, x15, x23
+    umulh   x23, x4, x22
+    adcs    x16, x16, x23
+    umulh   x23, x5, x22
+    adcs    x17, x17, x23
+    umulh   x23, x6, x22
+    adcs    x19, x19, x23
+    umulh   x23, x7, x22
+    adcs    x20, x20, x23
+    umulh   x23, x8, x22
+    adcs    x21, x21, x23
+    stp     x9, x10, [sp, #96]
+    stp     x11, x12, [sp, #112]
+    stp     x13, x14, [sp, #128]
+    stp     x15, x16, [sp, #144]
+    stp     x17, x19, [sp, #160]
+    stp     x20, x21, [sp, #176]
+    ldp     x3, x4, [x26]
+    ldp     x5, x6, [x26, #16]
+    ldp     x7, x8, [x26, #32]
+    ldp     x9, x10, [x26, #48]
+    ldp     x11, x12, [x26, #64]
+    ldp     x13, x14, [x26, #80]
+    adds    x3, x3, x9
+    adcs    x4, x4, x10
+    adcs    x5, x5, x11
+    adcs    x6, x6, x12
+    adcs    x7, x7, x13
+    adc     x8, x8, x14
+    ldp     x9, x10, [x28]
+    ldp     x11, x12, [x28, #16]
+    ldp     x13, x14, [x28, #32]
+    ldp     x15, x16, [x28, #48]
+    ldp     x17, x19, [x28, #64]
+    ldp     x20, x21, [x28, #80]
+    adds    x9, x9, x15
+    adcs    x10, x10, x16
+    adcs    x11, x11, x17
+    adcs    x12, x12, x19
+    adcs    x13, x13, x20
+    adc     x14, x14, x21
+    stp     x9, x10, [sp, #192]
+    stp     x11, x12, [sp, #208]
+    stp     x13, x14, [sp, #224]
+    add     x25, sp, #192
+    ldr     x22, [x25, #0]
+    mul     x9, x3, x22
+    mul     x10, x4, x22
+    mul     x11, x5, x22
+    mul     x12, x6, x22
+    mul     x13, x7, x22
+    mul     x14, x8, x22
+    umulh   x23, x3, x22
+    adds    x10, x10, x23
+    umulh   x23, x4, x22
+    adcs    x11, x11, x23
+    umulh   x23, x5, x22
+    adcs    x12, x12, x23
+    umulh   x23, x6, x22
+    adcs    x13, x13, x23
+    umulh   x23, x7, x22
+    adcs    x14, x14, x23
+    umulh   x23, x8, x22
+    adc     x15, x23, xzr
+    ldr     x22, [x25, #8]
+    mul     x23, x3, x22
+    adds    x10, x10, x23
+    mul     x23, x4, x22
+    adcs    x11, x11, x23
+    mul     x23, x5, x22
+    adcs    x12, x12, x23
+    mul     x23, x6, x22
+    adcs    x13, x13, x23
+    mul     x23, x7, x22
+    adcs    x14, x14, x23
+    mul     x23, x8, x22
+    adcs    x15, x15, x23
+    adc     x16, xzr, xzr
+    umulh   x23, x3, x22
+    adds    x11, x11, x23
+    umulh   x23, x4, x22
+    adcs    x12, x12, x23
+    umulh   x23, x5, x22
+    adcs    x13, x13, x23
+    umulh   x23, x6, x22
+    adcs    x14, x14, x23
+    umulh   x23, x7, x22
+    adcs    x15, x15, x23
+    umulh   x23, x8, x22
+    adcs    x16, x16, x23
+    ldr     x22, [x25, #16]
+    mul     x23, x3, x22
+    adds    x11, x11, x23
+    mul     x23, x4, x22
+    adcs    x12, x12, x23
+    mul     x23, x5, x22
+    adcs    x13, x13, x23
+    mul     x23, x6, x22
+    adcs    x14, x14, x23
+    mul     x23, x7, x22
+    adcs    x15, x15, x23
+    mul     x23, x8, x22
+    adcs    x16, x16, x23
+    adc     x17, xzr, xzr
+    umulh   x23, x3, x22
+    adds    x12, x12, x23
+    umulh   x23, x4, x22
+    adcs    x13, x13, x23
+    umulh   x23, x5, x22
+    adcs    x14, x14, x23
+    umulh   x23, x6, x22
+    adcs    x15, x15, x23
+    umulh   x23, x7, x22
+    adcs    x16, x16, x23
+    umulh   x23, x8, x22
+    adcs    x17, x17, x23
+    ldr     x22, [x25, #24]
+    mul     x23, x3, x22
+    adds    x12, x12, x23
+    mul     x23, x4, x22
+    adcs    x13, x13, x23
+    mul     x23, x5, x22
+    adcs    x14, x14, x23
+    mul     x23, x6, x22
+    adcs    x15, x15, x23
+    mul     x23, x7, x22
+    adcs    x16, x16, x23
+    mul     x23, x8, x22
+    adcs    x17, x17, x23
+    adc     x19, xzr, xzr
+    umulh   x23, x3, x22
+    adds    x13, x13, x23
+    umulh   x23, x4, x22
+    adcs    x14, x14, x23
+    umulh   x23, x5, x22
+    adcs    x15, x15, x23
+    umulh   x23, x6, x22
+    adcs    x16, x16, x23
+    umulh   x23, x7, x22
+    adcs    x17, x17, x23
+    umulh   x23, x8, x22
+    adcs    x19, x19, x23
+    ldr     x22, [x25, #32]
+    mul     x23, x3, x22
+    adds    x13, x13, x23
+    mul     x23, x4, x22
+    adcs    x14, x14, x23
+    mul     x23, x5, x22
+    adcs    x15, x15, x23
+    mul     x23, x6, x22
+    adcs    x16, x16, x23
+    mul     x23, x7, x22
+    adcs    x17, x17, x23
+    mul     x23, x8, x22
+    adcs    x19, x19, x23
+    adc     x20, xzr, xzr
+    umulh   x23, x3, x22
+    adds    x14, x14, x23
+    umulh   x23, x4, x22
+    adcs    x15, x15, x23
+    umulh   x23, x5, x22
+    adcs    x16, x16, x23
+    umulh   x23, x6, x22
+    adcs    x17, x17, x23
+    umulh   x23, x7, x22
+    adcs    x19, x19, x23
+    umulh   x23, x8, x22
+    adcs    x20, x20, x23
+    ldr     x22, [x25, #40]
+    mul     x23, x3, x22
+    adds    x14, x14, x23
+    mul     x23, x4, x22
+    adcs    x15, x15, x23
+    mul     x23, x5, x22
+    adcs    x16, x16, x23
+    mul     x23, x6, x22
+    adcs    x17, x17, x23
+    mul     x23, x7, x22
+    adcs    x19, x19, x23
+    mul     x23, x8, x22
+    adcs    x20, x20, x23
+    adc     x21, xzr, xzr
+    umulh   x23, x3, x22
+    adds    x15, x15, x23
+    umulh   x23, x4, x22
+    adcs    x16, x16, x23
+    umulh   x23, x5, x22
+    adcs    x17, x17, x23
+    umulh   x23, x6, x22
+    adcs    x19, x19, x23
+    umulh   x23, x7, x22
+    adcs    x20, x20, x23
+    umulh   x23, x8, x22
+    adcs    x21, x21, x23
+    stp     x9, x10, [sp, #192]
+    stp     x11, x12, [sp, #208]
+    stp     x13, x14, [sp, #224]
+    stp     x15, x16, [sp, #240]
+    stp     x17, x19, [sp, #256]
+    stp     x20, x21, [sp, #272]
+    adr     x27, 900f                       /* p, -p^-1 mod 2^64 */
+    ldp     x9, x10, [sp, #192]
+    ldp     x11, x12, [sp, #208]
+    ldp     x13, x14, [sp, #224]
+    ldp     x15, x16, [sp, #240]
+    ldp     x17, x19, [sp, #256]
+    ldp     x20, x21, [sp, #272]
+    ldp     x3, x4, [sp, #0]
+    subs    x9, x9, x3
+    sbcs    x10, x10, x4
+    ldp     x3, x4, [sp, #16]
+    sbcs    x11, x11, x3
+    sbcs    x12, x12, x4
+    ldp     x3, x4, [sp, #32]
+    sbcs    x13, x13, x3
+    sbcs    x14, x14, x4
+    ldp     x3, x4, [sp, #48]
+    sbcs    x15, x15, x3
+    sbcs    x16, x16, x4
+    ldp     x3, x4, [sp, #64]
+    sbcs    x17, x17, x3
+    sbcs    x19, x19, x4
+    ldp     x3, x4, [sp, #80]
+    sbcs    x20, x20, x3
+    sbcs    x21, x21, x4
+    ldp     x3, x4, [sp, #96]
+    subs    x9, x9, x3
+    sbcs    x10, x10, x4
+    ldp     x3, x4, [sp, #112]
+    sbcs    x11, x11, x3
+    sbcs    x12, x12, x4
+    ldp     x3, x4, [sp, #128]
+    sbcs    x13, x13, x3
+    sbcs    x14, x14, x4
+    ldp     x3, x4, [sp, #144]
+    sbcs    x15, x15, x3
+    sbcs    x16, x16, x4
+    ldp     x3, x4, [sp, #160]
+    sbcs    x17, x17, x3
+    sbcs    x19, x19, x4
+    ldp     x3, x4, [sp, #176]
+    sbcs    x20, x20, x3
+    sbcs    x21, x21, x4
+    ldr     x22, [x27, #48]
+    mul     x22, x9, x22
+    ldr     x24, [x27, #0]
+    mul     x23, x22, x24
+    adds    x9, x9, x23
+    ldr     x24, [x27, #8]
+    mul     x23, x22, x24
+    adcs    x10, x10, x23
+    ldr     x24, [x27, #16]
+    mul     x23, x22, x24
+    adcs    x11, x11, x23
+    ldr     x24, [x27, #24]
+    mul     x23, x22, x24
+    adcs    x12, x12, x23
+    ldr     x24, [x27, #32]
+    mul     x23, x22, x24
+    adcs    x13, x13, x23
+    ldr     x24, [x27, #40]
+    mul     x23, x22, x24
+    adcs    x14, x14, x23
+    adcs     x15, x15, xzr
+    adcs     x16, x16, xzr
+    adcs     x17, x17, xzr
+    adcs     x19, x19, xzr
+    adcs     x20, x20, xzr
+    adc      x21, x21, xzr
+    ldr     x24, [x27, #0]
+    umulh   x23, x22, x24
+    adds    x10, x10, x23
+    ldr     x24, [x27, #8]
+    umulh   x23, x22, x24
+    adcs    x11, x11, x23
+    ldr     x24, [x27, #16]
+    umulh   x23, x22, x24
+    adcs    x12, x12, x23
+    ldr     x24, [x27, #24]
+    umulh   x23, x22, x24
+    adcs    x13, x13, x23
+    ldr     x24, [x27, #32]
+    umulh   x23, x22, x24
+    adcs    x14, x14, x23
+    ldr     x24, [x27, #40]
+    umulh   x23, x22, x24
+    adcs    x15, x15, x23
+    adcs     x16, x16, xzr
+    adcs     x17, x17, xzr
+    adcs     x19, x19, xzr
+    adcs     x20, x20, xzr
+    adc      x21, x21, xzr
+    ldr     x22, [x27, #48]
+    mul     x22, x10, x22
+    ldr     x24, [x27, #0]
+    mul     x23, x22, x24
+    adds    x10, x10, x23
+    ldr     x24, [x27, #8]
+    mul     x23, x22, x24
+    adcs    x11, x11, x23
+    ldr     x24, [x27, #16]
+    mul     x23, x22, x24
+    adcs    x12, x12, x23
+    ldr     x24, [x27, #24]
+    mul     x23, x22, x24
+    adcs    x13, x13, x23
+    ldr     x24, [x27, #32]
+    mul     x23, x22, x24
+    adcs    x14, x14, x23
+    ldr     x24, [x27, #40]
+    mul     x23, x22, x24
+    adcs    x15, x15, x23
+    adcs     x16, x16, xzr
+    adcs     x17, x17, xzr
+    adcs     x19, x19, xzr
+    adcs     x20, x20, xzr
+    adc      x21, x21, xzr
+    ldr     x24, [x27, #0]
+    umulh   x23, x22, x24
+    adds    x11, x11, x23
+    ldr     x24, [x27, #8]
+    umulh   x23, x22, x24
+    adcs    x12, x12, x23
+    ldr     x24, [x27, #16]
+    umulh   x23, x22, x24
+    adcs    x13, x13, x23
+    ldr     x24, [x27, #24]
+    umulh   x23, x22, x24
+    adcs    x14, x14, x23
+    ldr     x24, [x27, #32]
+    umulh   x23, x22, x24
+    adcs    x15, x15, x23
+    ldr     x24, [x27, #40]
+    umulh   x23, x22, x24
+    adcs    x16, x16, x23
+    adcs     x17, x17, xzr
+    adcs     x19, x19, xzr
+    adcs     x20, x20, xzr
+    adc      x21, x21, xzr
+    ldr     x22, [x27, #48]
+    mul     x22, x11, x22
+    ldr     x24, [x27, #0]
+    mul     x23, x22, x24
+    adds    x11, x11, x23
+    ldr     x24, [x27, #8]
+    mul     x23, x22, x24
+    adcs    x12, x12, x23
+    ldr     x24, [x27, #16]
+    mul     x23, x22, x24
+    adcs    x13, x13, x23
+    ldr     x24, [x27, #24]
+    mul     x23, x22, x24
+    adcs    x14, x14, x23
+    ldr     x24, [x27, #32]
+    mul     x23, x22, x24
+    adcs    x15, x15, x23
+    ldr     x24, [x27, #40]
+    mul     x23, x22, x24
+    adcs    x16, x16, x23
+    adcs     x17, x17, xzr
+    adcs     x19, x19, xzr
+    adcs     x20, x20, xzr
+    adc      x21, x21, xzr
+    ldr     x24, [x27, #0]
+    umulh   x23, x22, x24
+    adds    x12, x12, x23
+    ldr     x24, [x27, #8]
+    umulh   x23, x22, x24
+    adcs    x13, x13, x23
+    ldr     x24, [x27, #16]
+    umulh   x23, x22, x24
+    adcs    x14, x14, x23
+    ldr     x24, [x27, #24]
+    umulh   x23, x22, x24
+    adcs    x15, x15, x23
+    ldr     x24, [x27, #32]
+    umulh   x23, x22, x24
+    adcs    x16, x16, x23
+    ldr     x24, [x27, #40]
+    umulh   x23, x22, x24
+    adcs    x17, x17, x23
+    adcs     x19, x19, xzr
+    adcs     x20, x20, xzr
+    adc      x21, x21, xzr
+    ldr     x22, [x27, #48]
+    mul     x22, x12, x22
+    ldr     x24, [x27, #0]
+    mul     x23, x22, x24
+    adds    x12, x12, x23
+    ldr     x24, [x27, #8]
+    mul     x23, x22, x24
+    adcs    x13, x13, x23
+    ldr     x24, [x27, #16]
+    mul     x23, x22, x24
+    adcs    x14, x14, x23
+    ldr     x24, [x27, #24]
+    mul     x23, x22, x24
+    adcs    x15, x15, x23
+    ldr     x24, [x27, #32]
+    mul     x23, x22, x24
+    adcs    x16, x16, x23
+    ldr     x24, [x27, #40]
+    mul     x23, x22, x24
+    adcs    x17, x17, x23
+    adcs     x19, x19, xzr
+    adcs     x20, x20, xzr
+    adc      x21, x21, xzr
+    ldr     x24, [x27, #0]
+    umulh   x23, x22, x24
+    adds    x13, x13, x23
+    ldr     x24, [x27, #8]
+    umulh   x23, x22, x24
+    adcs    x14, x14, x23
+    ldr     x24, [x27, #16]
+    umulh   x23, x22, x24
+    adcs    x15, x15, x23
+    ldr     x24, [x27, #24]
+    umulh   x23, x22, x24
+    adcs    x16, x16, x23
+    ldr     x24, [x27, #32]
+    umulh   x23, x22, x24
+    adcs    x17, x17, x23
+    ldr     x24, [x27, #40]
+    umulh   x23, x22, x24
+    adcs    x19, x19, x23
+    adcs     x20, x20, xzr
+    adc      x21, x21, xzr
+    ldr     x22, [x27, #48]
+    mul     x22, x13, x22
+    ldr     x24, [x27, #0]
+    mul     x23, x22, x24
+    adds    x13, x13, x23
+    ldr     x24, [x27, #8]
+    mul     x23, x22, x24
+    adcs    x14, x14, x23
+    ldr     x24, [x27, #16]
+    mul     x23, x22, x24
+    adcs    x15, x15, x23
+    ldr     x24, [x27, #24]
+    mul     x23, x22, x24
+    adcs    x16, x16, x23
+    ldr     x24, [x27, #32]
+    mul     x23, x22, x24
+    adcs    x17, x17, x23
+    ldr     x24, [x27, #40]
+    mul     x23, x22, x24
+    adcs    x19, x19, x23
+    adcs     x20, x20, xzr
+    adc      x21, x21, xzr
+    ldr     x24, [x27, #0]
+    umulh   x23, x22, x24
+    adds    x14, x14, x23
+    ldr     x24, [x27, #8]
+    umulh   x23, x22, x24
+    adcs    x15, x15, x23
+    ldr     x24, [x27, #16]
+    umulh   x23, x22, x24
+    adcs    x16, x16, x23
+    ldr     x24, [x27, #24]
+    umulh   x23, x22, x24
+    adcs    x17, x17, x23
+    ldr     x24, [x27, #32]
+    umulh   x23, x22, x24
+    adcs    x19, x19, x23
+    ldr     x24, [x27, #40]
+    umulh   x23, x22, x24
+    adcs    x20, x20, x23
+    adc      x21, x21, xzr
+    ldr     x22, [x27, #48]
+    mul     x22, x14, x22
+    ldr     x24, [x27, #0]
+    mul     x23, x22, x24
+    adds    x14, x14, x23
+    ldr     x24, [x27, #8]
+    mul     x23, x22, x24
+    adcs    x15, x15, x23
+    ldr     x24, [x27, #16]
+    mul     x23, x22, x24
+    adcs    x16, x16, x23
+    ldr     x24, [x27, #24]
+    mul     x23, x22, x24
+    adcs    x17, x17, x23
+    ldr     x24, [x27, #32]
+    mul     x23, x22, x24
+    adcs    x19, x19, x23
+    ldr     x24, [x27, #40]
+    mul     x23, x22, x24
+    adcs    x20, x20, x23
+    adc      x21, x21, xzr
+    ldr     x24, [x27, #0]
+    umulh   x23, x22, x24
+    adds    x15, x15, x23
+    ldr     x24, [x27, #8]
+    umulh   x23, x22, x24
+    adcs    x16, x16, x23
+    ldr     x24, [x27, #16]
+    umulh   x23, x22, x24
+    adcs    x17, x17, x23
+    ldr     x24, [x27, #24]
+    umulh   x23, x22, x24
+    adcs    x19, x19, x23
+    ldr     x24, [x27, #32]
+    umulh   x23, x22, x24
+    adcs    x20, x20, x23
+    ldr     x24, [x27, #40]
+    umulh   x23, x22, x24
+    adcs    x21, x21, x23
+    ldp     x3, x4, [x27]
+    ldp     x5, x6, [x27, #16]
+    ldp     x7, x8, [x27, #32]
+    subs    x3, x15, x3
+    sbcs    x4, x16, x4
+    sbcs    x5, x17, x5
+    sbcs    x6, x19, x6
+    sbcs    x7, x20, x7
+    sbcs    x8, x21, x8
+    csel    x15, x3, x15, hs
+    csel    x16, x4, x16, hs
+    csel    x17, x5, x17, hs
+    csel    x19, x6, x19, hs
+    csel    x20, x7, x20, hs
+    csel    x21, x8, x21, hs
+    stp     x15, x16, [x0, #48]
+    stp     x17, x19, [x0, #64]
+    stp     x20, x21, [x0, #80]
+    ldp     x9, x10, [sp, #0]
+    ldp     x11, x12, [sp, #16]
+    ldp     x13, x14, [sp, #32]
+    ldp     x15, x16, [sp, #48]
+    ldp     x17, x19, [sp, #64]
+    ldp     x20, x21, [sp, #80]
+    ldp     x3, x4, [sp, #96]
+    subs    x9, x9, x3
+    sbcs    x10, x10, x4
+    ldp     x3, x4, [sp, #112]
+    sbcs    x11, x11, x3
+    sbcs    x12, x12, x4
+    ldp     x3, x4, [sp, #128]
+    sbcs    x13, x13, x3
+    sbcs    x14, x14, x4
+    ldp     x3, x4, [sp, #144]
+    sbcs    x15, x15, x3
+    sbcs    x16, x16, x4
+    ldp     x3, x4, [sp, #160]
+    sbcs    x17, x17, x3
+    sbcs    x19, x19, x4
+    ldp     x3, x4, [sp, #176]
+    sbcs    x20, x20, x3
+    sbcs    x21, x21, x4
+    csetm   x22, lo                         /* a borrow: + p^2 */
+    adr     x1, 929f
+    ldp     x3, x4, [x1, #0]
+    and     x3, x3, x22
+    and     x4, x4, x22
+    adds    x9, x9, x3
+    adcs    x10, x10, x4
+    ldp     x3, x4, [x1, #16]
+    and     x3, x3, x22
+    and     x4, x4, x22
+    adcs    x11, x11, x3
+    adcs    x12, x12, x4
+    ldp     x3, x4, [x1, #32]
+    and     x3, x3, x22
+    and     x4, x4, x22
+    adcs    x13, x13, x3
+    adcs    x14, x14, x4
+    ldp     x3, x4, [x1, #48]
+    and     x3, x3, x22
+    and     x4, x4, x22
+    adcs    x15, x15, x3
+    adcs    x16, x16, x4
+    ldp     x3, x4, [x1, #64]
+    and     x3, x3, x22
+    and     x4, x4, x22
+    adcs    x17, x17, x3
+    adcs    x19, x19, x4
+    ldp     x3, x4, [x1, #80]
+    and     x3, x3, x22
+    and     x4, x4, x22
+    adcs    x20, x20, x3
+    adcs    x21, x21, x4
+    ldr     x22, [x27, #48]
+    mul     x22, x9, x22
+    ldr     x24, [x27, #0]
+    mul     x23, x22, x24
+    adds    x9, x9, x23
+    ldr     x24, [x27, #8]
+    mul     x23, x22, x24
+    adcs    x10, x10, x23
+    ldr     x24, [x27, #16]
+    mul     x23, x22, x24
+    adcs    x11, x11, x23
+    ldr     x24, [x27, #24]
+    mul     x23, x22, x24
+    adcs    x12, x12, x23
+    ldr     x24, [x27, #32]
+    mul     x23, x22, x24
+    adcs    x13, x13, x23
+    ldr     x24, [x27, #40]
+    mul     x23, x22, x24
+    adcs    x14, x14, x23
+    adcs     x15, x15, xzr
+    adcs     x16, x16, xzr
+    adcs     x17, x17, xzr
+    adcs     x19, x19, xzr
+    adcs     x20, x20, xzr
+    adc      x21, x21, xzr
+    ldr     x24, [x27, #0]
+    umulh   x23, x22, x24
+    adds    x10, x10, x23
+    ldr     x24, [x27, #8]
+    umulh   x23, x22, x24
+    adcs    x11, x11, x23
+    ldr     x24, [x27, #16]
+    umulh   x23, x22, x24
+    adcs    x12, x12, x23
+    ldr     x24, [x27, #24]
+    umulh   x23, x22, x24
+    adcs    x13, x13, x23
+    ldr     x24, [x27, #32]
+    umulh   x23, x22, x24
+    adcs    x14, x14, x23
+    ldr     x24, [x27, #40]
+    umulh   x23, x22, x24
+    adcs    x15, x15, x23
+    adcs     x16, x16, xzr
+    adcs     x17, x17, xzr
+    adcs     x19, x19, xzr
+    adcs     x20, x20, xzr
+    adc      x21, x21, xzr
+    ldr     x22, [x27, #48]
+    mul     x22, x10, x22
+    ldr     x24, [x27, #0]
+    mul     x23, x22, x24
+    adds    x10, x10, x23
+    ldr     x24, [x27, #8]
+    mul     x23, x22, x24
+    adcs    x11, x11, x23
+    ldr     x24, [x27, #16]
+    mul     x23, x22, x24
+    adcs    x12, x12, x23
+    ldr     x24, [x27, #24]
+    mul     x23, x22, x24
+    adcs    x13, x13, x23
+    ldr     x24, [x27, #32]
+    mul     x23, x22, x24
+    adcs    x14, x14, x23
+    ldr     x24, [x27, #40]
+    mul     x23, x22, x24
+    adcs    x15, x15, x23
+    adcs     x16, x16, xzr
+    adcs     x17, x17, xzr
+    adcs     x19, x19, xzr
+    adcs     x20, x20, xzr
+    adc      x21, x21, xzr
+    ldr     x24, [x27, #0]
+    umulh   x23, x22, x24
+    adds    x11, x11, x23
+    ldr     x24, [x27, #8]
+    umulh   x23, x22, x24
+    adcs    x12, x12, x23
+    ldr     x24, [x27, #16]
+    umulh   x23, x22, x24
+    adcs    x13, x13, x23
+    ldr     x24, [x27, #24]
+    umulh   x23, x22, x24
+    adcs    x14, x14, x23
+    ldr     x24, [x27, #32]
+    umulh   x23, x22, x24
+    adcs    x15, x15, x23
+    ldr     x24, [x27, #40]
+    umulh   x23, x22, x24
+    adcs    x16, x16, x23
+    adcs     x17, x17, xzr
+    adcs     x19, x19, xzr
+    adcs     x20, x20, xzr
+    adc      x21, x21, xzr
+    ldr     x22, [x27, #48]
+    mul     x22, x11, x22
+    ldr     x24, [x27, #0]
+    mul     x23, x22, x24
+    adds    x11, x11, x23
+    ldr     x24, [x27, #8]
+    mul     x23, x22, x24
+    adcs    x12, x12, x23
+    ldr     x24, [x27, #16]
+    mul     x23, x22, x24
+    adcs    x13, x13, x23
+    ldr     x24, [x27, #24]
+    mul     x23, x22, x24
+    adcs    x14, x14, x23
+    ldr     x24, [x27, #32]
+    mul     x23, x22, x24
+    adcs    x15, x15, x23
+    ldr     x24, [x27, #40]
+    mul     x23, x22, x24
+    adcs    x16, x16, x23
+    adcs     x17, x17, xzr
+    adcs     x19, x19, xzr
+    adcs     x20, x20, xzr
+    adc      x21, x21, xzr
+    ldr     x24, [x27, #0]
+    umulh   x23, x22, x24
+    adds    x12, x12, x23
+    ldr     x24, [x27, #8]
+    umulh   x23, x22, x24
+    adcs    x13, x13, x23
+    ldr     x24, [x27, #16]
+    umulh   x23, x22, x24
+    adcs    x14, x14, x23
+    ldr     x24, [x27, #24]
+    umulh   x23, x22, x24
+    adcs    x15, x15, x23
+    ldr     x24, [x27, #32]
+    umulh   x23, x22, x24
+    adcs    x16, x16, x23
+    ldr     x24, [x27, #40]
+    umulh   x23, x22, x24
+    adcs    x17, x17, x23
+    adcs     x19, x19, xzr
+    adcs     x20, x20, xzr
+    adc      x21, x21, xzr
+    ldr     x22, [x27, #48]
+    mul     x22, x12, x22
+    ldr     x24, [x27, #0]
+    mul     x23, x22, x24
+    adds    x12, x12, x23
+    ldr     x24, [x27, #8]
+    mul     x23, x22, x24
+    adcs    x13, x13, x23
+    ldr     x24, [x27, #16]
+    mul     x23, x22, x24
+    adcs    x14, x14, x23
+    ldr     x24, [x27, #24]
+    mul     x23, x22, x24
+    adcs    x15, x15, x23
+    ldr     x24, [x27, #32]
+    mul     x23, x22, x24
+    adcs    x16, x16, x23
+    ldr     x24, [x27, #40]
+    mul     x23, x22, x24
+    adcs    x17, x17, x23
+    adcs     x19, x19, xzr
+    adcs     x20, x20, xzr
+    adc      x21, x21, xzr
+    ldr     x24, [x27, #0]
+    umulh   x23, x22, x24
+    adds    x13, x13, x23
+    ldr     x24, [x27, #8]
+    umulh   x23, x22, x24
+    adcs    x14, x14, x23
+    ldr     x24, [x27, #16]
+    umulh   x23, x22, x24
+    adcs    x15, x15, x23
+    ldr     x24, [x27, #24]
+    umulh   x23, x22, x24
+    adcs    x16, x16, x23
+    ldr     x24, [x27, #32]
+    umulh   x23, x22, x24
+    adcs    x17, x17, x23
+    ldr     x24, [x27, #40]
+    umulh   x23, x22, x24
+    adcs    x19, x19, x23
+    adcs     x20, x20, xzr
+    adc      x21, x21, xzr
+    ldr     x22, [x27, #48]
+    mul     x22, x13, x22
+    ldr     x24, [x27, #0]
+    mul     x23, x22, x24
+    adds    x13, x13, x23
+    ldr     x24, [x27, #8]
+    mul     x23, x22, x24
+    adcs    x14, x14, x23
+    ldr     x24, [x27, #16]
+    mul     x23, x22, x24
+    adcs    x15, x15, x23
+    ldr     x24, [x27, #24]
+    mul     x23, x22, x24
+    adcs    x16, x16, x23
+    ldr     x24, [x27, #32]
+    mul     x23, x22, x24
+    adcs    x17, x17, x23
+    ldr     x24, [x27, #40]
+    mul     x23, x22, x24
+    adcs    x19, x19, x23
+    adcs     x20, x20, xzr
+    adc      x21, x21, xzr
+    ldr     x24, [x27, #0]
+    umulh   x23, x22, x24
+    adds    x14, x14, x23
+    ldr     x24, [x27, #8]
+    umulh   x23, x22, x24
+    adcs    x15, x15, x23
+    ldr     x24, [x27, #16]
+    umulh   x23, x22, x24
+    adcs    x16, x16, x23
+    ldr     x24, [x27, #24]
+    umulh   x23, x22, x24
+    adcs    x17, x17, x23
+    ldr     x24, [x27, #32]
+    umulh   x23, x22, x24
+    adcs    x19, x19, x23
+    ldr     x24, [x27, #40]
+    umulh   x23, x22, x24
+    adcs    x20, x20, x23
+    adc      x21, x21, xzr
+    ldr     x22, [x27, #48]
+    mul     x22, x14, x22
+    ldr     x24, [x27, #0]
+    mul     x23, x22, x24
+    adds    x14, x14, x23
+    ldr     x24, [x27, #8]
+    mul     x23, x22, x24
+    adcs    x15, x15, x23
+    ldr     x24, [x27, #16]
+    mul     x23, x22, x24
+    adcs    x16, x16, x23
+    ldr     x24, [x27, #24]
+    mul     x23, x22, x24
+    adcs    x17, x17, x23
+    ldr     x24, [x27, #32]
+    mul     x23, x22, x24
+    adcs    x19, x19, x23
+    ldr     x24, [x27, #40]
+    mul     x23, x22, x24
+    adcs    x20, x20, x23
+    adc      x21, x21, xzr
+    ldr     x24, [x27, #0]
+    umulh   x23, x22, x24
+    adds    x15, x15, x23
+    ldr     x24, [x27, #8]
+    umulh   x23, x22, x24
+    adcs    x16, x16, x23
+    ldr     x24, [x27, #16]
+    umulh   x23, x22, x24
+    adcs    x17, x17, x23
+    ldr     x24, [x27, #24]
+    umulh   x23, x22, x24
+    adcs    x19, x19, x23
+    ldr     x24, [x27, #32]
+    umulh   x23, x22, x24
+    adcs    x20, x20, x23
+    ldr     x24, [x27, #40]
+    umulh   x23, x22, x24
+    adcs    x21, x21, x23
+    ldp     x3, x4, [x27]
+    ldp     x5, x6, [x27, #16]
+    ldp     x7, x8, [x27, #32]
+    subs    x3, x15, x3
+    sbcs    x4, x16, x4
+    sbcs    x5, x17, x5
+    sbcs    x6, x19, x6
+    sbcs    x7, x20, x7
+    sbcs    x8, x21, x8
+    csel    x15, x3, x15, hs
+    csel    x16, x4, x16, hs
+    csel    x17, x5, x17, hs
+    csel    x19, x6, x19, hs
+    csel    x20, x7, x20, hs
+    csel    x21, x8, x21, hs
+    stp     x15, x16, [x0]
+    stp     x17, x19, [x0, #16]
+    stp     x20, x21, [x0, #32]
+    UNWIND_BEGIN_EPILOGUE
+    ldp     x27, x28, [sp, #FM_SAVE + 64]
+    UNWIND_RESTORE_REGP x27, x28, FM_SAVE + 64
+    ldp     x25, x26, [sp, #FM_SAVE + 48]
+    UNWIND_RESTORE_REGP x25, x26, FM_SAVE + 48
+    ldp     x23, x24, [sp, #FM_SAVE + 32]
+    UNWIND_RESTORE_REGP x23, x24, FM_SAVE + 32
+    ldp     x21, x22, [sp, #FM_SAVE + 16]
+    UNWIND_RESTORE_REGP x21, x22, FM_SAVE + 16
+    ldp     x19, x20, [sp, #FM_SAVE]
+    UNWIND_RESTORE_REGP x19, x20, FM_SAVE
+    add     sp, sp, #FM_SIZE
+    UNWIND_FREE FM_SIZE
+    UNWIND_END_EPILOGUE
+    ret
+END_FUNCTION crypto_bls_fp2_mul
+
+/*
+ * crypto_bls_fp2_square(result, a): a^2 = ((a0 + a1)(a0 - a1), 2 a0 a1), with
+ * two products in Fp. result may be a.
+ */
+LOCAL_FUNCTION crypto_bls_fp2_square
     ENTER   0, M2_SIZE
     mov     x19, x0
     mov     x20, x1
-    mov     x21, x2
-    FMUL    sp, M2_T0, x20, 0, x21, 0
-    FMUL    sp, M2_T1, x20, 48, x21, 48
-    FMUL    sp, M2_T2, x20, 0, x21, 48
-    FMUL    sp, M2_T3, x20, 48, x21, 0
-    FSUB    x19, 0, sp, M2_T0, sp, M2_T1
-    FADD    x19, 48, sp, M2_T2, sp, M2_T3
+    FADD    sp, M2_T0, x20, 0, x20, 48
+    FSUB    sp, M2_T1, x20, 0, x20, 48
+    FMUL    sp, M2_T2, x20, 0, x20, 48
+    FMUL    x19, 0, sp, M2_T0, sp, M2_T1
+    FADD    x19, 48, sp, M2_T2, sp, M2_T2
     LEAVE   0, M2_SIZE
-END_FUNCTION crypto_bls_fp2_mul
+END_FUNCTION crypto_bls_fp2_square
 
 /* crypto_bls_fp2_mul_fp(result, a, k): (a0 k, a1 k), for k in Fp (Fp2.ofFp k * a). result may be a. */
 LOCAL_FUNCTION crypto_bls_fp2_mul_fp
@@ -1464,17 +2769,17 @@ LOCAL_FUNCTION crypto_bls_g2_double
     b.ne    1f
     COPY    x19, 0, x20, 0, 288
     LEAVE   0, HD_SIZE
-1:  F2MUL   sp, HD_A, x20, 0, x20, 0        /* A = X * X */
-    F2MUL   sp, HD_B, x20, 96, x20, 96      /* B = Y * Y */
-    F2MUL   sp, HD_C, sp, HD_B, sp, HD_B    /* C = B * B */
+1:  F2SQR   sp, HD_A, x20, 0        /* A = X * X */
+    F2SQR   sp, HD_B, x20, 96      /* B = Y * Y */
+    F2SQR   sp, HD_C, sp, HD_B    /* C = B * B */
     F2ADD   sp, HD_T, x20, 0, sp, HD_B      /* D = 2 ((X + B)^2 - A - C) */
-    F2MUL   sp, HD_T, sp, HD_T, sp, HD_T
+    F2SQR   sp, HD_T, sp, HD_T
     F2SUB   sp, HD_T, sp, HD_T, sp, HD_A
     F2SUB   sp, HD_T, sp, HD_T, sp, HD_C
     F2ADD   sp, HD_D, sp, HD_T, sp, HD_T
     F2ADD   sp, HD_E, sp, HD_A, sp, HD_A    /* E = 3 A */
     F2ADD   sp, HD_E, sp, HD_E, sp, HD_A
-    F2MUL   sp, HD_F, sp, HD_E, sp, HD_E    /* F = E * E */
+    F2SQR   sp, HD_F, sp, HD_E    /* F = E * E */
     F2ADD   sp, HD_T, sp, HD_D, sp, HD_D    /* x' = F - 2 D */
     F2SUB   sp, HD_X, sp, HD_F, sp, HD_T
     F2SUB   sp, HD_T, sp, HD_D, sp, HD_X    /* y' = E (D - x') - 8 C */
@@ -1519,8 +2824,8 @@ LOCAL_FUNCTION crypto_bls_g2_add
     b.ne    2f
     COPY    x21, 0, x19, 0, 288
     b       9f
-2:  F2MUL   sp, HA_Z1Z1, x19, 192, x19, 192
-    F2MUL   sp, HA_Z2Z2, x20, 192, x20, 192
+2:  F2SQR   sp, HA_Z1Z1, x19, 192
+    F2SQR   sp, HA_Z2Z2, x20, 192
     F2MUL   sp, HA_U1, x19, 0, sp, HA_Z2Z2
     F2MUL   sp, HA_U2, x20, 0, sp, HA_Z1Z1
     F2MUL   sp, HA_S1, x19, 96, x20, 192
@@ -1542,12 +2847,12 @@ LOCAL_FUNCTION crypto_bls_g2_add
     b       9f
 4:  F2SUB   sp, HA_U2, sp, HA_U2, sp, HA_U1 /* h = u2 - u1 */
     F2ADD   sp, HA_I, sp, HA_U2, sp, HA_U2  /* i = (2 h)^2 */
-    F2MUL   sp, HA_I, sp, HA_I, sp, HA_I
+    F2SQR   sp, HA_I, sp, HA_I
     F2MUL   sp, HA_J, sp, HA_U2, sp, HA_I   /* j = h i */
     F2SUB   sp, HA_S2, sp, HA_S2, sp, HA_S1 /* r = 2 (s2 - s1) */
     F2ADD   sp, HA_S2, sp, HA_S2, sp, HA_S2
     F2MUL   sp, HA_U1, sp, HA_U1, sp, HA_I  /* v = u1 i */
-    F2MUL   sp, HA_X, sp, HA_S2, sp, HA_S2  /* x' = r^2 - j - 2 v */
+    F2SQR   sp, HA_X, sp, HA_S2  /* x' = r^2 - j - 2 v */
     F2SUB   sp, HA_X, sp, HA_X, sp, HA_J
     F2SUB   sp, HA_X, sp, HA_X, sp, HA_U1
     F2SUB   sp, HA_X, sp, HA_X, sp, HA_U1
@@ -1557,7 +2862,7 @@ LOCAL_FUNCTION crypto_bls_g2_add
     F2MUL   sp, HA_S1, sp, HA_S1, sp, HA_J
     F2SUB   sp, HA_Y, sp, HA_Y, sp, HA_S1
     F2ADD   sp, HA_I, x19, 192, x20, 192    /* z' = ((Z1 + Z2)^2 - z1z1 - z2z2) h */
-    F2MUL   sp, HA_I, sp, HA_I, sp, HA_I
+    F2SQR   sp, HA_I, sp, HA_I
     F2SUB   sp, HA_I, sp, HA_I, sp, HA_Z1Z1
     F2SUB   sp, HA_I, sp, HA_I, sp, HA_Z2Z2
     F2MUL   sp, HA_Z, sp, HA_I, sp, HA_U2
@@ -1630,7 +2935,7 @@ LOCAL_FUNCTION crypto_bls_g2_affine
     ZERO    x19, 0, 192
     LEAVE   0, HF_SIZE
 1:  C2      crypto_bls_fp2_inverse, sp, HF_ZI, x20, 192
-    F2MUL   sp, HF_ZI2, sp, HF_ZI, sp, HF_ZI
+    F2SQR   sp, HF_ZI2, sp, HF_ZI
     F2MUL   sp, HF_ZI3, sp, HF_ZI2, sp, HF_ZI
     F2MUL   x19, 0, x20, 0, sp, HF_ZI2
     F2MUL   x19, 96, x20, 96, sp, HF_ZI3
@@ -1667,8 +2972,8 @@ LOCAL_FUNCTION crypto_bls_g2_in_subgroup
     adr     x21, 907f                       /* c1Psi, then c2Psi */
     COPY    sp, HS_E, x19, 192, 48          /* e = Zs = conj(Z) */
     C2      crypto_bls_fp_neg, sp, HS_E + 48, x19, 240
-    F2MUL   sp, HS_A, sp, HS_T + 192, sp, HS_T + 192    /* a = Zt^2, b = Zs^2 */
-    F2MUL   sp, HS_B, sp, HS_E, sp, HS_E
+    F2SQR   sp, HS_A, sp, HS_T + 192    /* a = Zt^2, b = Zs^2 */
+    F2SQR   sp, HS_B, sp, HS_E
     COPY    sp, HS_C, x19, 0, 48            /* c = c1Psi conj(X) Zt^2, d = Xt Zs^2 */
     C2      crypto_bls_fp_neg, sp, HS_C + 48, x19, 48
     F2MUL   sp, HS_C, x21, 0, sp, HS_C
@@ -1737,7 +3042,7 @@ LOCAL_FUNCTION crypto_bls_g2_uncompress
     cbnz    x0, 8f
     C2      crypto_bls_fp_from_bytes, sp, HU_X, sp, HU_RHS + 48
     cbnz    x0, 8f
-    F2MUL   sp, HU_RHS, sp, HU_X, sp, HU_X  /* x^3 + 4 (1 + u) */
+    F2SQR   sp, HU_RHS, sp, HU_X  /* x^3 + 4 (1 + u) */
     F2MUL   sp, HU_RHS, sp, HU_RHS, sp, HU_X
     adr     x9, 901f
     add     x0, sp, #HU_RHS
@@ -2012,9 +3317,9 @@ LOCAL_FUNCTION crypto_bls_simple_swu
     mov     x19, x0
     mov     x20, x1
     adr     x21, 910f                       /* A', then B', then Z */
-    F2MUL   sp, SW_U2, x20, 0, x20, 0       /* u2 = u u */
+    F2SQR   sp, SW_U2, x20, 0       /* u2 = u u */
     F2MUL   sp, SW_ZU2, x21, 192, sp, SW_U2 /* zu2 = Z u2 */
-    F2MUL   sp, SW_DEN, sp, SW_ZU2, sp, SW_ZU2
+    F2SQR   sp, SW_DEN, sp, SW_ZU2
     F2ADD   sp, SW_DEN, sp, SW_DEN, sp, SW_ZU2
     IS_ZERO sp, SW_DEN, 96
     b.ne    1f
@@ -2063,7 +3368,7 @@ LOCAL_FUNCTION crypto_bls_swu_g
     mov     x19, x0
     mov     x20, x1
     adr     x21, 910f
-    F2MUL   x19, 0, x20, 0, x20, 0
+    F2SQR   x19, 0, x20, 0
     F2MUL   x19, 0, x19, 0, x20, 0
     F2MUL   sp, SV_T, x21, 0, x20, 0
     F2ADD   x19, 0, x19, 0, sp, SV_T
@@ -2089,7 +3394,7 @@ LOCAL_FUNCTION crypto_bls_iso_map_g2
     mov     x19, x0
     mov     x20, x1
     adr     x21, 913f                       /* k10..k13, then k20, k21, then k30..k33, then k40..k42 */
-    F2MUL   sp, IM_X2, x20, 0, x20, 0
+    F2SQR   sp, IM_X2, x20, 0
     F2MUL   sp, IM_X3, sp, IM_X2, x20, 0
     F2MUL   sp, IM_XN, x21, 288, sp, IM_X3  /* x_num = k13 x^3 + k12 x^2 + k11 x + k10 */
     F2MUL   sp, IM_T, x21, 192, sp, IM_X2
@@ -2594,37 +3899,38 @@ END_FUNCTION crypto_bls_eth_aggregate_pubkeys
 
 /* crypto_bls_fp6_add(result, a, b): a + b (Fp6.add). result may be a or b. */
 LOCAL_FUNCTION crypto_bls_fp6_add
-    ENTER   0
-    mov     x19, x0
-    mov     x20, x1
-    mov     x21, x2
-    F2ADD   x19, 0, x20, 0, x21, 0
-    F2ADD   x19, 96, x20, 96, x21, 96
-    F2ADD   x19, 192, x20, 192, x21, 192
-    LEAVE   0
+    UNWIND_END_PROLOGUE
+    FP_ADD_AT 0
+    FP_ADD_AT 48
+    FP_ADD_AT 96
+    FP_ADD_AT 144
+    FP_ADD_AT 192
+    FP_ADD_AT 240
+    ret
 END_FUNCTION crypto_bls_fp6_add
 
 /* crypto_bls_fp6_sub(result, a, b): a - b (Fp6.sub). result may be a or b. */
 LOCAL_FUNCTION crypto_bls_fp6_sub
-    ENTER   0
-    mov     x19, x0
-    mov     x20, x1
-    mov     x21, x2
-    F2SUB   x19, 0, x20, 0, x21, 0
-    F2SUB   x19, 96, x20, 96, x21, 96
-    F2SUB   x19, 192, x20, 192, x21, 192
-    LEAVE   0
+    UNWIND_END_PROLOGUE
+    FP_SUB_AT 0
+    FP_SUB_AT 48
+    FP_SUB_AT 96
+    FP_SUB_AT 144
+    FP_SUB_AT 192
+    FP_SUB_AT 240
+    ret
 END_FUNCTION crypto_bls_fp6_sub
 
 /* crypto_bls_fp6_neg(result, a): -a (Fp6.neg). result may be a. */
 LOCAL_FUNCTION crypto_bls_fp6_neg
-    ENTER   0
-    mov     x19, x0
-    mov     x20, x1
-    C2      crypto_bls_fp2_neg, x19, 0, x20, 0
-    C2      crypto_bls_fp2_neg, x19, 96, x20, 96
-    C2      crypto_bls_fp2_neg, x19, 192, x20, 192
-    LEAVE   0
+    UNWIND_END_PROLOGUE
+    FP_NEG_AT 0
+    FP_NEG_AT 48
+    FP_NEG_AT 96
+    FP_NEG_AT 144
+    FP_NEG_AT 192
+    FP_NEG_AT 240
+    ret
 END_FUNCTION crypto_bls_fp6_neg
 
 /*
@@ -2702,15 +4008,15 @@ LOCAL_FUNCTION crypto_bls_fp6_inverse
     ENTER   0, N6_SIZE
     mov     x19, x0
     mov     x20, x1
-    F2MUL   sp, N6_T0, x20, 0, x20, 0       /* t0 */
+    F2SQR   sp, N6_T0, x20, 0       /* t0 */
     F2MUL   sp, N6_U, x20, 96, x20, 192
     F2NR    sp, N6_U, sp, N6_U
     F2SUB   sp, N6_T0, sp, N6_T0, sp, N6_U
-    F2MUL   sp, N6_T1, x20, 192, x20, 192   /* t1 */
+    F2SQR   sp, N6_T1, x20, 192   /* t1 */
     F2NR    sp, N6_T1, sp, N6_T1
     F2MUL   sp, N6_U, x20, 0, x20, 96
     F2SUB   sp, N6_T1, sp, N6_T1, sp, N6_U
-    F2MUL   sp, N6_T2, x20, 96, x20, 96     /* t2 */
+    F2SQR   sp, N6_T2, x20, 96     /* t2 */
     F2MUL   sp, N6_U, x20, 0, x20, 192
     F2SUB   sp, N6_T2, sp, N6_T2, sp, N6_U
     F2MUL   sp, N6_D, x20, 0, sp, N6_T0     /* det */
@@ -3012,12 +4318,12 @@ LOCAL_FUNCTION crypto_bls_miller_double
     mov     x20, x1                         /* T */
     mov     x21, x2                         /* P */
     mov     x22, x3                         /* work */
-    F2MUL   x22, MD_XX, x20, 0, x20, 0       /* xx = X^2, zz = Z^2 */
-    F2MUL   x22, MD_ZZ, x20, 192, x20, 192
+    F2SQR   x22, MD_XX, x20, 0       /* xx = X^2, zz = Z^2 */
+    F2SQR   x22, MD_ZZ, x20, 192
     F2ADD   x22, MD_A, x22, MD_XX, x22, MD_XX  /* 3 xx */
     F2ADD   x22, MD_A, x22, MD_A, x22, MD_XX
     F2MUL   x19, 0, x22, MD_A, x20, 0        /* c0 = 3 xx X - 2 Y^2 */
-    F2MUL   x22, MD_U, x20, 96, x20, 96
+    F2SQR   x22, MD_U, x20, 96
     F2ADD   x22, MD_U, x22, MD_U, x22, MD_U
     F2SUB   x19, 0, x19, 0, x22, MD_U
     F2MUL   x19, 96, x22, MD_A, x22, MD_ZZ    /* c2 = -(3 xx zz xp) */
@@ -3047,7 +4353,7 @@ LOCAL_FUNCTION crypto_bls_miller_add
     mov     x21, x2                         /* Q */
     mov     x22, x3                         /* P */
     mov     x23, x4                         /* work */
-    F2MUL   x23, MA_ZZ, x20, 192, x20, 192   /* zz = Z^2 */
+    F2SQR   x23, MA_ZZ, x20, 192   /* zz = Z^2 */
     F2MUL   x23, MA_N, x21, 96, x23, MA_ZZ    /* n = yq zz Z - Y */
     F2MUL   x23, MA_N, x23, MA_N, x20, 192
     F2SUB   x23, MA_N, x23, MA_N, x20, 96
@@ -3469,7 +4775,24 @@ FUNCTION crypto_bls_fast_aggregate_verify_cached
     ldr     x10, [x21, #CRYPTO_BLS_CACHE_COUNT]
     cmp     x9, x10
     b.hs    9f                              /* at or past count: 0 */
-    ldr     x10, [x21, #CRYPTO_BLS_CACHE_KEY_STRIDE]
+    cmp     x26, #1                         /* a hint: fetch the key and entry of the next index */
+    b.ls    11f
+    ldr     x11, [x20]
+    cmp     x11, x10
+    b.hs    11f
+    ldr     x12, [x21, #CRYPTO_BLS_CACHE_KEY_STRIDE]
+    madd    x13, x11, x12, x19
+    prfm    pldl1keep, [x13]
+    prfm    pldl1keep, [x13, #40]
+    ldr     x12, [x21, #CRYPTO_BLS_CACHE_OFFSET]
+    add     x12, x21, x12
+    mov     x13, #CRYPTO_BLS_ENTRY_BYTES
+    madd    x13, x11, x13, x12
+    prfm    pldl1keep, [x13]
+    prfm    pldl1keep, [x13, #64]
+    prfm    pldl1keep, [x13, #128]
+    prfm    pldl1keep, [x13, #144]
+11: ldr     x10, [x21, #CRYPTO_BLS_CACHE_KEY_STRIDE]
     madd    x27, x9, x10, x19
     ldr     x10, [x21, #CRYPTO_BLS_CACHE_OFFSET]
     add     x10, x21, x10
@@ -6338,6 +7661,10 @@ END_FUNCTION crypto_kzg_recover_cells_and_kzg_proofs
 /* r, the order of G1 and G2 (Fr.lean), 4 limbs */
 924:
     .quad   0xFFFFFFFF00000001, 0x53BDA402FFFE5BFE, 0x3339D80809A1D805, 0x73EDA753299D7D48
+/* p^2, 12 limbs (crypto_bls_fp2_mul) */
+929:
+    .quad   0x26AA00001C718E39, 0x7CED6B1D76382EAB, 0x162C338362113CFD, 0x66BF91ED3E71B743, 0x292E85A87091A049, 0x1D68619C86185C7B
+    .quad   0xF53149330978EF01, 0x50A62CFD16DDCA6E, 0x66E59E49349E8BD0, 0xE2DC90E50E7046B4, 0x4BD278EAA22F25E9, 0x02A437A4B8C35FC7
 /* beta, the cube root of 1 in Fp with sigma = -x^2 on G1 (crypto_bls_g1_in_subgroup), Montgomery form */
 928:
     .quad   0x30F1361B798A64E8, 0xF3B8DDAB7ECE5A2A, 0x16A8CA3AC61577F7, 0xC26A2FF874FD029B, 0x3636B76660701C6E, 0x051BA4AB241B6160

@@ -148,7 +148,7 @@ crypto_bls_sign(secret_key, message, scratch, signature) -> status
 
 ### Limits
 
-- Stack: 2368 bytes on x86-64 (return address included), 2560 bytes on ARM64, 2720 bytes on RISC-V, callees included.
+- Stack: 2368 bytes on x86-64 (return address included), 2624 bytes on ARM64, 2720 bytes on RISC-V, callees included.
 
 ### ABI
 
@@ -204,7 +204,7 @@ crypto_bls_verify(public_key, message, signature, scratch, valid) -> status
 
 ### Limits
 
-- Stack: 3056 bytes on x86-64 (return address included), 3216 bytes on ARM64, 3360 bytes on RISC-V, callees included.
+- Stack: 3056 bytes on x86-64 (return address included), 3280 bytes on ARM64, 3360 bytes on RISC-V, callees included.
 
 ### ABI
 
@@ -255,7 +255,7 @@ crypto_bls_aggregate(signatures, signature) -> status
 
 ### Limits
 
-- Stack: 3104 bytes on x86-64 (return address included), 3200 bytes on ARM64, 3312 bytes on RISC-V, callees included.
+- Stack: 3104 bytes on x86-64 (return address included), 3264 bytes on ARM64, 3312 bytes on RISC-V, callees included.
 
 ### ABI
 
@@ -311,7 +311,7 @@ crypto_bls_fast_aggregate_verify(public_keys, message, signature, scratch, valid
 
 ### Limits
 
-- Stack: 3120 bytes on x86-64 (return address included), 3312 bytes on ARM64, 3472 bytes on RISC-V, callees included.
+- Stack: 3120 bytes on x86-64 (return address included), 3376 bytes on ARM64, 3472 bytes on RISC-V, callees included.
 
 ### ABI
 
@@ -462,7 +462,7 @@ crypto_bls_eth_fast_aggregate_verify(public_keys, message, signature, scratch, v
 
 ### Limits
 
-- Stack: 3120 bytes on x86-64 (return address included), 3312 bytes on ARM64, 3472 bytes on RISC-V, callees included.
+- Stack: 3120 bytes on x86-64 (return address included), 3376 bytes on ARM64, 3472 bytes on RISC-V, callees included.
 
 ### ABI
 
@@ -515,6 +515,7 @@ crypto_bls_fast_aggregate_verify_cached(keys, indices, cache, message, signature
 - Writes 0 when `indices` is empty, or an index is at or past `count` of `cache`.
 - Takes the point of a key from the entry of its index when the entry's status is not 0 and its key is the same 48 bytes. Else checks the key with `crypto_bls_key_validate_point` and writes the entry: status 1 with the key and its point, or status 2 with the key.
 - Writes 0 for a key of status 2.
+- On x86-64 and ARM64, before it takes a key, gives the CPU a prefetch hint (`prefetcht0`, `prfm`) for the key and the entry of the next index, when that index is below `count` of `cache`. A hint reads and writes nothing.
 - Adds the points with `crypto_bls_g1_add_affine`, and writes 0 when the sum is the point at infinity. The sum is the one `crypto_bls_g1_add` gives, coordinate for coordinate.
 - Checks the signature against the sum as `crypto_bls_core_verify` does, without the compressed form and subgroup check of the sum: every point is in G1, so the sum is.
 
@@ -528,7 +529,7 @@ crypto_bls_fast_aggregate_verify_cached(keys, indices, cache, message, signature
 
 ### Limits
 
-- Stack: 3376 bytes on x86-64 (return address included), 3504 bytes on ARM64, 3648 bytes on RISC-V, callees included.
+- Stack: 3376 bytes on x86-64 (return address included), 3568 bytes on ARM64, 3648 bytes on RISC-V, callees included.
 
 ### ABI
 

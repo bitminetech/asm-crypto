@@ -140,7 +140,7 @@ crypto_bls_hash_to_g2(message, dst, scratch, point) -> status
 
 ### Limits
 
-- Stack: 2528 bytes on x86-64 (return address included), 2720 bytes on ARM64, 2880 bytes on RISC-V, callees included.
+- Stack: 2528 bytes on x86-64 (return address included), 2784 bytes on ARM64, 2880 bytes on RISC-V, callees included.
 
 ### ABI
 

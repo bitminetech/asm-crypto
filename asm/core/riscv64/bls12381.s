@@ -1734,6 +1734,9 @@ END_FUNCTION crypto_bls_g1_compress
 .macro F2MUL ra, oa, rb, ob, rc, oc
     C3      crypto_bls_fp2_mul, \ra, \oa, \rb, \ob, \rc, \oc
 .endm
+.macro F2SQR ra, oa, rb, ob
+    C2      crypto_bls_fp2_square, \ra, \oa, \rb, \ob
+.endm
 .macro F2ADD ra, oa, rb, ob, rc, oc
     C3      crypto_bls_fp2_add, \ra, \oa, \rb, \ob, \rc, \oc
 .endm
@@ -1774,8 +1777,9 @@ LOCAL_FUNCTION crypto_bls_fp2_neg
 END_FUNCTION crypto_bls_fp2_neg
 
 /*
- * crypto_bls_fp2_mul(result, a, b): a * b = (a0 b0 - a1 b1, a0 b1 + a1 b0)
- * (Fp2.mul). result may be a or b.
+ * crypto_bls_fp2_mul(result, a, b): a * b (Fp2.mul) with three products in Fp
+ * (Karatsuba): t0 = a0 b0, t1 = a1 b1, c0 = t0 - t1, c1 = (a0 + a1)(b0 + b1)
+ * - t0 - t1 = a0 b1 + a1 b0. result may be a or b.
  */
 .set M2_T0, 0
 .set M2_T1, 48
@@ -1789,12 +1793,31 @@ LOCAL_FUNCTION crypto_bls_fp2_mul
     mv      s3, a2
     FMUL    sp, M2_T0, s2, 0, s3, 0
     FMUL    sp, M2_T1, s2, 48, s3, 48
-    FMUL    sp, M2_T2, s2, 0, s3, 48
-    FMUL    sp, M2_T3, s2, 48, s3, 0
+    FADD    sp, M2_T2, s2, 0, s2, 48
+    FADD    sp, M2_T3, s3, 0, s3, 48
+    FMUL    sp, M2_T2, sp, M2_T2, sp, M2_T3
+    FSUB    sp, M2_T2, sp, M2_T2, sp, M2_T0
+    FSUB    sp, M2_T2, sp, M2_T2, sp, M2_T1
     FSUB    s1, 0, sp, M2_T0, sp, M2_T1
-    FADD    s1, 48, sp, M2_T2, sp, M2_T3
+    COPY    s1, 48, sp, M2_T2, 48
     LEAVE   M2_SIZE
 END_FUNCTION crypto_bls_fp2_mul
+
+/*
+ * crypto_bls_fp2_square(result, a): a^2 = ((a0 + a1)(a0 - a1), 2 a0 a1), with
+ * two products in Fp. result may be a.
+ */
+LOCAL_FUNCTION crypto_bls_fp2_square
+    ENTER   M2_SIZE
+    mv      s1, a0
+    mv      s2, a1
+    FADD    sp, M2_T0, s2, 0, s2, 48
+    FSUB    sp, M2_T1, s2, 0, s2, 48
+    FMUL    sp, M2_T2, s2, 0, s2, 48
+    FMUL    s1, 0, sp, M2_T0, sp, M2_T1
+    FADD    s1, 48, sp, M2_T2, sp, M2_T2
+    LEAVE   M2_SIZE
+END_FUNCTION crypto_bls_fp2_square
 
 /* crypto_bls_fp2_mul_fp(result, a, k): (a0 k, a1 k), for k in Fp (Fp2.ofFp k * a). result may be a. */
 LOCAL_FUNCTION crypto_bls_fp2_mul_fp
@@ -1933,17 +1956,17 @@ LOCAL_FUNCTION crypto_bls_g2_double
     bnez    t0, 1f
     COPY    s1, 0, s2, 0, 288
     LEAVE   HD_SIZE
-1:  F2MUL   sp, HD_A, s2, 0, s2, 0          # A = X * X
-    F2MUL   sp, HD_B, s2, 96, s2, 96        # B = Y * Y
-    F2MUL   sp, HD_C, sp, HD_B, sp, HD_B    # C = B * B
+1:  F2SQR   sp, HD_A, s2, 0          # A = X * X
+    F2SQR   sp, HD_B, s2, 96        # B = Y * Y
+    F2SQR   sp, HD_C, sp, HD_B    # C = B * B
     F2ADD   sp, HD_T, s2, 0, sp, HD_B       # D = 2 ((X + B)^2 - A - C)
-    F2MUL   sp, HD_T, sp, HD_T, sp, HD_T
+    F2SQR   sp, HD_T, sp, HD_T
     F2SUB   sp, HD_T, sp, HD_T, sp, HD_A
     F2SUB   sp, HD_T, sp, HD_T, sp, HD_C
     F2ADD   sp, HD_D, sp, HD_T, sp, HD_T
     F2ADD   sp, HD_E, sp, HD_A, sp, HD_A    # E = 3 A
     F2ADD   sp, HD_E, sp, HD_E, sp, HD_A
-    F2MUL   sp, HD_F, sp, HD_E, sp, HD_E    # F = E * E
+    F2SQR   sp, HD_F, sp, HD_E    # F = E * E
     F2ADD   sp, HD_T, sp, HD_D, sp, HD_D    # x' = F - 2 D
     F2SUB   sp, HD_X, sp, HD_F, sp, HD_T
     F2SUB   sp, HD_T, sp, HD_D, sp, HD_X    # y' = E (D - x') - 8 C
@@ -1988,8 +2011,8 @@ LOCAL_FUNCTION crypto_bls_g2_add
     bnez    t0, 2f
     COPY    s3, 0, s1, 0, 288
     j       9f
-2:  F2MUL   sp, HA_Z1Z1, s1, 192, s1, 192
-    F2MUL   sp, HA_Z2Z2, s2, 192, s2, 192
+2:  F2SQR   sp, HA_Z1Z1, s1, 192
+    F2SQR   sp, HA_Z2Z2, s2, 192
     F2MUL   sp, HA_U1, s1, 0, sp, HA_Z2Z2
     F2MUL   sp, HA_U2, s2, 0, sp, HA_Z1Z1
     F2MUL   sp, HA_S1, s1, 96, s2, 192
@@ -2011,12 +2034,12 @@ LOCAL_FUNCTION crypto_bls_g2_add
     j       9f
 4:  F2SUB   sp, HA_U2, sp, HA_U2, sp, HA_U1 # h = u2 - u1
     F2ADD   sp, HA_I, sp, HA_U2, sp, HA_U2  # i = (2 h)^2
-    F2MUL   sp, HA_I, sp, HA_I, sp, HA_I
+    F2SQR   sp, HA_I, sp, HA_I
     F2MUL   sp, HA_J, sp, HA_U2, sp, HA_I   # j = h i
     F2SUB   sp, HA_S2, sp, HA_S2, sp, HA_S1 # r = 2 (s2 - s1)
     F2ADD   sp, HA_S2, sp, HA_S2, sp, HA_S2
     F2MUL   sp, HA_U1, sp, HA_U1, sp, HA_I  # v = u1 i
-    F2MUL   sp, HA_X, sp, HA_S2, sp, HA_S2  # x' = r^2 - j - 2 v
+    F2SQR   sp, HA_X, sp, HA_S2  # x' = r^2 - j - 2 v
     F2SUB   sp, HA_X, sp, HA_X, sp, HA_J
     F2SUB   sp, HA_X, sp, HA_X, sp, HA_U1
     F2SUB   sp, HA_X, sp, HA_X, sp, HA_U1
@@ -2026,7 +2049,7 @@ LOCAL_FUNCTION crypto_bls_g2_add
     F2MUL   sp, HA_S1, sp, HA_S1, sp, HA_J
     F2SUB   sp, HA_Y, sp, HA_Y, sp, HA_S1
     F2ADD   sp, HA_I, s1, 192, s2, 192      # z' = ((Z1 + Z2)^2 - z1z1 - z2z2) h
-    F2MUL   sp, HA_I, sp, HA_I, sp, HA_I
+    F2SQR   sp, HA_I, sp, HA_I
     F2SUB   sp, HA_I, sp, HA_I, sp, HA_Z1Z1
     F2SUB   sp, HA_I, sp, HA_I, sp, HA_Z2Z2
     F2MUL   sp, HA_Z, sp, HA_I, sp, HA_U2
@@ -2095,7 +2118,7 @@ LOCAL_FUNCTION crypto_bls_g2_affine
     ZERO    s1, 0, 192
     LEAVE   HF_SIZE
 1:  C2      crypto_bls_fp2_inverse, sp, HF_ZI, s2, 192
-    F2MUL   sp, HF_ZI2, sp, HF_ZI, sp, HF_ZI
+    F2SQR   sp, HF_ZI2, sp, HF_ZI
     F2MUL   sp, HF_ZI3, sp, HF_ZI2, sp, HF_ZI
     F2MUL   s1, 0, s2, 0, sp, HF_ZI2
     F2MUL   s1, 96, s2, 96, sp, HF_ZI3
@@ -2132,8 +2155,8 @@ LOCAL_FUNCTION crypto_bls_g2_in_subgroup
     lla     s3, 907f                        # c1Psi, then c2Psi
     COPY    sp, HS_E, s1, 192, 48           # e = Zs = conj(Z)
     C2      crypto_bls_fp_neg, sp, HS_E + 48, s1, 240
-    F2MUL   sp, HS_A, sp, HS_T + 192, sp, HS_T + 192    # a = Zt^2, b = Zs^2
-    F2MUL   sp, HS_B, sp, HS_E, sp, HS_E
+    F2SQR   sp, HS_A, sp, HS_T + 192    # a = Zt^2, b = Zs^2
+    F2SQR   sp, HS_B, sp, HS_E
     COPY    sp, HS_C, s1, 0, 48             # c = c1Psi conj(X) Zt^2, d = Xt Zs^2
     C2      crypto_bls_fp_neg, sp, HS_C + 48, s1, 48
     F2MUL   sp, HS_C, s3, 0, sp, HS_C
@@ -2195,7 +2218,7 @@ LOCAL_FUNCTION crypto_bls_g2_uncompress
     bnez    a0, 8f
     C2      crypto_bls_fp_from_bytes, sp, HU_X, sp, HU_RHS + 48
     bnez    a0, 8f
-    F2MUL   sp, HU_RHS, sp, HU_X, sp, HU_X  # x^3 + 4 (1 + u)
+    F2SQR   sp, HU_RHS, sp, HU_X  # x^3 + 4 (1 + u)
     F2MUL   sp, HU_RHS, sp, HU_RHS, sp, HU_X
     ADDR    a0, sp, HU_RHS
     ADDR    a1, sp, HU_RHS
@@ -2471,9 +2494,9 @@ LOCAL_FUNCTION crypto_bls_simple_swu
     mv      s1, a0
     mv      s2, a1
     lla     s3, 910f                        # A', then B', then Z
-    F2MUL   sp, SW_U2, s2, 0, s2, 0         # u2 = u u
+    F2SQR   sp, SW_U2, s2, 0         # u2 = u u
     F2MUL   sp, SW_ZU2, s3, 192, sp, SW_U2  # zu2 = Z u2
-    F2MUL   sp, SW_DEN, sp, SW_ZU2, sp, SW_ZU2
+    F2SQR   sp, SW_DEN, sp, SW_ZU2
     F2ADD   sp, SW_DEN, sp, SW_DEN, sp, SW_ZU2
     IS_ZERO sp, SW_DEN, 96
     bnez    t0, 1f
@@ -2520,7 +2543,7 @@ LOCAL_FUNCTION crypto_bls_swu_g
     mv      s1, a0
     mv      s2, a1
     lla     s3, 910f
-    F2MUL   s1, 0, s2, 0, s2, 0
+    F2SQR   s1, 0, s2, 0
     F2MUL   s1, 0, s1, 0, s2, 0
     F2MUL   sp, SV_T, s3, 0, s2, 0
     F2ADD   s1, 0, s1, 0, sp, SV_T
@@ -2546,7 +2569,7 @@ LOCAL_FUNCTION crypto_bls_iso_map_g2
     mv      s1, a0
     mv      s2, a1
     lla     s3, 913f                        # k10..k13, then k20, k21, then k30..k33, then k40..k42
-    F2MUL   sp, IM_X2, s2, 0, s2, 0
+    F2SQR   sp, IM_X2, s2, 0
     F2MUL   sp, IM_X3, sp, IM_X2, s2, 0
     F2MUL   sp, IM_XN, s3, 288, sp, IM_X3   # x_num = k13 x^3 + k12 x^2 + k11 x + k10
     F2MUL   sp, IM_T, s3, 192, sp, IM_X2
@@ -3162,15 +3185,15 @@ LOCAL_FUNCTION crypto_bls_fp6_inverse
     ENTER   N6_SIZE
     mv      s1, a0
     mv      s2, a1
-    F2MUL   sp, N6_T0, s2, 0, s2, 0         # t0
+    F2SQR   sp, N6_T0, s2, 0         # t0
     F2MUL   sp, N6_U, s2, 96, s2, 192
     F2NR    sp, N6_U, sp, N6_U
     F2SUB   sp, N6_T0, sp, N6_T0, sp, N6_U
-    F2MUL   sp, N6_T1, s2, 192, s2, 192     # t1
+    F2SQR   sp, N6_T1, s2, 192     # t1
     F2NR    sp, N6_T1, sp, N6_T1
     F2MUL   sp, N6_U, s2, 0, s2, 96
     F2SUB   sp, N6_T1, sp, N6_T1, sp, N6_U
-    F2MUL   sp, N6_T2, s2, 96, s2, 96       # t2
+    F2SQR   sp, N6_T2, s2, 96       # t2
     F2MUL   sp, N6_U, s2, 0, s2, 192
     F2SUB   sp, N6_T2, sp, N6_T2, sp, N6_U
     F2MUL   sp, N6_D, s2, 0, sp, N6_T0      # det
@@ -3472,12 +3495,12 @@ LOCAL_FUNCTION crypto_bls_miller_double
     mv      s2, a1                         # T
     mv      s3, a2                         # P
     mv      s4, a3                         # work
-    F2MUL   s4, MD_XX, s2, 0, s2, 0       # xx = X^2, zz = Z^2
-    F2MUL   s4, MD_ZZ, s2, 192, s2, 192
+    F2SQR   s4, MD_XX, s2, 0       # xx = X^2, zz = Z^2
+    F2SQR   s4, MD_ZZ, s2, 192
     F2ADD   s4, MD_A, s4, MD_XX, s4, MD_XX  # 3 xx
     F2ADD   s4, MD_A, s4, MD_A, s4, MD_XX
     F2MUL   s1, 0, s4, MD_A, s2, 0        # c0 = 3 xx X - 2 Y^2
-    F2MUL   s4, MD_U, s2, 96, s2, 96
+    F2SQR   s4, MD_U, s2, 96
     F2ADD   s4, MD_U, s4, MD_U, s4, MD_U
     F2SUB   s1, 0, s1, 0, s4, MD_U
     F2MUL   s1, 96, s4, MD_A, s4, MD_ZZ    # c2 = -(3 xx zz xp)
@@ -3507,7 +3530,7 @@ LOCAL_FUNCTION crypto_bls_miller_add
     mv      s3, a2                         # Q
     mv      s4, a3                         # P
     mv      s5, a4                         # work
-    F2MUL   s5, MA_ZZ, s2, 192, s2, 192   # zz = Z^2
+    F2SQR   s5, MA_ZZ, s2, 192   # zz = Z^2
     F2MUL   s5, MA_N, s3, 96, s5, MA_ZZ    # n = yq zz Z - Y
     F2MUL   s5, MA_N, s5, MA_N, s2, 192
     F2SUB   s5, MA_N, s5, MA_N, s2, 96

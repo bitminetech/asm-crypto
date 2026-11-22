@@ -1330,6 +1330,9 @@ END_FUNCTION crypto_bls_g1_compress
 .macro F2MUL ra, oa, rb, ob, rc, oc
     C3      crypto_bls_fp2_mul, \ra, \oa, \rb, \ob, \rc, \oc
 .endm
+.macro F2SQR ra, oa, rb, ob
+    C2      crypto_bls_fp2_square, \ra, \oa, \rb, \ob
+.endm
 .macro F2ADD ra, oa, rb, ob, rc, oc
     C3      crypto_bls_fp2_add, \ra, \oa, \rb, \ob, \rc, \oc
 .endm
@@ -1369,7 +1372,11 @@ LOCAL_FUNCTION crypto_bls_fp2_neg
     LEAVE   8
 END_FUNCTION crypto_bls_fp2_neg
 
-/* crypto_bls_fp2_mul(result, a, b): (a0 b0 - a1 b1, a0 b1 + a1 b0) (Fp2.mul). result may be a or b. */
+/*
+ * crypto_bls_fp2_mul(result, a, b): a * b (Fp2.mul) with three products in Fp
+ * (Karatsuba): t0 = a0 b0, t1 = a1 b1, c0 = t0 - t1, c1 = (a0 + a1)(b0 + b1)
+ * - t0 - t1 = a0 b1 + a1 b0. result may be a or b.
+ */
 .set M2_T0, 0
 .set M2_T1, 48
 .set M2_T2, 96
@@ -1382,12 +1389,31 @@ LOCAL_FUNCTION crypto_bls_fp2_mul
     mov     %rdx, %r12
     FMUL    %rsp, M2_T0, %rbp, 0, %r12, 0
     FMUL    %rsp, M2_T1, %rbp, 48, %r12, 48
-    FMUL    %rsp, M2_T2, %rbp, 0, %r12, 48
-    FMUL    %rsp, M2_T3, %rbp, 48, %r12, 0
+    FADD    %rsp, M2_T2, %rbp, 0, %rbp, 48
+    FADD    %rsp, M2_T3, %r12, 0, %r12, 48
+    FMUL    %rsp, M2_T2, %rsp, M2_T2, %rsp, M2_T3
+    FSUB    %rsp, M2_T2, %rsp, M2_T2, %rsp, M2_T0
+    FSUB    %rsp, M2_T2, %rsp, M2_T2, %rsp, M2_T1
     FSUB    %rbx, 0, %rsp, M2_T0, %rsp, M2_T1
-    FADD    %rbx, 48, %rsp, M2_T2, %rsp, M2_T3
+    COPY    %rbx, 48, %rsp, M2_T2, 48
     LEAVE   M2_SIZE
 END_FUNCTION crypto_bls_fp2_mul
+
+/*
+ * crypto_bls_fp2_square(result, a): a^2 = ((a0 + a1)(a0 - a1), 2 a0 a1), with
+ * two products in Fp. result may be a.
+ */
+LOCAL_FUNCTION crypto_bls_fp2_square
+    ENTER   M2_SIZE
+    mov     %rdi, %rbx
+    mov     %rsi, %rbp
+    FADD    %rsp, M2_T0, %rbp, 0, %rbp, 48
+    FSUB    %rsp, M2_T1, %rbp, 0, %rbp, 48
+    FMUL    %rsp, M2_T2, %rbp, 0, %rbp, 48
+    FMUL    %rbx, 0, %rsp, M2_T0, %rsp, M2_T1
+    FADD    %rbx, 48, %rsp, M2_T2, %rsp, M2_T2
+    LEAVE   M2_SIZE
+END_FUNCTION crypto_bls_fp2_square
 
 /* crypto_bls_fp2_mul_fp(result, a, k): (a0 k, a1 k), for k in Fp. result may be a. */
 LOCAL_FUNCTION crypto_bls_fp2_mul_fp
@@ -1525,17 +1551,17 @@ LOCAL_FUNCTION crypto_bls_g2_double
     jnz     1f
     COPY    %rbx, 0, %rbp, 0, 288
     LEAVE   HD_SIZE
-1:  F2MUL   %rsp, HD_A, %rbp, 0, %rbp, 0
-    F2MUL   %rsp, HD_B, %rbp, 96, %rbp, 96
-    F2MUL   %rsp, HD_C, %rsp, HD_B, %rsp, HD_B
+1:  F2SQR   %rsp, HD_A, %rbp, 0
+    F2SQR   %rsp, HD_B, %rbp, 96
+    F2SQR   %rsp, HD_C, %rsp, HD_B
     F2ADD   %rsp, HD_T, %rbp, 0, %rsp, HD_B
-    F2MUL   %rsp, HD_T, %rsp, HD_T, %rsp, HD_T
+    F2SQR   %rsp, HD_T, %rsp, HD_T
     F2SUB   %rsp, HD_T, %rsp, HD_T, %rsp, HD_A
     F2SUB   %rsp, HD_T, %rsp, HD_T, %rsp, HD_C
     F2ADD   %rsp, HD_D, %rsp, HD_T, %rsp, HD_T
     F2ADD   %rsp, HD_E, %rsp, HD_A, %rsp, HD_A
     F2ADD   %rsp, HD_E, %rsp, HD_E, %rsp, HD_A
-    F2MUL   %rsp, HD_F, %rsp, HD_E, %rsp, HD_E
+    F2SQR   %rsp, HD_F, %rsp, HD_E
     F2ADD   %rsp, HD_T, %rsp, HD_D, %rsp, HD_D
     F2SUB   %rsp, HD_X, %rsp, HD_F, %rsp, HD_T
     F2SUB   %rsp, HD_T, %rsp, HD_D, %rsp, HD_X
@@ -1576,8 +1602,8 @@ LOCAL_FUNCTION crypto_bls_g2_add
     jnz     2f
     COPY    %r12, 0, %rbx, 0, 288
     jmp     9f
-2:  F2MUL   %rsp, HA_Z1Z1, %rbx, 192, %rbx, 192
-    F2MUL   %rsp, HA_Z2Z2, %rbp, 192, %rbp, 192
+2:  F2SQR   %rsp, HA_Z1Z1, %rbx, 192
+    F2SQR   %rsp, HA_Z2Z2, %rbp, 192
     F2MUL   %rsp, HA_U1, %rbx, 0, %rsp, HA_Z2Z2
     F2MUL   %rsp, HA_U2, %rbp, 0, %rsp, HA_Z1Z1
     F2MUL   %rsp, HA_S1, %rbx, 96, %rbp, 192
@@ -1599,12 +1625,12 @@ LOCAL_FUNCTION crypto_bls_g2_add
     jmp     9f
 4:  F2SUB   %rsp, HA_U2, %rsp, HA_U2, %rsp, HA_U1
     F2ADD   %rsp, HA_I, %rsp, HA_U2, %rsp, HA_U2
-    F2MUL   %rsp, HA_I, %rsp, HA_I, %rsp, HA_I
+    F2SQR   %rsp, HA_I, %rsp, HA_I
     F2MUL   %rsp, HA_J, %rsp, HA_U2, %rsp, HA_I
     F2SUB   %rsp, HA_S2, %rsp, HA_S2, %rsp, HA_S1
     F2ADD   %rsp, HA_S2, %rsp, HA_S2, %rsp, HA_S2
     F2MUL   %rsp, HA_U1, %rsp, HA_U1, %rsp, HA_I
-    F2MUL   %rsp, HA_X, %rsp, HA_S2, %rsp, HA_S2
+    F2SQR   %rsp, HA_X, %rsp, HA_S2
     F2SUB   %rsp, HA_X, %rsp, HA_X, %rsp, HA_J
     F2SUB   %rsp, HA_X, %rsp, HA_X, %rsp, HA_U1
     F2SUB   %rsp, HA_X, %rsp, HA_X, %rsp, HA_U1
@@ -1614,7 +1640,7 @@ LOCAL_FUNCTION crypto_bls_g2_add
     F2MUL   %rsp, HA_S1, %rsp, HA_S1, %rsp, HA_J
     F2SUB   %rsp, HA_Y, %rsp, HA_Y, %rsp, HA_S1
     F2ADD   %rsp, HA_I, %rbx, 192, %rbp, 192
-    F2MUL   %rsp, HA_I, %rsp, HA_I, %rsp, HA_I
+    F2SQR   %rsp, HA_I, %rsp, HA_I
     F2SUB   %rsp, HA_I, %rsp, HA_I, %rsp, HA_Z1Z1
     F2SUB   %rsp, HA_I, %rsp, HA_I, %rsp, HA_Z2Z2
     F2MUL   %rsp, HA_Z, %rsp, HA_I, %rsp, HA_U2
@@ -1692,7 +1718,7 @@ LOCAL_FUNCTION crypto_bls_g2_affine
     ZERO    %rbx, 0, 192
     LEAVE   HF_SIZE
 1:  C2      crypto_bls_fp2_inverse, %rsp, HF_ZI, %rbp, 192
-    F2MUL   %rsp, HF_ZI2, %rsp, HF_ZI, %rsp, HF_ZI
+    F2SQR   %rsp, HF_ZI2, %rsp, HF_ZI
     F2MUL   %rsp, HF_ZI3, %rsp, HF_ZI2, %rsp, HF_ZI
     F2MUL   %rbx, 0, %rbp, 0, %rsp, HF_ZI2
     F2MUL   %rbx, 96, %rbp, 96, %rsp, HF_ZI3
@@ -1727,8 +1753,8 @@ LOCAL_FUNCTION crypto_bls_g2_in_subgroup
     lea     907f(%rip), %r12                /* c1Psi, then c2Psi */
     COPY    %rsp, HS_E, %rbx, 192, 48       /* e = Zs = conj(Z) */
     C2      crypto_bls_fp_neg, %rsp, HS_E + 48, %rbx, 240
-    F2MUL   %rsp, HS_A, %rsp, HS_T + 192, %rsp, HS_T + 192  /* a = Zt^2, b = Zs^2 */
-    F2MUL   %rsp, HS_B, %rsp, HS_E, %rsp, HS_E
+    F2SQR   %rsp, HS_A, %rsp, HS_T + 192  /* a = Zt^2, b = Zs^2 */
+    F2SQR   %rsp, HS_B, %rsp, HS_E
     COPY    %rsp, HS_C, %rbx, 0, 48         /* c = c1Psi conj(X) Zt^2, d = Xt Zs^2 */
     C2      crypto_bls_fp_neg, %rsp, HS_C + 48, %rbx, 48
     F2MUL   %rsp, HS_C, %r12, 0, %rsp, HS_C
@@ -1790,7 +1816,7 @@ LOCAL_FUNCTION crypto_bls_g2_uncompress
     C2      crypto_bls_fp_from_bytes, %rsp, HU_X, %rsp, HU_RHS + 48
     test    %rax, %rax
     jnz     8f
-    F2MUL   %rsp, HU_RHS, %rsp, HU_X, %rsp, HU_X
+    F2SQR   %rsp, HU_RHS, %rsp, HU_X
     F2MUL   %rsp, HU_RHS, %rsp, HU_RHS, %rsp, HU_X
     lea     HU_RHS(%rsp), %rdi
     lea     HU_RHS(%rsp), %rsi
@@ -2060,9 +2086,9 @@ LOCAL_FUNCTION crypto_bls_simple_swu
     mov     %rdi, %rbx
     mov     %rsi, %rbp
     lea     910f(%rip), %r12                /* A', then B', then Z */
-    F2MUL   %rsp, SW_U2, %rbp, 0, %rbp, 0   /* u2 = u u */
+    F2SQR   %rsp, SW_U2, %rbp, 0   /* u2 = u u */
     F2MUL   %rsp, SW_ZU2, %r12, 192, %rsp, SW_U2    /* zu2 = Z u2 */
-    F2MUL   %rsp, SW_DEN, %rsp, SW_ZU2, %rsp, SW_ZU2
+    F2SQR   %rsp, SW_DEN, %rsp, SW_ZU2
     F2ADD   %rsp, SW_DEN, %rsp, SW_DEN, %rsp, SW_ZU2
     IS_ZERO %rsp, SW_DEN, 96
     jnz     1f
@@ -2110,7 +2136,7 @@ LOCAL_FUNCTION crypto_bls_swu_g
     mov     %rdi, %rbx
     mov     %rsi, %rbp
     lea     910f(%rip), %r12
-    F2MUL   %rbx, 0, %rbp, 0, %rbp, 0
+    F2SQR   %rbx, 0, %rbp, 0
     F2MUL   %rbx, 0, %rbx, 0, %rbp, 0
     F2MUL   %rsp, SV_T, %r12, 0, %rbp, 0
     F2ADD   %rbx, 0, %rbx, 0, %rsp, SV_T
@@ -2136,7 +2162,7 @@ LOCAL_FUNCTION crypto_bls_iso_map_g2
     mov     %rdi, %rbx
     mov     %rsi, %rbp
     lea     913f(%rip), %r12                /* k10..k13, then k20, k21, then k30..k33, then k40..k42 */
-    F2MUL   %rsp, IM_X2, %rbp, 0, %rbp, 0
+    F2SQR   %rsp, IM_X2, %rbp, 0
     F2MUL   %rsp, IM_X3, %rsp, IM_X2, %rbp, 0
     F2MUL   %rsp, IM_XN, %r12, 288, %rsp, IM_X3     /* x_num = k13 x^3 + k12 x^2 + k11 x + k10 */
     F2MUL   %rsp, IM_T, %r12, 192, %rsp, IM_X2
@@ -2761,15 +2787,15 @@ LOCAL_FUNCTION crypto_bls_fp6_inverse
     ENTER   N6_SIZE
     mov     %rdi, %rbx
     mov     %rsi, %rbp
-    F2MUL   %rsp, N6_T0, %rbp, 0, %rbp, 0           /* t0 */
+    F2SQR   %rsp, N6_T0, %rbp, 0           /* t0 */
     F2MUL   %rsp, N6_U, %rbp, 96, %rbp, 192
     F2NR    %rsp, N6_U, %rsp, N6_U
     F2SUB   %rsp, N6_T0, %rsp, N6_T0, %rsp, N6_U
-    F2MUL   %rsp, N6_T1, %rbp, 192, %rbp, 192       /* t1 */
+    F2SQR   %rsp, N6_T1, %rbp, 192       /* t1 */
     F2NR    %rsp, N6_T1, %rsp, N6_T1
     F2MUL   %rsp, N6_U, %rbp, 0, %rbp, 96
     F2SUB   %rsp, N6_T1, %rsp, N6_T1, %rsp, N6_U
-    F2MUL   %rsp, N6_T2, %rbp, 96, %rbp, 96         /* t2 */
+    F2SQR   %rsp, N6_T2, %rbp, 96         /* t2 */
     F2MUL   %rsp, N6_U, %rbp, 0, %rbp, 192
     F2SUB   %rsp, N6_T2, %rsp, N6_T2, %rsp, N6_U
     F2MUL   %rsp, N6_D, %rbp, 0, %rsp, N6_T0        /* det */
@@ -3067,12 +3093,12 @@ LOCAL_FUNCTION crypto_bls_miller_double
     mov     %rsi, %rbp                         /* T */
     mov     %rdx, %r12                         /* P */
     mov     %rcx, %r13                         /* work */
-    F2MUL   %r13, MD_XX, %rbp, 0, %rbp, 0       /* xx = X^2, zz = Z^2 */
-    F2MUL   %r13, MD_ZZ, %rbp, 192, %rbp, 192
+    F2SQR   %r13, MD_XX, %rbp, 0       /* xx = X^2, zz = Z^2 */
+    F2SQR   %r13, MD_ZZ, %rbp, 192
     F2ADD   %r13, MD_A, %r13, MD_XX, %r13, MD_XX  /* 3 xx */
     F2ADD   %r13, MD_A, %r13, MD_A, %r13, MD_XX
     F2MUL   %rbx, 0, %r13, MD_A, %rbp, 0        /* c0 = 3 xx X - 2 Y^2 */
-    F2MUL   %r13, MD_U, %rbp, 96, %rbp, 96
+    F2SQR   %r13, MD_U, %rbp, 96
     F2ADD   %r13, MD_U, %r13, MD_U, %r13, MD_U
     F2SUB   %rbx, 0, %rbx, 0, %r13, MD_U
     F2MUL   %rbx, 96, %r13, MD_A, %r13, MD_ZZ    /* c2 = -(3 xx zz xp) */
@@ -3102,7 +3128,7 @@ LOCAL_FUNCTION crypto_bls_miller_add
     mov     %rdx, %r12                         /* Q */
     mov     %rcx, %r13                         /* P */
     mov     %r8, %r14                         /* work */
-    F2MUL   %r14, MA_ZZ, %rbp, 192, %rbp, 192   /* zz = Z^2 */
+    F2SQR   %r14, MA_ZZ, %rbp, 192   /* zz = Z^2 */
     F2MUL   %r14, MA_N, %r12, 96, %r14, MA_ZZ    /* n = yq zz Z - Y */
     F2MUL   %r14, MA_N, %r14, MA_N, %rbp, 192
     F2SUB   %r14, MA_N, %r14, MA_N, %rbp, 96
@@ -3525,7 +3551,24 @@ FUNCTION crypto_bls_fast_aggregate_verify_cached
     add     $8, %rbp
     cmp     CRYPTO_BLS_CACHE_COUNT(%r12), %rax
     jae     9f                              /* at or past count: 0 */
-    mov     %rax, %r14
+    cmpq    $1, FC_LEFT(%rsp)               /* a hint: fetch the key and entry of the next index */
+    jbe     11f
+    mov     (%rbp), %rcx
+    cmp     CRYPTO_BLS_CACHE_COUNT(%r12), %rcx
+    jae     11f
+    mov     %rcx, %rdx
+    imul    CRYPTO_BLS_CACHE_KEY_STRIDE(%r12), %rdx
+    add     %rbx, %rdx
+    prefetcht0 (%rdx)
+    prefetcht0 40(%rdx)
+    imul    $CRYPTO_BLS_ENTRY_BYTES, %rcx, %rdx
+    add     CRYPTO_BLS_CACHE_OFFSET(%r12), %rdx
+    add     %r12, %rdx
+    prefetcht0 (%rdx)
+    prefetcht0 64(%rdx)
+    prefetcht0 128(%rdx)
+    prefetcht0 144(%rdx)
+11: mov     %rax, %r14
     imul    CRYPTO_BLS_CACHE_KEY_STRIDE(%r12), %r14
     add     %rbx, %r14
     imul    $CRYPTO_BLS_ENTRY_BYTES, %rax, %r15
