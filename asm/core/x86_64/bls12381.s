@@ -761,7 +761,10 @@ FUNCTION crypto_bls_g1_neg
     LEAVE   8
 END_FUNCTION crypto_bls_g1_neg
 
-/* crypto_bls_g1_mul(result, point, scalar): k * point (G1.mulNat), k the 4 limbs at scalar. result may be point. */
+/*
+ * crypto_bls_g1_mul(result, point, scalar): k * point (G1.mulNat), k the 4 limbs at scalar. Starts with the point
+ * at the highest set bit of k, then doubles and adds down to bit 0. result may be point.
+ */
 .set GM_ACC, 0
 .set GM_P, 144
 .set GM_SIZE, 296
@@ -770,10 +773,23 @@ LOCAL_FUNCTION crypto_bls_g1_mul
     mov     %rdi, %rbx
     mov     %rdx, %rbp
     COPY    %rsp, GM_P, %rsi, 0, 144
-    SET_ONE %rsp, GM_ACC
+    mov     $255, %r12d
+0:  mov     %r12, %rcx                      /* the highest set bit of k */
+    shr     $6, %rcx
+    mov     (%rbp,%rcx,8), %rax
+    mov     %r12, %rcx
+    shr     %cl, %rax
+    test    $1, %al
+    jnz     3f
+    sub     $1, %r12
+    jns     0b
+    SET_ONE %rsp, GM_ACC                    /* k = 0: the point at infinity */
     SET_ONE %rsp, GM_ACC + 48
     ZERO    %rsp, GM_ACC + 96, 48
-    mov     $255, %r12d
+    jmp     4f
+3:  COPY    %rsp, GM_ACC, %rsp, GM_P, 144
+    sub     $1, %r12
+    js      4f
 1:  C2      crypto_bls_g1_double, %rsp, GM_ACC, %rsp, GM_ACC
     mov     %r12, %rcx
     shr     $6, %rcx
@@ -785,7 +801,7 @@ LOCAL_FUNCTION crypto_bls_g1_mul
     G3      crypto_bls_g1_add, %rsp, GM_ACC, %rsp, GM_P, %rsp, GM_ACC
 2:  sub     $1, %r12
     jns     1b
-    COPY    %rbx, 0, %rsp, GM_ACC, 144
+4:  COPY    %rbx, 0, %rsp, GM_ACC, 144
     LEAVE   GM_SIZE
 END_FUNCTION crypto_bls_g1_mul
 
@@ -810,23 +826,55 @@ LOCAL_FUNCTION crypto_bls_g1_affine
     LEAVE   GF_SIZE
 END_FUNCTION crypto_bls_g1_affine
 
-/* crypto_bls_g1_in_subgroup(point, valid): the u64 1 when r * point is the point at infinity, or point is, else 0. */
+/*
+ * crypto_bls_g1_in_subgroup(point, valid): the u64 1 when r * point is the point at infinity, or point is, else 0.
+ * For a point P of E1 this holds exactly when sigma(P) = -x^2 P, with sigma(x, y) = (beta x, y)
+ * (docs/reference/bls12-381.md), so it computes x^2 P = |x| (|x| P) and compares: beta X Zt^2 = Xt Z^2 and
+ * Y Zt^3 = -Yt Z^3.
+ */
 .set GS_T, 0
-.set GS_SIZE, 152
+.set GS_A, 144
+.set GS_B, 192
+.set GS_C, 240
+.set GS_D, 288
+.set GS_SIZE, 344
 LOCAL_FUNCTION crypto_bls_g1_in_subgroup
     ENTER   GS_SIZE
     mov     %rdi, %rbx
     mov     %rsi, %rbp
     IS_ZERO %rbx, 96, 48
     jz      1f
-    lea     GS_T(%rsp), %rdi
+    lea     GS_T(%rsp), %rdi                /* t = |x| (|x| P) = x^2 P */
     mov     %rbx, %rsi
-    lea     924f(%rip), %rdx
+    lea     926f(%rip), %rdx
     call    crypto_bls_g1_mul
-    IS_ZERO %rsp, GS_T + 96, 48
+    lea     GS_T(%rsp), %rdi
+    lea     GS_T(%rsp), %rsi
+    lea     926f(%rip), %rdx
+    call    crypto_bls_g1_mul
+    IS_ZERO %rsp, GS_T + 96, 48             /* x^2 P at infinity: sigma(P) is not */
+    jz      2f
+    FMUL    %rsp, GS_A, %rsp, GS_T + 96, %rsp, GS_T + 96    /* a = Zt^2, b = Z^2 */
+    FMUL    %rsp, GS_B, %rbx, 96, %rbx, 96
+    lea     GS_C(%rsp), %rdi                /* c = beta X Zt^2, d = Xt Z^2 */
+    mov     %rbx, %rsi
+    lea     928f(%rip), %rdx
+    call    crypto_bls_fp_mul
+    FMUL    %rsp, GS_C, %rsp, GS_C, %rsp, GS_A
+    FMUL    %rsp, GS_D, %rsp, GS_T, %rsp, GS_B
+    EQUAL   %rsp, GS_C, %rsp, GS_D, 48
+    jnz     2f
+    FMUL    %rsp, GS_A, %rsp, GS_A, %rsp, GS_T + 96         /* c = Y Zt^3, d = Yt Z^3 */
+    FMUL    %rsp, GS_B, %rsp, GS_B, %rbx, 96
+    FMUL    %rsp, GS_C, %rbx, 48, %rsp, GS_A
+    FMUL    %rsp, GS_D, %rsp, GS_T + 48, %rsp, GS_B
+    FADD    %rsp, GS_C, %rsp, GS_C, %rsp, GS_D              /* c + d = 0 */
+    IS_ZERO %rsp, GS_C, 48
 1:  setz    %al
     movzbl  %al, %eax
     mov     %rax, (%rbp)
+    LEAVE   GS_SIZE
+2:  movq    $0, (%rbp)
     LEAVE   GS_SIZE
 END_FUNCTION crypto_bls_g1_in_subgroup
 
@@ -1256,7 +1304,10 @@ LOCAL_FUNCTION crypto_bls_g2_neg
     LEAVE   8
 END_FUNCTION crypto_bls_g2_neg
 
-/* crypto_bls_g2_mul(result, point, scalar): k * point (G2.mulNat). result may be point. */
+/*
+ * crypto_bls_g2_mul(result, point, scalar): k * point (G2.mulNat). Starts with the point at the highest set bit
+ * of k, then doubles and adds down to bit 0. result may be point.
+ */
 .set HM_ACC, 0
 .set HM_P, 288
 .set HM_SIZE, 584
@@ -1265,11 +1316,24 @@ LOCAL_FUNCTION crypto_bls_g2_mul
     mov     %rdi, %rbx
     mov     %rdx, %rbp
     COPY    %rsp, HM_P, %rsi, 0, 288
-    SET_ONE %rsp, HM_ACC
+    mov     $255, %r12d
+0:  mov     %r12, %rcx                      /* the highest set bit of k */
+    shr     $6, %rcx
+    mov     (%rbp,%rcx,8), %rax
+    mov     %r12, %rcx
+    shr     %cl, %rax
+    test    $1, %al
+    jnz     3f
+    sub     $1, %r12
+    jns     0b
+    SET_ONE %rsp, HM_ACC                    /* k = 0: the point at infinity */
     ZERO    %rsp, HM_ACC + 48, 48
     SET_ONE %rsp, HM_ACC + 96
     ZERO    %rsp, HM_ACC + 144, 144
-    mov     $255, %r12d
+    jmp     4f
+3:  COPY    %rsp, HM_ACC, %rsp, HM_P, 288
+    sub     $1, %r12
+    js      4f
 1:  C2      crypto_bls_g2_double, %rsp, HM_ACC, %rsp, HM_ACC
     mov     %r12, %rcx
     shr     $6, %rcx
@@ -1281,7 +1345,7 @@ LOCAL_FUNCTION crypto_bls_g2_mul
     C3      crypto_bls_g2_add, %rsp, HM_ACC, %rsp, HM_ACC, %rsp, HM_P
 2:  sub     $1, %r12
     jns     1b
-    COPY    %rbx, 0, %rsp, HM_ACC, 288
+4:  COPY    %rbx, 0, %rsp, HM_ACC, 288
     LEAVE   HM_SIZE
 END_FUNCTION crypto_bls_g2_mul
 
@@ -1306,23 +1370,57 @@ LOCAL_FUNCTION crypto_bls_g2_affine
     LEAVE   HF_SIZE
 END_FUNCTION crypto_bls_g2_affine
 
-/* crypto_bls_g2_in_subgroup(point, valid): the u64 1 when r * point is the point at infinity, or point is, else 0. */
+/*
+ * crypto_bls_g2_in_subgroup(point, valid): the u64 1 when r * point is the point at infinity, or point is, else 0.
+ * For a point P of E2 this holds exactly when psi(P) = x P (docs/reference/bls12-381.md), with
+ * psi(X, Y, Z) = (c1Psi conj(X), c2Psi conj(Y), conj(Z)). So it computes t = |x| P = -x P and compares psi(P)
+ * with -t: Xs Zt^2 = Xt Zs^2 and Ys Zt^3 = -Yt Zs^3.
+ */
 .set HS_T, 0
-.set HS_SIZE, 296
+.set HS_A, 288
+.set HS_B, 384
+.set HS_C, 480
+.set HS_D, 576
+.set HS_E, 672
+.set HS_SIZE, 776
 LOCAL_FUNCTION crypto_bls_g2_in_subgroup
     ENTER   HS_SIZE
     mov     %rdi, %rbx
     mov     %rsi, %rbp
     IS_ZERO %rbx, 192, 96
     jz      1f
-    lea     HS_T(%rsp), %rdi
+    lea     HS_T(%rsp), %rdi                /* t = |x| P */
     mov     %rbx, %rsi
-    lea     924f(%rip), %rdx
+    lea     926f(%rip), %rdx
     call    crypto_bls_g2_mul
-    IS_ZERO %rsp, HS_T + 192, 96
+    IS_ZERO %rsp, HS_T + 192, 96            /* x P at infinity: psi(P) is not */
+    jz      2f
+    lea     907f(%rip), %r12                /* c1Psi, then c2Psi */
+    COPY    %rsp, HS_E, %rbx, 192, 48       /* e = Zs = conj(Z) */
+    C2      crypto_bls_fp_neg, %rsp, HS_E + 48, %rbx, 240
+    F2MUL   %rsp, HS_A, %rsp, HS_T + 192, %rsp, HS_T + 192  /* a = Zt^2, b = Zs^2 */
+    F2MUL   %rsp, HS_B, %rsp, HS_E, %rsp, HS_E
+    COPY    %rsp, HS_C, %rbx, 0, 48         /* c = c1Psi conj(X) Zt^2, d = Xt Zs^2 */
+    C2      crypto_bls_fp_neg, %rsp, HS_C + 48, %rbx, 48
+    F2MUL   %rsp, HS_C, %r12, 0, %rsp, HS_C
+    F2MUL   %rsp, HS_C, %rsp, HS_C, %rsp, HS_A
+    F2MUL   %rsp, HS_D, %rsp, HS_T, %rsp, HS_B
+    EQUAL   %rsp, HS_C, %rsp, HS_D, 96
+    jnz     2f
+    F2MUL   %rsp, HS_A, %rsp, HS_A, %rsp, HS_T + 192        /* a = Zt^3, b = Zs^3 */
+    F2MUL   %rsp, HS_B, %rsp, HS_B, %rsp, HS_E
+    COPY    %rsp, HS_C, %rbx, 96, 48        /* c = c2Psi conj(Y) Zt^3, d = Yt Zs^3 */
+    C2      crypto_bls_fp_neg, %rsp, HS_C + 48, %rbx, 144
+    F2MUL   %rsp, HS_C, %r12, 96, %rsp, HS_C
+    F2MUL   %rsp, HS_C, %rsp, HS_C, %rsp, HS_A
+    F2MUL   %rsp, HS_D, %rsp, HS_T + 96, %rsp, HS_B
+    F2ADD   %rsp, HS_C, %rsp, HS_C, %rsp, HS_D              /* c + d = 0 */
+    IS_ZERO %rsp, HS_C, 96
 1:  setz    %al
     movzbl  %al, %eax
     mov     %rax, (%rbp)
+    LEAVE   HS_SIZE
+2:  movq    $0, (%rbp)
     LEAVE   HS_SIZE
 END_FUNCTION crypto_bls_g2_in_subgroup
 
@@ -5992,6 +6090,9 @@ END_FUNCTION crypto_kzg_recover_cells_and_kzg_proofs
 /* r, the order of G1 and G2 (Fr.lean), 4 limbs */
 924:
     .quad   0xFFFFFFFF00000001, 0x53BDA402FFFE5BFE, 0x3339D80809A1D805, 0x73EDA753299D7D48
+/* beta, the cube root of 1 in Fp with sigma = -x^2 on G1 (crypto_bls_g1_in_subgroup), Montgomery form */
+928:
+    .quad   0x30F1361B798A64E8, 0xF3B8DDAB7ECE5A2A, 0x16A8CA3AC61577F7, 0xC26A2FF874FD029B, 0x3636B76660701C6E, 0x051BA4AB241B6160
 /* the psi constants of HashToCurve.lean: c1Psi = 1 / (1 + u)^((p - 1) / 3), then c2Psi = 1 / (1 + u)^((p - 1) / 2), Montgomery form */
 907:
     .quad   0x0000000000000000, 0x0000000000000000, 0x0000000000000000, 0x0000000000000000, 0x0000000000000000, 0x0000000000000000

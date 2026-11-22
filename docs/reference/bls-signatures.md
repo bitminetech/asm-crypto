@@ -204,7 +204,7 @@ crypto_bls_verify(public_key, message, signature, scratch, valid) -> status
 
 ### Limits
 
-- Stack: 2704 bytes on x86-64 (return address included), 2928 bytes on ARM64, 3104 bytes on RISC-V, callees included.
+- Stack: 3056 bytes on x86-64 (return address included), 3216 bytes on ARM64, 3360 bytes on RISC-V, callees included.
 
 ### ABI
 
@@ -311,7 +311,7 @@ crypto_bls_fast_aggregate_verify(public_keys, message, signature, scratch, valid
 
 ### Limits
 
-- Stack: 2768 bytes on x86-64 (return address included), 3024 bytes on ARM64, 3216 bytes on RISC-V, callees included.
+- Stack: 3120 bytes on x86-64 (return address included), 3312 bytes on ARM64, 3472 bytes on RISC-V, callees included.
 
 ### ABI
 
@@ -358,7 +358,7 @@ crypto_bls_key_validate(public_key, valid) -> status
 
 ### Limits
 
-- Stack: 1840 bytes on x86-64 (return address included), 1968 bytes on ARM64, 2096 bytes on RISC-V, callees included.
+- Stack: 2032 bytes on x86-64 (return address included), 2160 bytes on ARM64, 2288 bytes on RISC-V, callees included.
 
 ### ABI
 
@@ -409,7 +409,7 @@ crypto_bls_eth_aggregate_pubkeys(public_keys, public_key) -> status
 
 ### Limits
 
-- Stack: 2192 bytes on x86-64 (return address included), 2352 bytes on ARM64, 2496 bytes on RISC-V, callees included.
+- Stack: 2384 bytes on x86-64 (return address included), 2544 bytes on ARM64, 2688 bytes on RISC-V, callees included.
 
 ### ABI
 
@@ -462,7 +462,7 @@ crypto_bls_eth_fast_aggregate_verify(public_keys, message, signature, scratch, v
 
 ### Limits
 
-- Stack: 2768 bytes on x86-64 (return address included), 3024 bytes on ARM64, 3216 bytes on RISC-V, callees included.
+- Stack: 3120 bytes on x86-64 (return address included), 3312 bytes on ARM64, 3472 bytes on RISC-V, callees included.
 
 ### ABI
 
@@ -528,7 +528,7 @@ crypto_bls_fast_aggregate_verify_cached(keys, indices, cache, message, signature
 
 ### Limits
 
-- Stack: 3024 bytes on x86-64 (return address included), 3216 bytes on ARM64, 3392 bytes on RISC-V, callees included.
+- Stack: 3376 bytes on x86-64 (return address included), 3504 bytes on ARM64, 3648 bytes on RISC-V, callees included.
 
 ### ABI
 

@@ -341,7 +341,7 @@ crypto_kzg_compute_blob_kzg_proof(settings, blob, commitment, scratch, proof) ->
 
 ### Limits
 
-- Stack: 1760 bytes on x86-64 (return address included), 1920 bytes on ARM64, 2064 bytes on RISC-V, callees included.
+- Stack: 1952 bytes on x86-64 (return address included), 2112 bytes on ARM64, 2256 bytes on RISC-V, callees included.
 
 ### ABI
 
@@ -514,7 +514,7 @@ crypto_kzg_compute_challenge(blob, commitment, scratch, challenge) -> status
 
 ### Limits
 
-- Stack: 1760 bytes on x86-64 (return address included), 1920 bytes on ARM64, 2064 bytes on RISC-V, callees included.
+- Stack: 1952 bytes on x86-64 (return address included), 2112 bytes on ARM64, 2256 bytes on RISC-V, callees included.
 
 ### ABI
 

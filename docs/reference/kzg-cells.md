@@ -339,7 +339,7 @@ crypto_kzg_compute_verify_cell_kzg_proof_batch_challenge(commitments, commitment
 
 ### Limits
 
-- Stack: 1776 bytes on x86-64 (return address included), 1920 bytes on ARM64, 2064 bytes on RISC-V, callees included.
+- Stack: 1968 bytes on x86-64 (return address included), 2112 bytes on ARM64, 2256 bytes on RISC-V, callees included.
 
 ### ABI
 

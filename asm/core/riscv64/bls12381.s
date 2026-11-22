@@ -917,8 +917,8 @@ END_FUNCTION crypto_bls_g1_neg
 
 /*
  * crypto_bls_g1_mul(result, point, scalar): k * point (G1.mulNat), with k
- * the 4 little-endian limbs at scalar. Doubles and adds from bit 255 down.
- * result may be point.
+ * the 4 little-endian limbs at scalar. Starts with the point at the highest
+ * set bit of k, then doubles and adds down to bit 0. result may be point.
  */
 .set GM_ACC, 0
 .set GM_P, 144
@@ -928,17 +928,25 @@ LOCAL_FUNCTION crypto_bls_g1_mul
     mv      s1, a0
     mv      s2, a2
     COPY    sp, GM_P, a1, 0, 144
-    SET_ONE sp, GM_ACC
+    li      s3, 255
+0:  BIT     s2, s3                          # the highest set bit of k
+    bnez    t0, 3f
+    addi    s3, s3, -1
+    bgez    s3, 0b
+    SET_ONE sp, GM_ACC                      # k = 0: the point at infinity
     SET_ONE sp, GM_ACC + 48
     ZERO    sp, GM_ACC + 96, 48
-    li      s3, 255
+    j       4f
+3:  COPY    sp, GM_ACC, sp, GM_P, 144
+    addi    s3, s3, -1
+    bltz    s3, 4f
 1:  C2      crypto_bls_g1_double, sp, GM_ACC, sp, GM_ACC
     BIT     s2, s3
     beqz    t0, 2f
     G3      crypto_bls_g1_add, sp, GM_ACC, sp, GM_P, sp, GM_ACC
 2:  addi    s3, s3, -1
     bgez    s3, 1b
-    COPY    s1, 0, sp, GM_ACC, 144
+4:  COPY    s1, 0, sp, GM_ACC, 144
     LEAVE   GM_SIZE
 END_FUNCTION crypto_bls_g1_mul
 
@@ -968,23 +976,53 @@ END_FUNCTION crypto_bls_g1_affine
 
 /*
  * crypto_bls_g1_in_subgroup(point, valid): the u64 1 when r * point is the
- * point at infinity, or point is (G1.inSubgroup), else 0.
+ * point at infinity, or point is (G1.inSubgroup), else 0. For a point P of
+ * E1 this holds exactly when sigma(P) = -x^2 P, with sigma(x, y) = (beta x, y)
+ * (docs/reference/bls12-381.md), so it computes x^2 P = |x| (|x| P) and
+ * compares: beta X Zt^2 = Xt Z^2 and Y Zt^3 = -Yt Z^3.
  */
 .set GS_T, 0
-.set GS_SIZE, 144
+.set GS_A, 144
+.set GS_B, 192
+.set GS_C, 240
+.set GS_D, 288
+.set GS_SIZE, 336
 LOCAL_FUNCTION crypto_bls_g1_in_subgroup
     ENTER   GS_SIZE
     mv      s1, a0
     mv      s2, a1
     IS_ZERO s1, 96, 48
     beqz    t0, 1f
-    mv      a0, sp
+    mv      a0, sp                          # t = |x| (|x| P) = x^2 P
     mv      a1, s1
-    lla     a2, 924f
+    lla     a2, 926f
     call    crypto_bls_g1_mul
-    IS_ZERO sp, GS_T + 96, 48
+    mv      a0, sp
+    mv      a1, sp
+    lla     a2, 926f
+    call    crypto_bls_g1_mul
+    IS_ZERO sp, GS_T + 96, 48               # x^2 P at infinity: sigma(P) is not
+    beqz    t0, 2f
+    FMUL    sp, GS_A, sp, GS_T + 96, sp, GS_T + 96  # a = Zt^2, b = Z^2
+    FMUL    sp, GS_B, s1, 96, s1, 96
+    addi    a0, sp, GS_C                    # c = beta X Zt^2, d = Xt Z^2
+    mv      a1, s1
+    lla     a2, 928f
+    call    crypto_bls_fp_mul
+    FMUL    sp, GS_C, sp, GS_C, sp, GS_A
+    FMUL    sp, GS_D, sp, GS_T, sp, GS_B
+    EQUAL   sp, GS_C, sp, GS_D, 48
+    bnez    t0, 2f
+    FMUL    sp, GS_A, sp, GS_A, sp, GS_T + 96  # c = Y Zt^3, d = Yt Z^3
+    FMUL    sp, GS_B, sp, GS_B, s1, 96
+    FMUL    sp, GS_C, s1, 48, sp, GS_A
+    FMUL    sp, GS_D, sp, GS_T + 48, sp, GS_B
+    FADD    sp, GS_C, sp, GS_C, sp, GS_D    # c + d = 0
+    IS_ZERO sp, GS_C, 48
 1:  seqz    t0, t0
     sd      t0, 0(s2)
+    LEAVE   GS_SIZE
+2:  sd      zero, 0(s2)
     LEAVE   GS_SIZE
 END_FUNCTION crypto_bls_g1_in_subgroup
 
@@ -1414,7 +1452,8 @@ END_FUNCTION crypto_bls_g2_neg
 
 /*
  * crypto_bls_g2_mul(result, point, scalar): k * point (G2.mulNat), with k
- * the 4 little-endian limbs at scalar. result may be point.
+ * the 4 little-endian limbs at scalar. Starts with the point at the highest
+ * set bit of k, then doubles and adds down to bit 0. result may be point.
  */
 .set HM_ACC, 0
 .set HM_P, 288
@@ -1424,18 +1463,26 @@ LOCAL_FUNCTION crypto_bls_g2_mul
     mv      s1, a0
     mv      s2, a2
     COPY    sp, HM_P, a1, 0, 288
-    SET_ONE sp, HM_ACC
+    li      s3, 255
+0:  BIT     s2, s3                          # the highest set bit of k
+    bnez    t0, 3f
+    addi    s3, s3, -1
+    bgez    s3, 0b
+    SET_ONE sp, HM_ACC                      # k = 0: the point at infinity
     ZERO    sp, HM_ACC + 48, 48
     SET_ONE sp, HM_ACC + 96
     ZERO    sp, HM_ACC + 144, 144
-    li      s3, 255
+    j       4f
+3:  COPY    sp, HM_ACC, sp, HM_P, 288
+    addi    s3, s3, -1
+    bltz    s3, 4f
 1:  C2      crypto_bls_g2_double, sp, HM_ACC, sp, HM_ACC
     BIT     s2, s3
     beqz    t0, 2f
     C3      crypto_bls_g2_add, sp, HM_ACC, sp, HM_ACC, sp, HM_P
 2:  addi    s3, s3, -1
     bgez    s3, 1b
-    COPY    s1, 0, sp, HM_ACC, 288
+4:  COPY    s1, 0, sp, HM_ACC, 288
     LEAVE   HM_SIZE
 END_FUNCTION crypto_bls_g2_mul
 
@@ -1460,22 +1507,58 @@ LOCAL_FUNCTION crypto_bls_g2_affine
     LEAVE   HF_SIZE
 END_FUNCTION crypto_bls_g2_affine
 
-/* crypto_bls_g2_in_subgroup(point, valid): the u64 1 when r * point is the point at infinity, or point is, else 0. */
+/*
+ * crypto_bls_g2_in_subgroup(point, valid): the u64 1 when r * point is the
+ * point at infinity, or point is (G2.inSubgroup), else 0. For a point P of
+ * E2 this holds exactly when psi(P) = x P (docs/reference/bls12-381.md), with
+ * psi(X, Y, Z) = (c1Psi conj(X), c2Psi conj(Y), conj(Z)). So it computes
+ * t = |x| P = -x P and compares psi(P) with -t: Xs Zt^2 = Xt Zs^2 and
+ * Ys Zt^3 = -Yt Zs^3.
+ */
 .set HS_T, 0
-.set HS_SIZE, 288
+.set HS_A, 288
+.set HS_B, 384
+.set HS_C, 480
+.set HS_D, 576
+.set HS_E, 672
+.set HS_SIZE, 768
 LOCAL_FUNCTION crypto_bls_g2_in_subgroup
     ENTER   HS_SIZE
     mv      s1, a0
     mv      s2, a1
     IS_ZERO s1, 192, 96
     beqz    t0, 1f
-    mv      a0, sp
+    mv      a0, sp                          # t = |x| P
     mv      a1, s1
-    lla     a2, 924f
+    lla     a2, 926f
     call    crypto_bls_g2_mul
-    IS_ZERO sp, HS_T + 192, 96
+    IS_ZERO sp, HS_T + 192, 96              # x P at infinity: psi(P) is not
+    beqz    t0, 2f
+    lla     s3, 907f                        # c1Psi, then c2Psi
+    COPY    sp, HS_E, s1, 192, 48           # e = Zs = conj(Z)
+    C2      crypto_bls_fp_neg, sp, HS_E + 48, s1, 240
+    F2MUL   sp, HS_A, sp, HS_T + 192, sp, HS_T + 192    # a = Zt^2, b = Zs^2
+    F2MUL   sp, HS_B, sp, HS_E, sp, HS_E
+    COPY    sp, HS_C, s1, 0, 48             # c = c1Psi conj(X) Zt^2, d = Xt Zs^2
+    C2      crypto_bls_fp_neg, sp, HS_C + 48, s1, 48
+    F2MUL   sp, HS_C, s3, 0, sp, HS_C
+    F2MUL   sp, HS_C, sp, HS_C, sp, HS_A
+    F2MUL   sp, HS_D, sp, HS_T, sp, HS_B
+    EQUAL   sp, HS_C, sp, HS_D, 96
+    bnez    t0, 2f
+    F2MUL   sp, HS_A, sp, HS_A, sp, HS_T + 192  # a = Zt^3, b = Zs^3
+    F2MUL   sp, HS_B, sp, HS_B, sp, HS_E
+    COPY    sp, HS_C, s1, 96, 48            # c = c2Psi conj(Y) Zt^3, d = Yt Zs^3
+    C2      crypto_bls_fp_neg, sp, HS_C + 48, s1, 144
+    F2MUL   sp, HS_C, s3, 96, sp, HS_C
+    F2MUL   sp, HS_C, sp, HS_C, sp, HS_A
+    F2MUL   sp, HS_D, sp, HS_T + 96, sp, HS_B
+    F2ADD   sp, HS_C, sp, HS_C, sp, HS_D    # c + d = 0
+    IS_ZERO sp, HS_C, 96
 1:  seqz    t0, t0
     sd      t0, 0(s2)
+    LEAVE   HS_SIZE
+2:  sd      zero, 0(s2)
     LEAVE   HS_SIZE
 END_FUNCTION crypto_bls_g2_in_subgroup
 
@@ -6136,6 +6219,9 @@ END_FUNCTION crypto_kzg_recover_cells_and_kzg_proofs
 /* r, the order of G1 and G2 (Fr.lean), 4 limbs */
 924:
     .quad   0xFFFFFFFF00000001, 0x53BDA402FFFE5BFE, 0x3339D80809A1D805, 0x73EDA753299D7D48
+/* beta, the cube root of 1 in Fp with sigma = -x^2 on G1 (crypto_bls_g1_in_subgroup), Montgomery form */
+928:
+    .quad   0x30F1361B798A64E8, 0xF3B8DDAB7ECE5A2A, 0x16A8CA3AC61577F7, 0xC26A2FF874FD029B, 0x3636B76660701C6E, 0x051BA4AB241B6160
 /* the psi constants of HashToCurve.lean: c1Psi = 1 / (1 + u)^((p - 1) / 3), then c2Psi = 1 / (1 + u)^((p - 1) / 2), Montgomery form */
 907:
     .quad   0x0000000000000000, 0x0000000000000000, 0x0000000000000000, 0x0000000000000000, 0x0000000000000000, 0x0000000000000000
