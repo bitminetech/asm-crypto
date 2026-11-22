@@ -3524,34 +3524,58 @@ END_FUNCTION crypto_bls_fp12_mul_line
 /*
  * crypto_bls_miller_double(line, t, p, work): the line of millerDouble: with
  * T the G2 point at t and P = (xp, yp) at p, the tangent line at T, valued
- * at P, then T = 2 T. work holds 384 bytes of temporaries.
+ * at P, then T = 2 T with the steps of crypto_bls_g2_double, from the
+ * squares the line already has (xx = X^2, Y^2, 3 xx, 2 Y Z). work holds 768
+ * bytes of temporaries.
  */
 .set MD_XX, 0
 .set MD_ZZ, 96
 .set MD_A, 192
-.set MD_U, 288
+.set MD_B, 288
+.set MD_C, 384
+.set MD_T, 480
+.set MD_D, 576
+.set MD_Z3, 672
 LOCAL_FUNCTION crypto_bls_miller_double
     ENTER   0
     mv      s1, a0                         # line
     mv      s2, a1                         # T
     mv      s3, a2                         # P
     mv      s4, a3                         # work
-    F2SQR   s4, MD_XX, s2, 0       # xx = X^2, zz = Z^2
+    F2SQR   s4, MD_XX, s2, 0              # xx = X^2, zz = Z^2, b = Y^2
     F2SQR   s4, MD_ZZ, s2, 192
-    F2ADD   s4, MD_A, s4, MD_XX, s4, MD_XX  # 3 xx
+    F2SQR   s4, MD_B, s2, 96
+    F2ADD   s4, MD_A, s4, MD_XX, s4, MD_XX  # a = 3 xx
     F2ADD   s4, MD_A, s4, MD_A, s4, MD_XX
     F2MUL   s1, 0, s4, MD_A, s2, 0        # c0 = 3 xx X - 2 Y^2
-    F2SQR   s4, MD_U, s2, 96
-    F2ADD   s4, MD_U, s4, MD_U, s4, MD_U
-    F2SUB   s1, 0, s1, 0, s4, MD_U
+    F2ADD   s4, MD_T, s4, MD_B, s4, MD_B
+    F2SUB   s1, 0, s1, 0, s4, MD_T
     F2MUL   s1, 96, s4, MD_A, s4, MD_ZZ    # c2 = -(3 xx zz xp)
     C3      crypto_bls_fp2_mul_fp, s1, 96, s1, 96, s3, 0
     C2      crypto_bls_fp2_neg, s1, 96, s1, 96
-    F2ADD   s1, 192, s2, 96, s2, 96       # c3 = 2 Y zz Z yp
-    F2MUL   s1, 192, s1, 192, s4, MD_ZZ
-    F2MUL   s1, 192, s1, 192, s2, 192
+    F2ADD   s4, MD_Z3, s2, 96, s2, 96     # z3 = 2 Y Z, c3 = z3 zz yp = 2 Y zz Z yp
+    F2MUL   s4, MD_Z3, s4, MD_Z3, s2, 192
+    F2MUL   s1, 192, s4, MD_Z3, s4, MD_ZZ
     C3      crypto_bls_fp2_mul_fp, s1, 192, s1, 192, s3, 48
-    C2      crypto_bls_g2_double, s2, 0, s2, 0
+    IS_ZERO s2, 192, 96                    # T = 2 T as crypto_bls_g2_double does: infinity stays
+    beqz    t0, 9f
+    F2SQR   s4, MD_C, s4, MD_B            # C = b^2
+    F2ADD   s4, MD_T, s2, 0, s4, MD_B    # D = 2 ((X + b)^2 - xx - C)
+    F2SQR   s4, MD_T, s4, MD_T
+    F2SUB   s4, MD_T, s4, MD_T, s4, MD_XX
+    F2SUB   s4, MD_T, s4, MD_T, s4, MD_C
+    F2ADD   s4, MD_D, s4, MD_T, s4, MD_T
+    F2SQR   s4, MD_XX, s4, MD_A           # F = a^2
+    F2ADD   s4, MD_T, s4, MD_D, s4, MD_D # X' = F - 2 D
+    F2SUB   s2, 0, s4, MD_XX, s4, MD_T
+    F2SUB   s4, MD_T, s4, MD_D, s2, 0    # Y' = a (D - X') - 8 C
+    F2MUL   s2, 96, s4, MD_A, s4, MD_T
+    F2ADD   s4, MD_T, s4, MD_C, s4, MD_C
+    F2ADD   s4, MD_T, s4, MD_T, s4, MD_T
+    F2ADD   s4, MD_T, s4, MD_T, s4, MD_T
+    F2SUB   s2, 96, s2, 96, s4, MD_T
+    COPY    s2, 192, s4, MD_Z3, 96         # Z' = z3
+9:
     LEAVE   0
 END_FUNCTION crypto_bls_miller_double
 
@@ -3598,7 +3622,7 @@ END_FUNCTION crypto_bls_miller_add
  * T_i = Q_i and f = 1; then for each bit of |x| below its top bit, f = f^2
  * (not for the first bit, where f = 1), then for each pair the double step,
  * f = f l, and on a set bit for each pair the add step, f = f l. work holds
- * 960 bytes: the line, then the work of the steps.
+ * 1056 bytes: the line, then the work of the steps.
  */
 .set ML_LINE, 0
 .set ML_STEP, 288
@@ -3711,7 +3735,7 @@ END_FUNCTION crypto_bls_final_exponentiation
 .set PC_ML, PC_E + 576 * PC_GROUP
 .set PC_R, 576
 .set PC_FE, 1152
-.if PC_ML + 960 > 4608
+.if PC_ML + 1056 > 4608
 .error "pairing_check work"
 .endif
 # The group of s6 pairs: acc = acc conj(their product); s6 = 0.
