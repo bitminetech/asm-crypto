@@ -20,6 +20,8 @@ Checks on the library archive of each of the 7 targets:
 - Imports: every symbol that no object of the archive defines is a
   declared dependency function.
 - Unwind: every function has unwind data that starts at its first byte.
+- The sha variant: the same checks on libasm-<library>-sha.a of each x86-64
+  and ARM64 target (README, Target profile).
 
 Checks on the instructions, once for each ISA, on its Linux object. The core
 uses the same instruction sequence on every OS (section 7).
@@ -155,9 +157,17 @@ def unwind_starts(obj, os_name):
     return starts
 
 
-def check_target(os_name, isa, library, roles, deps):
-    target = f"{os_name}-{isa}"
-    archive = f"build/{target}/libasm-{library}.a"
+def archives(isa, library):
+    """The archive names of an ISA: the baseline, and the sha variant on x86-64 and ARM64."""
+    names = [f"libasm-{library}.a"]
+    if isa != "riscv64":
+        names.append(f"libasm-{library}-sha.a")
+    return names
+
+
+def check_target(os_name, isa, library, roles, deps, name):
+    target = f"{os_name}-{isa}" + ("" if name == f"libasm-{library}.a" else " (sha)")
+    archive = f"build/{os_name}-{isa}/{name}"
     macos = os_name == "macos"
     defined, undefined = {}, set()
     with tempfile.TemporaryDirectory() as directory:
@@ -240,13 +250,14 @@ def target_address(operands):
     return int(m.group(1), 16) if m else None
 
 
-def check_instructions(isa, library, roles, deps):
+def check_instructions(isa, library, roles, deps, name):
     target = f"linux-{isa}"
     calls = []
     with tempfile.TemporaryDirectory() as directory:
-        for obj in members(f"build/{target}/libasm-{library}.a", directory):
+        for obj in members(f"build/{target}/{name}", directory):
             check_object(target, isa, obj, roles, deps, calls)
-    with open(f"build/{target}/calls.txt", "w") as f:
+    out = "calls.txt" if name == f"libasm-{library}.a" else "calls-sha.txt"
+    with open(f"build/{target}/{out}", "w") as f:
         for caller, callee in sorted(set(calls)):
             f.write(f"{caller} {callee}\n")
 
@@ -361,9 +372,11 @@ def main():
     roles = declared_roles()
     deps = dependency_functions()
     for os_name, isa in TARGETS:
-        check_target(os_name, isa, library, roles, deps)
+        for name in archives(isa, library):
+            check_target(os_name, isa, library, roles, deps, name)
     for isa in ("x86_64", "arm64", "riscv64"):
-        check_instructions(isa, library, roles, deps)
+        for name in archives(isa, library):
+            check_instructions(isa, library, roles, deps, name)
     for line in failures:
         print(f"FAIL {line}")
     print(f"{'FAIL' if failures else 'PASS'} check: {len(TARGETS)} targets, {len(failures)} problems")

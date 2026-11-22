@@ -31,6 +31,31 @@
 #include <unistd.h>
 #endif
 
+#ifdef CRYPTO_SHA_VARIANT
+/* The CPU features of the sha variant (README, Target profile). */
+#if defined(__x86_64__)
+#include <cpuid.h>
+static int sha_variant_supported(void) {
+    unsigned a, b, c, d;
+    if (!__get_cpuid(1, &a, &b, &c, &d) || !(c & bit_SSSE3)) return 0;
+    if (!__get_cpuid_count(7, 0, &a, &b, &c, &d)) return 0;
+    return (b & bit_SHA) != 0;
+}
+#elif defined(_WIN32)
+static int sha_variant_supported(void) { return IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE) != 0; }
+#elif defined(__APPLE__)
+#include <sys/sysctl.h>
+static int sha_variant_supported(void) {
+    int v = 0;
+    size_t n = sizeof v;
+    return sysctlbyname("hw.optional.arm.FEAT_SHA256", &v, &n, NULL, 0) == 0 && v == 1;
+}
+#else
+#include <sys/auxv.h>
+static int sha_variant_supported(void) { return (getauxval(AT_HWCAP) & (1UL << 6)) != 0; }   /* HWCAP_SHA2 */
+#endif
+#endif
+
 /* C view of the interface in include/ and docs/reference/. */
 #if defined(_WIN32) && defined(__x86_64__)
 #define CRYPTO_ABI __attribute__((sysv_abi))
@@ -1462,6 +1487,13 @@ int main(int argc, char **argv) {
         fprintf(stderr, "usage: runner VECTOR_DIR [FILE ...]\n");
         return 2;
     }
+#ifdef CRYPTO_SHA_VARIANT
+    if (!sha_variant_supported()) {
+        printf("SKIP the sha variant: this CPU lacks its features\n");
+        return 0;
+    }
+    printf("== the sha variant\n");
+#endif
     int failed = 0;
     if (argc == 2) {
         for (size_t i = 0; i < sizeof ALL_FILES / sizeof ALL_FILES[0]; i++)

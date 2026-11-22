@@ -25,6 +25,10 @@ docker run --rm -v "$root:/src" -v "$vectors:/vectors:ro" "$image" sh -eu -c '
         [ "$machine" = "$host" ] && qemu=""
         echo "== linux $isa${qemu:+ (under $qemu)}"
         $qemu build/linux-$isa/runner /vectors "$@" || status=1
+        # The sha variant: QEMU emulates its instructions with -cpu max.
+        if [ -e build/linux-$isa/runner-sha ]; then
+            QEMU_CPU=max $qemu build/linux-$isa/runner-sha /vectors "$@" || status=1
+        fi
     done
     exit $status
 ' sh "$@"

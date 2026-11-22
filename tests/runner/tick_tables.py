@@ -133,7 +133,10 @@ def passed(results_dir, os_name, isa):
     if not os.path.exists(path):
         return set()
     with open(path, encoding="utf-8", errors="replace") as f:
-        return {m.group(1) for m in re.finditer(r"^FUNCTION (\S+) PASS\s*$", f.read(), re.M)}
+        text = f.read()
+    # The file holds the output of the runner of each archive: a FAIL of either clears the tick.
+    good = {m.group(1) for m in re.finditer(r"^FUNCTION (\S+) PASS\s*$", text, re.M)}
+    return good - {m.group(1) for m in re.finditer(r"^FUNCTION (\S+) FAIL\s*$", text, re.M)}
 
 
 def callers(build_dir, isa):

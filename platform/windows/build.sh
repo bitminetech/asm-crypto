@@ -26,3 +26,11 @@ llvm-ar rcs "$out/libasm-crypto.a" $objects
 
 /opt/llvm-mingw/bin/$mingw-clang $march -std=c11 -O2 -Wall -Wextra -Werror -static \
     "$root/tests/runner/runner.c" -I"$root/platform/windows" "$root/tests/runner/abi_$isa.s" "$out/libasm-crypto.a" -o "$out/runner.exe"
+
+# The sha variant (README, Target profile): sha256x.s in place of sha256.s, and its runner.
+clang --target=$target $march -I"$root/include" -I"$root/platform/windows" \
+    -c "$root/asm/core/$isa/sha256x.s" -o "$out/sha256x.o"
+rm -f "$out/libasm-crypto-sha.a"
+llvm-ar rcs "$out/libasm-crypto-sha.a" $(echo "$objects" | sed "s#$out/sha256\.o#$out/sha256x.o#")
+/opt/llvm-mingw/bin/$mingw-clang $march -std=c11 -O2 -Wall -Wextra -Werror -static -DCRYPTO_SHA_VARIANT \
+    "$root/tests/runner/runner.c" -I"$root/platform/windows" "$root/tests/runner/abi_$isa.s" "$out/libasm-crypto-sha.a" -o "$out/runner-sha.exe"

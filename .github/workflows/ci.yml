@@ -128,6 +128,11 @@ jobs:
           set -o pipefail
           chmod +x build/linux-${{ matrix.isa }}/runner
           ${{ matrix.qemu }} build/linux-${{ matrix.isa }}/runner vectors | tee results-linux-${{ matrix.isa }}.txt
+          # The sha variant (README, Target profile): its runner checks the CPU features first.
+          if [ -e build/linux-${{ matrix.isa }}/runner-sha ]; then
+            chmod +x build/linux-${{ matrix.isa }}/runner-sha
+            build/linux-${{ matrix.isa }}/runner-sha vectors | tee -a results-linux-${{ matrix.isa }}.txt
+          fi
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
@@ -152,6 +157,9 @@ jobs:
         shell: pwsh
         run: |
           & "build/windows-${{ matrix.isa }}/runner.exe" vectors | Tee-Object results-windows-${{ matrix.isa }}.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # The sha variant (README, Target profile): its runner checks the CPU features first.
+          & "build/windows-${{ matrix.isa }}/runner-sha.exe" vectors | Tee-Object -Append results-windows-${{ matrix.isa }}.txt
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2

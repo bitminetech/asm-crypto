@@ -73,12 +73,16 @@ Standard: [asm-standard@0f759f6](https://github.com/bitminetech/asm-standard/blo
 | ISA | Instructions |
 |---|---|
 | x86-64 | x86-64-v1 |
+| x86-64, `sha` variant | x86-64-v1, SSSE3 and SHA: CPUID leaf 1 ECX bit 9, and leaf 7 subleaf 0 EBX bit 29 |
 | ARM64 | Armv8.0-A |
+| ARM64, `sha` variant | Armv8.0-A and FEAT_SHA256: on Linux bit 6 (`HWCAP_SHA2`) of `AT_HWCAP` (16), on macOS the sysctl `hw.optional.arm.FEAT_SHA256`, on Windows `IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE)` (30) |
 | RISC-V | RV64GC |
 
 | Item | Value |
 |---|---|
 | macOS objects | Marked for macOS 11.0 or later |
+| `sha` variant | The archive `libasm-crypto-sha.a` of x86-64 and ARM64: `asm/core/<ISA>/sha256x.s` in place of `sha256.s`, with the same functions. The caller's shell checks the CPU features of its row above before it runs this archive's code. |
+| Proof claims | Only the baseline archive `libasm-crypto.a`. |
 
 ## Stack
 

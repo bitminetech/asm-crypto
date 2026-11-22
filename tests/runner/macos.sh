@@ -13,4 +13,7 @@ case "$(uname -m)" in
 esac
 "$root/platform/macos/link-runner.sh" $isa "$root/build/macos-$isa"
 echo "== macos $isa"
-"$root/build/macos-$isa/runner" "$vectors" "$@"
+status=0
+"$root/build/macos-$isa/runner" "$vectors" "$@" || status=1
+"$root/build/macos-$isa/runner-sha" "$vectors" "$@" || status=1
+exit $status
