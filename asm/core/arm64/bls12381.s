@@ -519,33 +519,66 @@ END_FUNCTION crypto_bls_fp_neg
 /*
  * crypto_bls_fp_pow(result, base, exponent): base^e (Fp.powNat), with e the
  * 6 little-endian limbs at exponent, a public value. result may be base.
- * Square and multiply from the top set bit of e; e = 0 gives 1.
+ * A 4-bit fixed window: the table base^0 to base^15, then from the top
+ * nonzero nibble of e, acc = acc^16 and acc = acc base^n for each lower
+ * nibble n that is not 0; e = 0 gives 1.
  */
 .set FW_ACC, 0
-.set FW_BASE, 48
-.set FW_SIZE, 96
+.set FW_TAB, 48
+.set FW_SIZE, 48 + 16 * 48
 LOCAL_FUNCTION crypto_bls_fp_pow
     ENTER   0, FW_SIZE
     mov     x19, x0
     mov     x20, x2
-    COPY    sp, FW_BASE, x1, 0, 48
-    SET_ONE sp, FW_ACC
-    mov     x21, #383                       /* bit index */
-1:  lsr     x9, x21, #6                     /* skip the zero bits above the top set bit */
+    SET_ONE sp, FW_TAB                      /* the table: base^0 to base^15 */
+    COPY    sp, FW_TAB + 48, x1, 0, 48
+    mov     x22, #2
+    add     x23, sp, #(FW_TAB + 96)
+0:  sub     x1, x23, #48
+    mov     x0, x23
+    add     x2, sp, #(FW_TAB + 48)
+    bl      crypto_bls_fp_mul
+    add     x23, x23, #48
+    add     x22, x22, #1
+    cmp     x22, #16
+    b.lo    0b
+    mov     x21, #95                        /* nibble index */
+1:  lsr     x9, x21, #4                     /* skip the zero nibbles above the top one */
     ldr     x10, [x20, x9, lsl #3]
-    lsr     x10, x10, x21
-    tbnz    x10, #0, 2f
+    lsl     x11, x21, #2
+    lsr     x10, x10, x11
+    ands    x22, x10, #15
+    b.ne    2f
     subs    x21, x21, #1
     b.ge    1b
+    SET_ONE sp, FW_ACC                      /* e = 0: 1 */
     b       4f
-2:  FMUL    sp, FW_ACC, sp, FW_ACC, sp, FW_ACC
-    lsr     x9, x21, #6
+2:  mov     x9, #48                         /* acc = base^n for the top nibble */
+    madd    x9, x22, x9, xzr
+    add     x9, x9, #FW_TAB
+    add     x9, sp, x9
+    COPY    sp, FW_ACC, x9, 0, 48
+    subs    x21, x21, #1
+    b.lt    4f
+3:  FMUL    sp, FW_ACC, sp, FW_ACC, sp, FW_ACC
+    FMUL    sp, FW_ACC, sp, FW_ACC, sp, FW_ACC
+    FMUL    sp, FW_ACC, sp, FW_ACC, sp, FW_ACC
+    FMUL    sp, FW_ACC, sp, FW_ACC, sp, FW_ACC
+    lsr     x9, x21, #4
     ldr     x10, [x20, x9, lsl #3]
-    lsr     x10, x10, x21
-    tbz     x10, #0, 3f
-    FMUL    sp, FW_ACC, sp, FW_ACC, sp, FW_BASE
-3:  subs    x21, x21, #1
-    b.ge    2b
+    lsl     x11, x21, #2
+    lsr     x10, x10, x11
+    ands    x22, x10, #15
+    b.eq    31f
+    mov     x9, #48
+    madd    x9, x22, x9, xzr
+    add     x9, x9, #FW_TAB
+    add     x2, sp, x9
+    add     x0, sp, #FW_ACC
+    add     x1, sp, #FW_ACC
+    bl      crypto_bls_fp_mul
+31: subs    x21, x21, #1
+    b.ge    3b
 4:  COPY    x19, 0, sp, FW_ACC, 48
     LEAVE   0, FW_SIZE
 END_FUNCTION crypto_bls_fp_pow
