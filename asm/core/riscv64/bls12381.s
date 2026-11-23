@@ -5087,11 +5087,13 @@ END_FUNCTION crypto_kzg_compute_challenge
 
 /*
  * crypto_kzg_g1_lincomb(result, points, scalars, n, work): the sum of
- * scalars[j] times points[j] (g1LincombPoints), by the steps of G1.msm:
- * Pippenger's method with windows of 8 bits, from the top window down, the
- * point at infinity for n = 0 or all scalars 0. n in a3. work holds 32 n +
- * 37296 bytes: the values of the scalars, the 256 buckets, then the sum,
- * the running sum and the partial sum.
+ * scalars[j] times points[j] (g1LincombPoints), the point of G1.msm:
+ * Pippenger's method with windows of c bits, from the top window down, the
+ * point at infinity for n = 0 or all scalars 0. c is the width from 1 to 8
+ * with the fewest additions, ceil(bits / c) (n + 2 (2^c - 1)), the smallest
+ * on a tie; 8 for the 4096 points of a blob, the steps of G1.msm. n in a3.
+ * work holds 32 n + 37296 bytes: the values of the scalars, the 2^c buckets,
+ * then the sum, the running sum and the partial sum.
  */
 LOCAL_FUNCTION crypto_kzg_g1_lincomb
     ENTER   0
@@ -5134,29 +5136,67 @@ LOCAL_FUNCTION crypto_kzg_g1_lincomb
 4:  addi    s6, s6, 1
     bltu    s6, s4, 2b
     beqz    s7, 8f
-    addi    s7, s7, 7                       # nW
-    srli    s7, s7, 3
+    li      t2, -1                          # c in s3: the fewest additions, ceil(bits / c) (n + 2 (2^c - 1))
+    li      s3, 0
+    li      t3, 1
+60: add     t0, s7, t3
+    addi    t0, t0, -1
+    divu    t0, t0, t3
+    li      t1, 1
+    sll     t1, t1, t3
+    addi    t1, t1, -1
+    slli    t1, t1, 1
+    add     t1, t1, s4
+    mul     t0, t0, t1
+    bgeu    t0, t2, 61f
+    mv      t2, t0
+    mv      s3, t3
+61: addi    t3, t3, 1
+    li      t0, 8
+    bleu    t3, t0, 60b
+    add     s7, s7, s3                      # nW = ceil(bits / c)
+    addi    s7, s7, -1
+    divu    s7, s7, s3
     slli    s8, s4, 5                       # the buckets
     add     s8, s5, s8
     li      t0, 256 * BLS_G1                # the sum, then the running and partial sums
     add     s10, s8, t0
     G1_ZERO s10, 0
     li      s9, 0                           # kk
-5:  li      s6, 1                           # buckets 1 to 255 at infinity
+5:  li      s6, 1                           # buckets 1 to 2^c - 1 at infinity
 6:  li      t0, BLS_G1
     mul     a4, s6, t0
     add     a4, s8, a4
     G1_ZERO a4, 0
     addi    s6, s6, 1
-    li      t0, 256
+    li      t0, 1
+    sll     t0, t0, s3
     bltu    s6, t0, 6b
     li      s6, 0                           # msmBuckets
 7:  sub     t0, s7, s9                      # k = nW - 1 - kk
     addi    t0, t0, -1
+    mul     t0, t0, s3                      # digit k of vals[j]: its bits from c k
+    srli    t2, t0, 6
+    andi    t0, t0, 63
     slli    t1, s6, 5
     add     t1, s5, t1
-    add     t1, t1, t0
-    lbu     t1, 0(t1)                       # digit k of vals[j]
+    slli    t3, t2, 3
+    add     t3, t1, t3
+    ld      t4, 0(t3)
+    srl     t4, t4, t0
+    li      t5, 3
+    bgeu    t2, t5, 74f
+    add     t5, t0, s3
+    li      t6, 64
+    bleu    t5, t6, 74f
+    ld      t5, 8(t3)                       # the bits from the next limb
+    neg     t6, t0
+    sll     t5, t5, t6
+    or      t4, t4, t5
+74: li      t5, 1
+    sll     t5, t5, s3
+    addi    t5, t5, -1
+    and     t1, t4, t5
     beqz    t1, 70f
     li      t0, BLS_G1
     mul     a0, t1, t0
@@ -5167,9 +5207,11 @@ LOCAL_FUNCTION crypto_kzg_g1_lincomb
     CALL_GLOBAL crypto_bls_g1_add
 70: addi    s6, s6, 1
     bltu    s6, s4, 7b
-    G1_ZERO s10, BLS_G1                     # msmRunning: from bucket 255 down to 1
+    G1_ZERO s10, BLS_G1                     # msmRunning: from bucket 2^c - 1 down to 1
     G1_ZERO s10, 2 * BLS_G1
-    li      s6, 255
+    li      s6, 1
+    sll     s6, s6, s3
+    addi    s6, s6, -1
 71: li      t0, BLS_G1
     mul     a1, s6, t0
     add     a1, s8, a1
@@ -5182,8 +5224,8 @@ LOCAL_FUNCTION crypto_kzg_g1_lincomb
     CALL_GLOBAL crypto_bls_g1_add           # partial += running
     addi    s6, s6, -1
     bnez    s6, 71b
-    beqz    s9, 73f                         # msmCombine: 8 doublings, except for the first window
-    li      s6, 8
+    beqz    s9, 73f                         # msmCombine: c doublings, except for the first window
+    mv      s6, s3
 72: mv      a0, s10
     mv      a1, s10
     call    crypto_bls_g1_double

@@ -5832,11 +5832,13 @@ END_FUNCTION crypto_kzg_compute_challenge
 
 /*
  * crypto_kzg_g1_lincomb(result, points, scalars, n, work): the sum of
- * scalars[j] times points[j] (g1LincombPoints), by the steps of G1.msm:
- * Pippenger's method with windows of 8 bits, from the top window down, the
- * point at infinity for n = 0 or all scalars 0. n in x3. work holds 32 n +
- * 37296 bytes: the values of the scalars, the 256 buckets, then the sum,
- * the running sum and the partial sum.
+ * scalars[j] times points[j] (g1LincombPoints), the point of G1.msm:
+ * Pippenger's method with windows of c bits, from the top window down, the
+ * point at infinity for n = 0 or all scalars 0. c is the width from 1 to 8
+ * with the fewest additions, ceil(bits / c) (n + 2 (2^c - 1)), the smallest
+ * on a tie; 8 for the 4096 points of a blob, the steps of G1.msm. n in x3.
+ * work holds 32 n + 37296 bytes: the values of the scalars, the 2^c buckets,
+ * then the sum, the running sum and the partial sum.
  */
 LOCAL_FUNCTION crypto_kzg_g1_lincomb
     ENTER   0
@@ -5877,24 +5879,63 @@ LOCAL_FUNCTION crypto_kzg_g1_lincomb
     cmp     x24, x22
     b.lo    2b
     cbz     x25, 8f
-    add     x25, x25, #7                    /* nW */
-    lsr     x25, x25, #3
+    mov     x10, #-1                        /* c in x21: the fewest additions, ceil(bits / c) (n + 2 (2^c - 1)) */
+    mov     x21, #0
+    mov     x9, #1
+60: add     x11, x25, x9
+    sub     x11, x11, #1
+    udiv    x11, x11, x9
+    mov     x12, #1
+    lsl     x12, x12, x9
+    sub     x12, x12, #1
+    add     x12, x22, x12, lsl #1
+    mul     x11, x11, x12
+    cmp     x11, x10
+    b.hs    61f
+    mov     x10, x11
+    mov     x21, x9
+61: add     x9, x9, #1
+    cmp     x9, #8
+    b.ls    60b
+    add     x25, x25, x21                   /* nW = ceil(bits / c) */
+    sub     x25, x25, #1
+    udiv    x25, x25, x21
     add     x24, x23, x22, lsl #5           /* the buckets */
     add     x28, x24, #(256 * BLS_G1)       /* the sum, then the running and partial sums */
     G1_ZERO x28, 0
     mov     x26, #0                         /* kk */
-5:  mov     x27, #1                         /* buckets 1 to 255 at infinity */
+5:  mov     x27, #1                         /* buckets 1 to 2^c - 1 at infinity */
 6:  mov     x9, #BLS_G1
     madd    x13, x27, x9, x24
     G1_ZERO x13, 0
     add     x27, x27, #1
-    cmp     x27, #256
+    mov     x9, #1
+    lsl     x9, x9, x21
+    cmp     x27, x9
     b.lo    6b
     mov     x27, #0                         /* msmBuckets */
 7:  sub     x9, x25, x26                    /* k = nW - 1 - kk */
     sub     x9, x9, #1
+    mul     x9, x9, x21                     /* digit k of vals[j]: its bits from c k */
+    lsr     x11, x9, #6
+    and     x9, x9, #63
     add     x10, x23, x27, lsl #5
-    ldrb    w10, [x10, x9]                  /* digit k of vals[j] */
+    ldr     x12, [x10, x11, lsl #3]
+    lsr     x12, x12, x9
+    cmp     x11, #3
+    b.hs    74f
+    add     x13, x9, x21
+    cmp     x13, #64
+    b.ls    74f
+    add     x14, x11, #1                    /* the bits from the next limb */
+    ldr     x13, [x10, x14, lsl #3]
+    neg     x14, x9
+    lsl     x13, x13, x14
+    orr     x12, x12, x13
+74: mov     x13, #1
+    lsl     x13, x13, x21
+    sub     x13, x13, #1
+    and     x10, x12, x13
     cbz     x10, 70f
     mov     x9, #BLS_G1
     madd    x0, x10, x9, x24
@@ -5905,9 +5946,11 @@ LOCAL_FUNCTION crypto_kzg_g1_lincomb
 70: add     x27, x27, #1
     cmp     x27, x22
     b.lo    7b
-    G1_ZERO x28, BLS_G1                     /* msmRunning: from bucket 255 down to 1 */
+    G1_ZERO x28, BLS_G1                     /* msmRunning: from bucket 2^c - 1 down to 1 */
     G1_ZERO x28, 2 * BLS_G1
-    mov     x27, #255
+    mov     x27, #1
+    lsl     x27, x27, x21
+    sub     x27, x27, #1
 71: mov     x9, #BLS_G1
     madd    x1, x27, x9, x24
     add     x0, x28, #BLS_G1
@@ -5919,8 +5962,8 @@ LOCAL_FUNCTION crypto_kzg_g1_lincomb
     CALL_GLOBAL crypto_bls_g1_add           /* partial += running */
     subs    x27, x27, #1
     b.ne    71b
-    cbz     x26, 73f                        /* msmCombine: 8 doublings, except for the first window */
-    mov     x27, #8
+    cbz     x26, 73f                        /* msmCombine: c doublings, except for the first window */
+    mov     x27, x21
 72: mov     x0, x28
     mov     x1, x28
     bl      crypto_bls_g1_double

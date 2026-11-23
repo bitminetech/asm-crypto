@@ -155,7 +155,7 @@ crypto_kzg_blob_to_kzg_commitment(settings, blob, scratch, commitment) -> status
 ### Function does
 
 - Checks `scratch` first, then the blob.
-- Computes the sum of p_i times Lagrange point i of `settings` (`g1LincombPoints`), by the steps of `G1.msm`: Pippenger's method with windows of 8 bits.
+- Computes the sum of p_i times Lagrange point i of `settings` (`g1LincombPoints`) with `crypto_kzg_g1_lincomb`.
 - Writes the compressed sum (`G1.compress`).
 
 ### Function never
@@ -1212,7 +1212,7 @@ crypto_kzg_challenge(result, blob, commitment, work) -> nothing
 
 ## Function `crypto_kzg_g1_lincomb`
 
-Computes the sum of scalars[j] times points[j] (`g1LincombPoints`), by the steps of `G1.msm`.
+Computes the sum of scalars[j] times points[j] (`g1LincombPoints`): the point of `G1.msm`, by Pippenger's method with windows of c bits.
 
 ### Signature
 
@@ -1237,8 +1237,10 @@ crypto_kzg_g1_lincomb(result, points, scalars, n, work) -> nothing
 ### Function does
 
 - Writes the point at infinity for n = 0, or when every scalar is 0.
-- Takes the values of the scalars, and nW = the top bit length over 8, rounded up.
-- For each window k from nW - 1 down to 0: adds each point to bucket v, its digit k (`msmBuckets`), takes the sum of v B_v by running sums from bucket 255 down (`msmRunning`), and adds it to the sum, after 8 doublings except at the first window (`msmCombine`).
+- Takes the values of the scalars, and b = their top bit length.
+- Takes the window width c: the c from 1 to 8 with the fewest additions ceil(b / c) * (n + 2 * (2^c - 1)), the smallest on a tie. Then nW = b / c, rounded up.
+- For each window k from nW - 1 down to 0: adds each point to bucket v, its digit k, the bits c k to c k + c - 1 of its value (`msmBuckets`), takes the sum of v B_v by running sums from bucket 2^c - 1 down (`msmRunning`), and adds it to the sum, after c doublings except at the first window (`msmCombine`).
+- With c = 8, as for the 4096 points of a blob with values of 255 bits, these are the steps of `G1.msm`. With another c the sum is the same point of G1, and its coordinates may differ (ARCHITECTURE.md section 9: a faster method under the same contract).
 
 ### Function never
 

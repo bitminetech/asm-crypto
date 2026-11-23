@@ -136,7 +136,7 @@ crypto_kzg_compute_cells_and_kzg_proofs(settings, blob, scratch, cells, proofs) 
 
 - Checks `scratch` first, then the blob.
 - Writes the cells of `crypto_kzg_compute_cells`.
-- Computes H_d = sum_i f_(i + 64 d) [s^i] for d = 1 to 63, with f the 4096 coefficients of p and [s^i] the monomial points of `settings`, each by the steps of `G1.msm`.
+- Computes H_d = sum_i f_(i + 64 d) [s^i] for d = 1 to 63, with f the 4096 coefficients of p and [s^i] the monomial points of `settings`, each with `crypto_kzg_g1_lincomb`.
 - Takes the FFT in G1 of H_1, ..., H_63, padded with the point at infinity to 128, over the 128-th roots of unity (`fftG1`), and writes the results in bit-reversed order, compressed (`computeCellsAndKzgProofsPolynomialcoeff`, the method of FK20).
 
 ### Function never

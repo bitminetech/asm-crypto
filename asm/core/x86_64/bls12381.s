@@ -4657,16 +4657,19 @@ END_FUNCTION crypto_kzg_compute_challenge
 
 /*
  * crypto_kzg_g1_lincomb(result, points, scalars, n, work): the sum of
- * scalars[j] times points[j] (g1LincombPoints), by the steps of G1.msm:
- * Pippenger's method with windows of 8 bits, from the top window down, the
- * point at infinity for n = 0 or all scalars 0. n in rcx. work holds 32 n +
- * 37296 bytes: the values of the scalars, the 256 buckets, then the sum,
- * the running sum and the partial sum.
+ * scalars[j] times points[j] (g1LincombPoints), the point of G1.msm:
+ * Pippenger's method with windows of c bits, from the top window down, the
+ * point at infinity for n = 0 or all scalars 0. c is the width from 1 to 8
+ * with the fewest additions, ceil(bits / c) (n + 2 (2^c - 1)), the smallest
+ * on a tie; 8 for the 4096 points of a blob, the steps of G1.msm. n in rcx.
+ * work holds 32 n + 37296 bytes: the values of the scalars, the 2^c buckets,
+ * then the sum, the running sum and the partial sum.
  */
 .set LC_NW, 0
 .set LC_KK, 8
 .set LC_J, 16
 .set LC_SUM, 24
+.set LC_C, 32
 .set LC_SIZE, 40
 LOCAL_FUNCTION crypto_kzg_g1_lincomb
     ENTER   LC_SIZE
@@ -4716,9 +4719,30 @@ LOCAL_FUNCTION crypto_kzg_g1_lincomb
     jb      2b
     test    %r8, %r8
     jz      8f
-    add     $7, %r8                         /* nW */
-    shr     $3, %r8
-    mov     %r8, LC_NW(%rsp)
+    mov     $-1, %r10                       /* c: the fewest additions, ceil(bits / c) (n + 2 (2^c - 1)) */
+    xor     %r11d, %r11d
+    mov     $1, %ecx
+60: lea     -1(%r8,%rcx), %rax
+    xor     %edx, %edx
+    div     %rcx
+    mov     $1, %edx
+    shl     %cl, %rdx
+    sub     $1, %rdx
+    add     %rdx, %rdx
+    add     %r13, %rdx
+    imul    %rdx, %rax
+    cmp     %r10, %rax
+    jae     61f
+    mov     %rax, %r10
+    mov     %rcx, %r11
+61: add     $1, %rcx
+    cmp     $8, %rcx
+    jbe     60b
+    mov     %r11, LC_C(%rsp)
+    lea     -1(%r8,%r11), %rax              /* nW = ceil(bits / c) */
+    xor     %edx, %edx
+    div     %r11
+    mov     %rax, LC_NW(%rsp)
     mov     %r13, %r15                      /* the buckets */
     shl     $5, %r15
     add     %r14, %r15
@@ -4726,12 +4750,16 @@ LOCAL_FUNCTION crypto_kzg_g1_lincomb
     mov     %rsi, LC_SUM(%rsp)
     G1_ZERO %rsi, 0
     movq    $0, LC_KK(%rsp)
-5:  mov     $1, %edi                        /* buckets 1 to 255 at infinity */
+5:  mov     LC_C(%rsp), %rcx                /* buckets 1 to 2^c - 1 at infinity */
+    mov     $1, %eax
+    shl     %cl, %rax
+    mov     %rax, LC_J(%rsp)
+    mov     $1, %edi
 6:  imul    $BLS_G1, %rdi, %rsi
     add     %r15, %rsi
     G1_ZERO %rsi, 0
     add     $1, %rdi
-    cmp     $256, %rdi
+    cmp     LC_J(%rsp), %rdi
     jb      6b
     movq    $0, LC_J(%rsp)                  /* msmBuckets */
 7:  mov     LC_J(%rsp), %rax
@@ -4740,7 +4768,27 @@ LOCAL_FUNCTION crypto_kzg_g1_lincomb
     sub     $1, %rcx
     shl     $5, %rax
     add     %r14, %rax
-    movzbl  (%rax,%rcx), %eax               /* digit k of vals[j] */
+    imul    LC_C(%rsp), %rcx                /* digit k of vals[j]: its bits from c k */
+    mov     %rcx, %rdx
+    shr     $6, %rdx
+    and     $63, %ecx
+    mov     (%rax,%rdx,8), %r9
+    shr     %cl, %r9
+    cmp     $3, %rdx
+    jae     74f
+    mov     %rcx, %r10
+    add     LC_C(%rsp), %r10
+    cmp     $64, %r10
+    jbe     74f
+    mov     8(%rax,%rdx,8), %r10            /* the bits from the next limb */
+    neg     %ecx
+    shl     %cl, %r10
+    or      %r10, %r9
+74: mov     LC_C(%rsp), %rcx
+    mov     $1, %eax
+    shl     %cl, %rax
+    sub     $1, %rax
+    and     %r9, %rax
     test    %eax, %eax
     jz      70f
     imul    $BLS_G1, %rax, %rdi
@@ -4754,10 +4802,14 @@ LOCAL_FUNCTION crypto_kzg_g1_lincomb
     mov     %rax, LC_J(%rsp)
     cmp     %r13, %rax
     jb      7b
-    mov     LC_SUM(%rsp), %rsi              /* msmRunning: from bucket 255 down to 1 */
+    mov     LC_SUM(%rsp), %rsi              /* msmRunning: from bucket 2^c - 1 down to 1 */
     G1_ZERO %rsi, BLS_G1
     G1_ZERO %rsi, 2 * BLS_G1
-    movq    $255, LC_J(%rsp)
+    mov     LC_C(%rsp), %rcx
+    mov     $1, %eax
+    shl     %cl, %rax
+    sub     $1, %rax
+    mov     %rax, LC_J(%rsp)
 71: mov     LC_SUM(%rsp), %rdi
     add     $BLS_G1, %rdi
     mov     %rdi, %rdx
@@ -4771,9 +4823,10 @@ LOCAL_FUNCTION crypto_kzg_g1_lincomb
     CALL_GLOBAL crypto_bls_g1_add           /* partial += running */
     subq    $1, LC_J(%rsp)
     jnz     71b
-    cmpq    $0, LC_KK(%rsp)                 /* msmCombine: 8 doublings, except for the first window */
+    cmpq    $0, LC_KK(%rsp)                 /* msmCombine: c doublings, except for the first window */
     je      73f
-    movq    $8, LC_J(%rsp)
+    mov     LC_C(%rsp), %rax
+    mov     %rax, LC_J(%rsp)
 72: mov     LC_SUM(%rsp), %rdi
     mov     %rdi, %rsi
     call    crypto_bls_g1_double
