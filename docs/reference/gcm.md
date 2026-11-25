@@ -217,8 +217,7 @@ A GHASH value or the hash key H.
 
 ## Constant `CRYPTO_GCM_FAIL`
 
-- Value: 3.
-- Status of `crypto_aes128_gcm_ad` when the tag does not match, or `sealed` is shorter than a tag.
+Status of `crypto_aes128_gcm_ad` when the tag does not match, or `sealed` is shorter than a tag.
 
 ## Test vectors
 

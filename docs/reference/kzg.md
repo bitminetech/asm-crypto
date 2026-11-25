@@ -61,7 +61,7 @@
 ## Spec
 
 - Document: [cryptography-specs v0.3.0](https://github.com/ethereum/cryptography-specs/tree/bb6dfe55198243682bc2eaf94611af2dbce1be6f/EthLib/Cryptography/Kzg), commit `bb6dfe55198243682bc2eaf94611af2dbce1be6f`.
-- Files: `Constants.lean`, `Errors.lean`, `BitReversal.lean`, `Fft.lean`, `Polynomials.lean`, `TrustedSetup.lean` and `Core.lean`, and `Exports/Kzg.lean` (`computeChallengeExport`).
+- Section: `Constants.lean`, `Errors.lean`, `BitReversal.lean`, `Fft.lean`, `Polynomials.lean`, `TrustedSetup.lean` and `Core.lean`, and `Exports/Kzg.lean` (`computeChallengeExport`).
 - EIP-4844 adds these functions at the Dencun fork. The cell functions of EIP-7594 are in [kzg-cells.md](kzg-cells.md).
 - Fr is the field of integers mod r, the order of G1 and G2 ([bls12-381.md](bls12-381.md)). A blob holds the values of a polynomial p of degree below 4096 at the 4096-th roots of unity, in bit-reversed order: value i is p(omega_i), with omega_i entry i of the bit-reversed powers of 7^((r - 1) / 4096).
 - A commitment to p is [p(s)] in G1, for the secret s of the trusted setup: the sum of p(omega_i) times the Lagrange points of the setup.
@@ -1636,33 +1636,27 @@ An element of Fr, in Montgomery form.
 
 ## Constant `CRYPTO_KZG_SCRATCH`
 
-- Value: 2097152.
-- The fixed part of the `size` of a `KzgScratch`.
+The fixed part of the `size` of a `KzgScratch`.
 
 ## Constant `CRYPTO_KZG_SCRATCH_PER_ENTRY`
 
-- Value: 8192.
-- The part of the `size` of a `KzgScratch` for each entry.
+The part of the `size` of a `KzgScratch` for each entry.
 
 ## Constant `CRYPTO_KZG_INVALID_COMMITMENT`
 
-- Value: 13.
-- A commitment breaks the rule of `KzgCommitment`.
+A commitment breaks the rule of `KzgCommitment`.
 
 ## Constant `CRYPTO_KZG_INVALID_PROOF`
 
-- Value: 14.
-- A proof breaks the rule of `KzgProof`.
+A proof breaks the rule of `KzgProof`.
 
 ## Constant `CRYPTO_KZG_LENGTH_MISMATCH`
 
-- Value: 15.
-- Input lists that must have one length do not.
+Input lists that must have one length do not.
 
 ## Constant `CRYPTO_KZG_INVALID_TRUSTED_SETUP`
 
-- Value: 21.
-- A list of the trusted setup has the wrong length, or one of its points does not decompress.
+A list of the trusted setup has the wrong length, or one of its points does not decompress.
 
 ## Test vectors
 

@@ -203,8 +203,7 @@ An HMAC-SHA-256 result.
 
 ## Constant `CRYPTO_HMAC_SCRATCH`
 
-- Value: 96.
-- The scratch size of `crypto_hmac_sha256` is this plus the message bytes: 8 for `size`, 24 for the inner header, 64 for K0 ^ ipad.
+The scratch size of `crypto_hmac_sha256` is this plus the message bytes: 8 for `size`, 24 for the inner header, 64 for K0 ^ ipad.
 
 ## Test vectors
 

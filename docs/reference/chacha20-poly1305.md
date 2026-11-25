@@ -140,8 +140,7 @@ crypto_chacha20_aead_decrypt(key, nonce, sealed, aad, plaintext) -> status
 
 ## Constant `CRYPTO_CHACHA20_POLY1305_FAIL`
 
-- Value: 6.
-- Status of `crypto_chacha20_aead_decrypt` when the tag does not match, or `sealed` is shorter than a tag.
+Status of `crypto_chacha20_aead_decrypt` when the tag does not match, or `sealed` is shorter than a tag.
 
 ## Test vectors
 

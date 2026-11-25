@@ -38,9 +38,12 @@
 
 ## Spec
 
-- Document: [SEC 2 version 2.0](https://www.secg.org/sec2-v2.pdf), January 2010. Section: 2.4.1, the curve secp256k1.
-- Document: [SEC 1 version 2.0](https://www.secg.org/sec1-v2.pdf), May 2009. Sections: 2.3.3 and 2.3.4 (point compression), 3.2.1 (public keys), 4.1.3 and 4.1.4 (ECDSA).
-- Document: [RFC 6979](https://www.rfc-editor.org/rfc/rfc6979), August 2013. Section: 3.2, with HMAC-SHA-256 and qlen = 256.
+- Document: [SEC 2 version 2.0](https://www.secg.org/sec2-v2.pdf), January 2010.
+- Section: 2.4.1, the curve secp256k1.
+- Document: [SEC 1 version 2.0](https://www.secg.org/sec1-v2.pdf), May 2009.
+- Section: 2.3.3 and 2.3.4 (point compression), 3.2.1 (public keys), 4.1.3 and 4.1.4 (ECDSA).
+- Document: [RFC 6979](https://www.rfc-editor.org/rfc/rfc6979), August 2013.
+- Section: 3.2, with HMAC-SHA-256 and qlen = 256.
 - Document: [discv5-theory.md](https://github.com/ethereum/devp2p/blob/88f1c80800d622cc3a542a2125bbe33cc18c9f9c/discv5/discv5-theory.md), the v4 identity scheme: `ecdh` and `id_sign`.
 - The signatures and checks match [libsecp256k1 v0.8.0](https://github.com/bitcoin-core/secp256k1/tree/6e2c8bc4ecdc6e71dbe7a368f360d8d453ce435d): the RFC 6979 input is the hash mod n, s is at most (n - 1) / 2, and a check rejects a larger s.
 
@@ -802,13 +805,11 @@ A modulus m with its Montgomery constants. The library holds the records for p a
 
 ## Constant `CRYPTO_INVALID_PRIVATE_KEY`
 
-- Value: 4.
-- Status when a private key is 0, or n or more, with n the order of the curve.
+Status when a private key is 0, or n or more, with n the order of the curve.
 
 ## Constant `CRYPTO_INVALID_PUBLIC_KEY`
 
-- Value: 5.
-- Status when a public key is not a valid point in the form the function takes: compressed for secp256k1, uncompressed for P-256.
+Status when a public key is not a valid point in the form the function takes: compressed for secp256k1, uncompressed for P-256.
 
 ## Test vectors
 

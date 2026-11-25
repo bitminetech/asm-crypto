@@ -169,13 +169,11 @@ The number of output bytes.
 
 ## Constant `CRYPTO_HKDF_LENGTH`
 
-- Value: 2.
-- Status of `crypto_hkdf_expand` when `length` is above 8160.
+Status of `crypto_hkdf_expand` when `length` is above 8160.
 
 ## Constant `CRYPTO_HKDF_EXPAND_SCRATCH`
 
-- Value: 129.
-- The scratch size of `crypto_hkdf_expand` is this plus the info bytes: 8 for `size`, 24 for the inner header, 64 for K0 ^ ipad, 32 for T(i - 1), 1 for i.
+The scratch size of `crypto_hkdf_expand` is this plus the info bytes: 8 for `size`, 24 for the inner header, 64 for K0 ^ ipad, 32 for T(i - 1), 1 for i.
 
 ## Test vectors
 

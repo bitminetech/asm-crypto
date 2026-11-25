@@ -31,7 +31,8 @@
 
 ## Spec
 
-- Document: [cryptography-specs v0.3.0](https://github.com/ethereum/cryptography-specs/blob/bb6dfe55198243682bc2eaf94611af2dbce1be6f/EthLib/Cryptography/Bls/HashToCurve.lean), commit `bb6dfe55198243682bc2eaf94611af2dbce1be6f`, `EthLib/Cryptography/Bls/HashToCurve.lean`, and `Exports/Bls.lean` (`expandMessageXmdExport`, `hashToG2Export`).
+- Document: [cryptography-specs v0.3.0](https://github.com/ethereum/cryptography-specs/blob/bb6dfe55198243682bc2eaf94611af2dbce1be6f/EthLib/Cryptography/Bls/HashToCurve.lean), commit `bb6dfe55198243682bc2eaf94611af2dbce1be6f`.
+- Section: `EthLib/Cryptography/Bls/HashToCurve.lean`, and `Exports/Bls.lean` (`expandMessageXmdExport`, `hashToG2Export`).
 - It follows [RFC 9380](https://www.rfc-editor.org/rfc/rfc9380), the suite `BLS12381G2_XMD:SHA-256_SSWU_RO_`: `expand_message_xmd` (section 5.3.1, with section 5.3.3 for a DST above 255 bytes), `hash_to_field` with count 2 and L = 64 (section 5.2), the simplified SWU map (section 6.6.2) onto the curve E2' with A' = 240 u, B' = 1012 (1 + u) and Z = -(2 + u), the 3-isogeny of appendix E.3, and the cofactor clearing of appendix G.3.
 - SHA-256 is `crypto_sha256` ([sha-256.md](sha-256.md)).
 
@@ -650,18 +651,15 @@ The workspace of the hash.
 
 ## Constant `CRYPTO_BLS_H2C_SCRATCH`
 
-- Value: 4096.
-- The fixed part of the `size` of an `H2cScratch`.
+The fixed part of the `size` of an `H2cScratch`.
 
 ## Constant `CRYPTO_BLS_XMD_LENGTH`
 
-- Value: 11.
-- `length` is above 255 * 32 = 8160 (RFC 9380 section 5.3.1, ell above 255).
+`length` is above 255 * 32 = 8160 (RFC 9380 section 5.3.1, ell above 255).
 
 ## Constant `CRYPTO_BLS_POINT_AT_INFINITY`
 
-- Value: 12.
-- The point is the point at infinity, which has no affine form.
+The point is the point at infinity, which has no affine form.
 
 ## Test vectors
 

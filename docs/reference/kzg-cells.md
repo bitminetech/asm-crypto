@@ -41,7 +41,7 @@
 ## Spec
 
 - Document: [cryptography-specs v0.3.0](https://github.com/ethereum/cryptography-specs/tree/bb6dfe55198243682bc2eaf94611af2dbce1be6f/EthLib/Cryptography/Kzg), commit `bb6dfe55198243682bc2eaf94611af2dbce1be6f`.
-- Files: `Cells.lean` and `Recovery.lean`, with `Fft.lean` and `Polynomials.lean`, and `Exports/Kzg.lean` (`computeVerifyCellKzgProofBatchChallengeExport`).
+- Section: `Cells.lean` and `Recovery.lean`, with `Fft.lean` and `Polynomials.lean`, and `Exports/Kzg.lean` (`computeVerifyCellKzgProofBatchChallengeExport`).
 - EIP-7594 adds these functions at the Fusaka fork. The blob functions, the trusted setup and the types they share are in [kzg.md](kzg.md).
 - The extended blob holds the values of the polynomial p of a blob at the 8192-th roots of unity, in bit-reversed order. Cell i holds values 64 i to 64 i + 63: the values on the coset h_i G, with G the subgroup of order 64 and h_i entry 64 i of the bit-reversed domain.
 - The proof of cell i is [q_i(s)], with q_i the quotient of p by X^64 - h_i^64.
@@ -899,28 +899,23 @@ The inputs of `crypto_kzg_cell_challenge`, by address.
 
 ## Constant `CRYPTO_KZG_CELL_INDEX`
 
-- Value: 16.
-- A cell index is 128 or more.
+A cell index is 128 or more.
 
 ## Constant `CRYPTO_KZG_COMMITMENT_INDEX`
 
-- Value: 17.
-- A commitment index is the number of commitments or more.
+A commitment index is the number of commitments or more.
 
 ## Constant `CRYPTO_KZG_INDICES_NOT_ASCENDING`
 
-- Value: 18.
-- The cell indices are not strictly ascending.
+The cell indices are not strictly ascending.
 
 ## Constant `CRYPTO_KZG_NOT_ENOUGH_CELLS`
 
-- Value: 19.
-- Fewer than 64 cells, half of an extended blob.
+Fewer than 64 cells, half of an extended blob.
 
 ## Constant `CRYPTO_KZG_TOO_MANY_CELLS`
 
-- Value: 20.
-- More than 128 cells.
+More than 128 cells.
 
 ## Test vectors
 

@@ -40,7 +40,8 @@
 
 ## Spec
 
-- Document: [cryptography-specs v0.3.0](https://github.com/ethereum/cryptography-specs/blob/bb6dfe55198243682bc2eaf94611af2dbce1be6f/EthLib/Cryptography/Bls/Signatures.lean), commit `bb6dfe55198243682bc2eaf94611af2dbce1be6f`, `EthLib/Cryptography/Bls/Signatures.lean`.
+- Document: [cryptography-specs v0.3.0](https://github.com/ethereum/cryptography-specs/blob/bb6dfe55198243682bc2eaf94611af2dbce1be6f/EthLib/Cryptography/Bls/Signatures.lean), commit `bb6dfe55198243682bc2eaf94611af2dbce1be6f`.
+- Section: `EthLib/Cryptography/Bls/Signatures.lean`.
 - It follows the proof of possession scheme of [draft-irtf-cfrg-bls-signature-04](https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-bls-signature-04), sections 2.3 to 2.8 and 3.3, with the ciphersuite `BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_`, and adds the Ethereum functions `ethAggregatePubkeys` and `ethFastAggregateVerify`.
 - DST: the 43 bytes `BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_`, the message tag of the ciphersuite.
 - The points, the pairing and the encodings are in [bls12-381.md](bls12-381.md); the hash to G2 is in [hash-to-curve.md](hash-to-curve.md).
@@ -984,18 +985,15 @@ The workspace of the hash to G2 and of the pairing.
 
 ## Constant `CRYPTO_BLS_SCRATCH`
 
-- Value: 8192.
-- The fixed part of the `size` of a `BlsScratch`.
+The fixed part of the `size` of a `BlsScratch`.
 
 ## Constant `CRYPTO_INVALID_SIGNATURE`
 
-- Value: 8.
-- A signature does not decompress to a point of the curve.
+A signature does not decompress to a point of the curve.
 
 ## Constant `CRYPTO_EMPTY_LIST`
 
-- Value: 9.
-- A list that needs at least one entry has none.
+A list that needs at least one entry has none.
 
 ## Test vectors
 
