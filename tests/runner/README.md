@@ -23,6 +23,7 @@ tests/runner/macos.sh ~/.cache/asm-crypto/vectors
 | `docker.sh` | Builds the Docker image, builds the library for all 7 targets into `build/`, and runs the vectors for Linux x86-64, ARM64 and RISC-V. ISAs other than the host's run under QEMU user mode. |
 | `macos.sh` | Links the runner on a Mac against the library that `docker.sh` built, and runs the vectors. |
 | `tick_tables.py` | Writes the tick table of each function into its document, from the results of every target. |
+| `heatmap.py` | Writes the verification heatmap into the README, from the tick tables |
 | `abi_x86_64.s`, `abi_arm64.s`, `abi_riscv64.s` | `abi_call`, through which the runner calls every library function. Test code in assembly. |
 
 Name vector files after the folder to run only those files, for example `tests/runner/docker.sh DIR cavp-short.bin`. With no names, every file runs, including the 1 to 8 GiB messages in `acvp-ldt.bin`.
@@ -73,3 +74,11 @@ The record that `abi_call` reads and writes:
 - An OS cell gets ✅ when the runner of that target printed `PASS`.
 - ARM64 `equal` gets ✅ when its checked receipt matches the current sources and artifacts and vectors pass on all three ARM64 OS builds. Other ISA proof cells remain empty.
 - On a push to `main`, CI commits the tables when they change.
+
+## Heatmap
+
+- CI runs `heatmap.py` after `tick_tables.py`.
+- Each function is one cell, linked to its entry in `docs/reference/`.
+- A cell's colour is the number of ISAs whose proof cells are all ✅.
+- The images go in `docs/heatmap/`. The README block sits between the two heatmap markers.
+- On a push to `main`, CI commits the heatmap with the tables.

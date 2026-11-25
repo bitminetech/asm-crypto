@@ -17,9 +17,50 @@ example : Crypto.Baseline.Stateless.Equal Crypto.ARM64.NativeRequirements.requir
 """
 
 
+HEATMAP_START = "<!-- CI generates the verification heatmap here. -->"
+HEATMAP_END = "<!-- End of the verification heatmap. -->"
+
+
+def heatmap_picture(name, alt, title=None):
+    """The exact picture element that tests/runner/heatmap.py writes."""
+    extra = ' title="' + title + '"' if title is not None else ""
+    return (r'<picture><source media="\(prefers-color-scheme: dark\)" srcset="docs/heatmap/' +
+            name + r'-dark\.svg"><img src="docs/heatmap/' + name + r'-light\.svg" alt="' +
+            alt + '"' + extra + r'></picture>')
+
+
+def heatmap_pattern():
+    section, function = r"[a-z0-9-]+", r"[A-Za-z0-9_]+"
+    level = r"(?:Not proved|Proved on 1 ISA|2 ISAs|All 3 ISAs)"
+    label = ("(?:" + heatmap_picture("label-" + section, section) + "|" +
+             heatmap_picture("label", "") + ")")
+    cell = ('<a href="docs/reference/' + section + r'\.md#function-' + function + '">' +
+            heatmap_picture("cell-[0-3]", function, function + ": " + level) + "</a>")
+    row = label + "(?:" + cell + ")+"
+    body = (r"<table><tr><td>\n\n" +
+            heatmap_picture("header", r"asm-crypto formal verification: [0-9]+ of [0-9]+ functions proved") +
+            r"\n\n" + row + r"(?:<br>\n" + row + r")*\n\n" + heatmap_picture("legend", "Legend") +
+            r"\n\n</td></tr></table>\n")
+    return re.compile("(?:" + body + ")?")
+
+
 def source_digest(root, path):
     """Pin requirements while excluding only strictly recognized CI tables."""
     data = path.read_bytes()
+    if path.relative_to(root).as_posix() == "README.md":
+        text = data.decode("utf-8")
+        if text.count(HEATMAP_START) > 1 or text.count(HEATMAP_END) > 1:
+            raise ValueError("README must have at most one generated heatmap")
+        start, end = text.find(HEATMAP_START), text.find(HEATMAP_END)
+        if start >= 0 or end >= 0:
+            if start < 0 or end < start:
+                raise ValueError("README heatmap markers are out of order")
+            body = text[start + len(HEATMAP_START) + 1:end]
+            if text[start + len(HEATMAP_START)] != "\n" or heatmap_pattern().fullmatch(body) is None:
+                raise ValueError("unrecognized generated heatmap content; refusing to omit it from the pin")
+            text = (text[:start] + "<!-- generated verification heatmap -->" +
+                    text[end + len(HEATMAP_END):])
+            data = text.encode("utf-8")
     if path.relative_to(root).as_posix() == "docs/reference/sha-256.md":
         text = data.decode("utf-8")
         match = re.search(r"^## Results\n(.*?)(?=^## |\Z)", text, re.M | re.S)

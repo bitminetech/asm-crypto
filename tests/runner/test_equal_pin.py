@@ -168,6 +168,49 @@ class ResultNormalizationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "unrecognized"):
                 pin.source_digest(root, path)
 
+    def test_generated_heatmap_only_is_ignored(self):
+        start = "<!-- CI generates the verification heatmap here. -->"
+        end = "<!-- End of the verification heatmap. -->"
+
+        def picture(name, alt, title=None):
+            extra = f' title="{title}"' if title else ""
+            return (f'<picture><source media="(prefers-color-scheme: dark)" '
+                    f'srcset="docs/heatmap/{name}-dark.svg"><img src="docs/heatmap/{name}-light.svg" '
+                    f'alt="{alt}"{extra}></picture>')
+
+        def cell(level, text):
+            return ('<a href="docs/reference/sha-256.md#function-crypto_sha256">' +
+                    picture(f"cell-{level}", "crypto_sha256", f"crypto_sha256: {text}") + "</a>")
+
+        def heatmap(level, text):
+            return (start + "\n<table><tr><td>\n\n" +
+                    picture("header", f"asm-crypto formal verification: {min(level, 1)} of 1 functions proved") +
+                    "\n\n" + picture("label-sha-256", "sha-256") + cell(level, text) + "<br>\n" +
+                    picture("label", "") + cell(level, text) + "\n\n" + picture("legend", "Legend") +
+                    "\n\n</td></tr></table>\n" + end)
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            path = root / "README.md"
+            before, after = "# asm-crypto\n\nStandard: pinned.\n\n", "\n\n## Reference\n"
+            path.write_text(before + start + "\n" + end + after)
+            initial = pin.source_digest(root, path)
+            path.write_text(before + heatmap(0, "Not proved") + after)
+            self.assertEqual(initial, pin.source_digest(root, path))
+            path.write_text(before + heatmap(1, "Proved on 1 ISA") + after)
+            self.assertEqual(initial, pin.source_digest(root, path))
+            path.write_text(before + heatmap(1, "Proved on 1 ISA") + after.replace("Reference", "Assumptions"))
+            self.assertNotEqual(initial, pin.source_digest(root, path))
+            path.write_text(before + heatmap(1, "Proved on 1 ISA").replace("<br>\n", "<br>\nHidden assumption.\n") + after)
+            with self.assertRaisesRegex(ValueError, "unrecognized"):
+                pin.source_digest(root, path)
+            path.write_text(before + heatmap(1, "Proved by fiat") + after)
+            with self.assertRaisesRegex(ValueError, "unrecognized"):
+                pin.source_digest(root, path)
+            path.write_text(before + heatmap(1, "Proved on 1 ISA") + heatmap(1, "Proved on 1 ISA") + after)
+            with self.assertRaisesRegex(ValueError, "at most one"):
+                pin.source_digest(root, path)
+
 
 if __name__ == "__main__":
     unittest.main()
