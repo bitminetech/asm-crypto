@@ -554,7 +554,7 @@ crypto_kzg_fr_mul(result, a, b) -> nothing
 
 ### Limits
 
-- Stack of its own: 48 bytes on x86-64 (return address included), none on ARM64, 80 bytes on RISC-V.
+- Stack of its own: 48 bytes on x86-64 (return address included), 0 bytes on ARM64, 80 bytes on RISC-V.
 
 ### ABI
 
@@ -593,7 +593,7 @@ crypto_kzg_fr_add(result, a, b) -> nothing
 
 ### Limits
 
-- Stack of its own: 8 bytes on x86-64, its return address, and none on ARM64 and RISC-V.
+- Stack of its own: 8 bytes on x86-64 (the return address), 0 bytes on ARM64 and RISC-V.
 
 ### ABI
 
@@ -632,7 +632,7 @@ crypto_kzg_fr_sub(result, a, b) -> nothing
 
 ### Limits
 
-- Stack of its own: 8 bytes on x86-64, its return address, and none on ARM64 and RISC-V.
+- Stack of its own: 8 bytes on x86-64 (the return address), 0 bytes on ARM64 and RISC-V.
 
 ### ABI
 
@@ -670,7 +670,7 @@ crypto_kzg_fr_neg(result, a) -> nothing
 
 ### Limits
 
-- Stack of its own: 8 bytes on x86-64, its return address, and none on ARM64 and RISC-V.
+- Stack of its own: 8 bytes on x86-64 (the return address), 0 bytes on ARM64 and RISC-V.
 
 ### ABI
 
@@ -1022,7 +1022,7 @@ crypto_kzg_bit_reversal(array, n, size) -> nothing
 
 ### Limits
 
-- Stack of its own: 64 bytes on x86-64 (return address included), none on ARM64, none on RISC-V.
+- Stack of its own: 64 bytes on x86-64 (return address included), 0 bytes on ARM64 and RISC-V.
 
 ### ABI
 

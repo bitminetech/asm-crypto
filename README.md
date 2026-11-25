@@ -4,7 +4,7 @@ Cryptographic primitives for Ethereum, in assembly.
 
 SHA-256 for SSZ; the primitives of discv5 and ENR: Keccak-256, HMAC and HKDF with SHA-256, AES-128 in CTR and GCM, and secp256k1; the primitives of libp2p: X25519, ChaCha20-Poly1305 (with Poly1305 on its own), P-256 (ECDSA and ECDH), SHA-512 and Ed25519; and for the consensus layer, the BLS signatures on BLS12-381, with hash to G2, and the KZG commitments of blobs and cells.
 
-Standard: [asm-standard@0f759f6](https://github.com/bitminetech/asm-standard/blob/0f759f6ffdcd330eac55a03ca94605118a1eed14/ARCHITECTURE.md)
+Standard: [asm-standard@185917b](https://github.com/bitminetech/asm-standard/blob/185917bedc54ff034e40069318add463c58f4db8/ARCHITECTURE.md)
 
 <!-- CI generates the verification heatmap here. -->
 <table><tr><td>

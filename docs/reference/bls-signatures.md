@@ -575,7 +575,7 @@ crypto_bls_secret_key(scalar, secret_key) -> status
 
 ### Limits
 
-- Stack of its own: 8 bytes on x86-64, its return address, and none on ARM64 and RISC-V.
+- Stack of its own: 8 bytes on x86-64 (the return address), 0 bytes on ARM64 and RISC-V.
 
 ### ABI
 

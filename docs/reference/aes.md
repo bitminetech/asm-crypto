@@ -136,7 +136,7 @@ crypto_aes128_bitslice(blocks, inverse) -> nothing
 
 ### Limits
 
-- Stack of its own: 40 bytes on x86-64 (return address included), none on ARM64, 16 bytes on RISC-V.
+- Stack of its own: 40 bytes on x86-64 (return address included), 0 bytes on ARM64, 16 bytes on RISC-V.
 
 ### ABI
 

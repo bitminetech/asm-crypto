@@ -566,7 +566,7 @@ crypto_secp256k1_mod_mul(result, a, b, modulus) -> nothing
 
 ### Limits
 
-- Stack of its own: 56 bytes on x86-64 (return address included), none on ARM64, 32 bytes on RISC-V.
+- Stack of its own: 56 bytes on x86-64 (return address included), 0 bytes on ARM64, 32 bytes on RISC-V.
 
 ### ABI
 
@@ -609,7 +609,7 @@ crypto_secp256k1_mod_add(result, a, b, modulus) -> nothing
 
 ### Limits
 
-- Stack of its own: 8 bytes on x86-64, its return address, and none on ARM64 and RISC-V.
+- Stack of its own: 8 bytes on x86-64 (the return address), 0 bytes on ARM64 and RISC-V.
 
 ### ABI
 
@@ -652,7 +652,7 @@ crypto_secp256k1_mod_sub(result, a, b, modulus) -> nothing
 
 ### Limits
 
-- Stack of its own: 8 bytes on x86-64, its return address, and none on ARM64 and RISC-V.
+- Stack of its own: 8 bytes on x86-64 (the return address), 0 bytes on ARM64 and RISC-V.
 
 ### ABI
 
