@@ -118,3 +118,8 @@ import Proofs.ARM64.ImportedScheduledReturn
 import Proofs.ARM64.ImportedScheduledTiming
 import Proofs.ARM64.NativeEqual
 import Proofs.ARM64.NativeStatement
+import Proofs.X86_64.Disclosure
+import Proofs.X86_64.SerialContract
+import Proofs.X86_64.NativeEqual
+import Proofs.X86_64.NativePlatform
+import Proofs.X86_64.StackAccess

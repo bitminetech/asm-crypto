@@ -1,6 +1,6 @@
 # GitHub loads workflow_run definitions from the default branch. Candidate PRs
 # cannot replace this bootstrap before their source pin has been checked.
-name: ARM64 SHA-256 external pin
+name: SHA-256 external pins
 
 on:
   workflow_run:
@@ -86,8 +86,21 @@ jobs:
           python3 -I trusted/tests/runner/check_arm64_equal_bootstrap.py \
             --candidate candidate --evidence proof-checks --build build \
             --output checked/checked-equal.json
-      - name: Publish checked technical receipt
+      - name: Publish ARM64 technical receipt
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: arm64-equal-checked
           path: checked/checked-equal.json
+      - name: Validate x86-64 external pin before importing candidate validators
+        env:
+          EXPECTED_MANIFEST_B64: ${{ vars.X86_64_SHA256_EXPECTED_MANIFEST_B64 }}
+          EXPECTED_MANIFEST_SHA256: ${{ vars.X86_64_SHA256_EXPECTED_MANIFEST_SHA256 }}
+        run: |
+          python3 -I trusted/tests/runner/check_x86_64_equal_bootstrap.py \
+            --candidate candidate --evidence proof-checks --build build \
+            --output checked/checked-equal-x86_64.json
+      - name: Publish x86-64 technical receipt
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: x86-64-equal-checked
+          path: checked/checked-equal-x86_64.json

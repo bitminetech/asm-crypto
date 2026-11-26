@@ -130,5 +130,40 @@ class ReceiptTests(unittest.TestCase):
             self.assertFalse(tick.checked_equal(self.path, self.build, self.root))
 
 
+class X86ReceiptTests(unittest.TestCase):
+    def test_requires_current_receipt_and_all_three_native_results(self):
+        from check_x86_64_equal_pin import EXPECTED, TARGETS, THEOREM
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            commit = "3" * 40
+            source = root / "NativeEqual.lean"
+            source.write_text("-- synthetic test input\n")
+            artifacts = [{"target": target} for target in TARGETS]
+            receipt = {"schema": 1, "function": "crypto_sha256", "proof_id": "equal", "isa": "x86_64",
+                       "theorem": THEOREM, "checked": True, "targets": TARGETS, "git_commit": commit,
+                       "supporting_checks": "passed", "kernel_replay": "fresh kernel; successful exit",
+                       "statement_comparison": "passed", "expected_manifest_sha256": "4" * 64,
+                       "expected_statement_sha256": digest(EXPECTED.encode()), "artifacts": artifacts,
+                       "source_sha256": {source.name: digest(source.read_bytes())}}
+            receipt_path = root / "checked-equal-x86_64.json"
+            receipt_path.write_text(json.dumps(receipt))
+            with (patch.object(tick.subprocess, "check_output", return_value=commit),
+                  patch("check_x86_64_equal_pin.source_paths", return_value=[source]),
+                  patch("check_x86_64_equal_pin.check_artifacts", return_value=artifacts)):
+                self.assertTrue(tick.checked_x86_equal(receipt_path, root, root))
+                source.write_text("-- different source\n")
+                with patch.object(tick, "print"):
+                    self.assertFalse(tick.checked_x86_equal(receipt_path, root, root))
+            for target in TARGETS:
+                (root / f"results-{target}.txt").write_text("FUNCTION crypto_sha256 PASS\n")
+            graphs = {isa: {} for isa, _ in tick.ISAS}
+            table = tick.table("crypto_sha256", "L2", root, graphs, {}, x86_equal_checked=True)
+            self.assertIn("| x86-64 | ✅ | ✅ | ✅ | ✅ |", table)
+            self.assertIn("| ARM64 |  |  |  |  |", table)
+            (root / "results-windows-x86_64.txt").unlink()
+            table = tick.table("crypto_sha256", "L2", root, graphs, {}, x86_equal_checked=True)
+            self.assertIn("| x86-64 | ✅ |  | ✅ |  |", table)
+
+
 if __name__ == "__main__":
     unittest.main()

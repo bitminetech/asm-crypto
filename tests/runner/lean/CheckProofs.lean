@@ -1,7 +1,7 @@
 import Proofs
 import Lean.Util.CollectAxioms
 
-/-! Type checks and axiom audits for the registered reference and ARM64 theorems.
+/-! Type checks and axiom audits for the registered reference, ARM64 and x86-64 theorems.
 CI combines this audit with fresh kernel replay, the external statement pin
 and exact artifact checks. -/
 
@@ -21,6 +21,12 @@ example (s : Crypto.ARM64.Round.State) :
 example : Crypto.Baseline.Stateless.Equal Crypto.ARM64.NativeRequirements.requirements :=
   Crypto.ARM64.sha256.equal
 
+open Crypto.X86_64 in
+example (base : X86.Val) (s : X86.Cpu) (msg : Crypto.Reference.ByteList) (extent : Nat)
+    (entry : CallerEntry base s msg extent) :
+    ∃ out, returnAt base (callSteps msg.bytes.size) s = some out ∧ CallResult s out msg :=
+  sha256_serial base s msg extent entry
+
 open Lean Elab Command in
 run_cmd do
   let names := #[
@@ -36,6 +42,59 @@ run_cmd do
     ``Crypto.Reference.repeated_block_byte,
     ``Crypto.Reference.repeated_block_words,
     ``Crypto.Reference.repeatedAlignedDigest_eq_reference,
+    ``Crypto.X86_64.closed_control_flow,
+    ``Crypto.X86_64.image_constants,
+    ``Crypto.X86_64.expansion_loaded,
+    ``Crypto.X86_64.round_loaded,
+    ``Crypto.X86_64.count_exit,
+    ``Crypto.X86_64.hash_loaded,
+    ``Crypto.X86_64.schedule_loaded,
+    ``Crypto.X86_64.rounds_compress,
+    ``Crypto.X86_64.block_loaded,
+    ``Crypto.X86_64.sha256_serial,
+    ``Crypto.X86_64.sha256.equal,
+    ``Crypto.X86_64.sha256_data_within,
+    ``Crypto.X86_64.sha256_native_serial,
+    ``Crypto.X86_64.sha256_direct_stack_authorized,
+    ``Crypto.X86_64.sha256_scheduled,
+    ``Crypto.X86_64.compatible_call_step,
+    ``Crypto.X86_64.BackedSchedule.preserves_lifetime,
+    ``Crypto.X86_64.BackedSchedule.no_backing_race,
+    ``Crypto.X86_64.sha256_native_platform,
+    ``Crypto.X86_64.scheduled_cost_equal,
+    ``Crypto.X86_64.sha256_serial_contract,
+    ``Crypto.X86_64.sha256_instruction_boundaries,
+    ``Crypto.X86_64.sha256_stack_bound,
+    ``Crypto.X86_64.sha256_execution,
+    ``Crypto.X86_64.Execution.fetch_authorized,
+    ``Crypto.X86_64.sha256_platform_frame,
+    ``Crypto.X86_64.sha256_unit_cost,
+    ``Crypto.X86_64.sha256_operand_trace,
+    ``Crypto.X86_64.word_operand_trace,
+    ``Crypto.X86_64.compression_word_traces,
+    ``Crypto.X86_64.compression_word_bounds,
+    ``Crypto.X86_64.sha256_disclosures,
+    ``Crypto.X86_64.preparation_loaded,
+    ``Crypto.X86_64.body_return,
+    ``Crypto.X86_64.header_loaded,
+    ``Crypto.X86_64.zero_padding_loaded,
+    ``Crypto.X86_64.length_setup_loaded,
+    ``Crypto.X86_64.initial_hash_loaded,
+    ``Crypto.X86_64.hash_phases_loaded,
+    ``Crypto.X86_64.prepared_return,
+    ``Crypto.X86_64.block_cycle,
+    ``Crypto.X86_64.phase_loaded,
+    ``Crypto.X86_64.folds_reference,
+    ``Crypto.X86_64.switch_loaded,
+    ``Crypto.X86_64.digest_return_loaded,
+    ``Crypto.X86_64.digest_loaded,
+    ``Crypto.X86_64.blocks_test,
+    ``Crypto.X86_64.phase_test,
+    ``Crypto.X86_64.advance_loaded,
+    ``Crypto.X86_64.entry_loaded,
+    ``Crypto.X86_64.return_loaded,
+    ``Crypto.X86_64.read64_write64,
+    ``Crypto.X86_64.byteView_write32,
     ``Crypto.ARM64.image_round_constants,
     ``Crypto.ARM64.image_initial_hash,
     ``Crypto.ARM64.Round.ch_or_eq_xor,

@@ -20,6 +20,46 @@
   },
   "supporting_claims": [
     {
+      "claim": "The scalar x86-64 entry terminates at its first RET with the FIPS-reference digest, zero status and the caller’s saved registers restored.",
+      "scope": "Baseline Linux, Windows and macOS archive members, serial execution under CallerEntry. Exact public-length instruction count and a final memory frame outside the 32-byte output and 512-byte stack. The upstream data memory is total. All executed instruction boundaries and the exact RSP at each, including the maximum 504-byte allocation below entry RSP and the original eight-byte return slot.",
+      "theorems": [
+        "Crypto.X86_64.sha256_serial_contract",
+        "Crypto.X86_64.sha256_serial"
+      ]
+    },
+    {
+      "claim": "Every fetched byte is within the executable prefix. The serial execution uses only scalar leaf instructions and preserves the direction flag, FS/GS bases, vector, MXCSR and modeled MMX/x87 state.",
+      "theorems": [
+        "Crypto.X86_64.sha256_execution",
+        "Crypto.X86_64.Execution.fetch_authorized",
+        "Crypto.X86_64.sha256_platform_frame"
+      ],
+      "scope": "Fetched upstream x86 instructions through first RET. Hardware correspondence and omitted platform state are outside the model."
+    },
+    {
+      "claim": "Equal released digests and public pre-call bytes imply equal serial return observations outside the private stack and used payload.",
+      "theorem": "Crypto.X86_64.sha256_disclosures",
+      "scope": "Two serial baseline x86-64 calls, arbitrary initial digest, stack and payload bytes. Includes return status, PC and stack pointer."
+    },
+    {
+      "claim": "For any two serial calls with equal public length, their first-return instruction counts agree.",
+      "theorem": "Crypto.X86_64.sha256_unit_cost",
+      "scope": "One unit per executed instruction, including RET. Physical timing and costs varying by address or instruction are outside this count."
+    },
+    {
+      "claim": "The input-word, schedule-expansion and round bodies have equal instruction and operand address traces for equal public bases and index. For valid iteration indices every dword fits its designated table.",
+      "theorems": [
+        "Crypto.X86_64.compression_word_traces",
+        "Crypto.X86_64.compression_word_bounds"
+      ],
+      "scope": "Each body starts from a live x86 state. Bounds cover the current 64-byte source block, 256-byte schedule and 256-byte round constants."
+    },
+    {
+      "claim": "The scalar x86-64 block path computes FIPS SHA-256 compression from sixteen big-endian words read from memory.",
+      "theorem": "Crypto.X86_64.block_loaded",
+      "scope": "3,969 fetched instructions from image offset 0x16d through feed-forward. Includes a memory frame outside the 288-byte workspace."
+    },
+    {
       "claim": "The portable reference result matches the imported bit-oriented FIPS transcription.",
       "theorem": "Crypto.Reference.sha256_matches_fips",
       "scope": "Lean values only; message length below 2^61 bytes; no assembly execution"
@@ -725,7 +765,7 @@
     "remaining": [
       "Each build must match the external expected-statement/semantic-closure pin and pass all recorded CI checks; deployment and caller/profile assumptions remain explicit."
     ],
-    "scope": "ARM64 crypto_sha256 only. x86-64/RISC-V have no equal claim in this work. Final consuming-application loading/unwind registration and caller premise discharge are outside this isolated library entry theorem.",
+    "scope": "ARM64 crypto_sha256 only. The scalar x86-64 candidate is recorded under x86_64_isa_model. RISC-V has no equal claim. Final consuming-application loading/unwind registration and caller premise discharge are outside this isolated library entry theorem.",
     "candidate": {
       "theorem": "Crypto.ARM64.sha256.equal",
       "expected_statement": "lean/Proofs/ARM64/NativeStatement.lean:Crypto.ARM64.NativeRequirements.requirements",
@@ -783,5 +823,38 @@
     "program": "Crypto.ARM64.Imported.program",
     "hooks": "none; supervisor calls fail closed",
     "scope": "Single-thread EL0 user-mode instruction semantics. Upstream Linux process/loading guarantees do not cover macOS/Windows or concurrent executions."
+  },
+  "x86_64_isa_model": {
+    "repository": "https://github.com/jyh/x86lean",
+    "commit": "2a32a6ec0b5ddfe625f3720ac647082830390917",
+    "license": "Apache-2.0",
+    "semantics": "X86.step",
+    "decoder": "lean/Models/X86SHA256Decode.lean",
+    "image": "lean/Models/X86SHA256Image.lean",
+    "artifact_check": "tests/runner/check_x86_sha256_artifacts.py",
+    "profile": "Scalar baseline with the System V AMD64 core convention. ISA/hardware correspondence and runtime linking/loading are trusted.",
+    "equal_status": "registered; CI checks the external pin and build evidence",
+    "upstream_toolchain": "leanprover/lean4:v4.32.0-rc1",
+    "checked_local_toolchain": "leanprover/lean4:v4.29.1",
+    "equal_claim": {
+      "theorem": "Crypto.X86_64.sha256.equal",
+      "expected_statement": "lean/Proofs/X86_64/NativeEqual.lean:Crypto.X86_64.NativeRequirements.requirements",
+      "baseline": "lean/Proofs/StatelessBaseline.lean:Crypto.Baseline.Stateless.Equal",
+      "profiles": [
+        "linux-x86_64",
+        "macos-x86_64",
+        "windows-x86_64"
+      ],
+      "boundary": "Scalar System V AMD64 core entry with exclusive stack reservation through first RET. OS resumption restores the current thread context. Actual aliases and access events are established at the environment boundary.",
+      "review_profile": "docs/models/x86-64-sha256.md",
+      "artifact_evidence": "build/verification/x86-sha256-artifacts.json",
+      "review_generator": "tests/runner/prepare_x86_64_equal_review.py",
+      "independent_expected_statement_pin": {
+        "manifest_variable": "X86_64_SHA256_EXPECTED_MANIFEST_B64",
+        "sha256_variable": "X86_64_SHA256_EXPECTED_MANIFEST_SHA256",
+        "trusted_default_branch_bootstrap": ".github/workflows/arm64-equal-pin.yml"
+      },
+      "checked_targets_evidence": "build/verification/checked-equal-x86_64.json"
+    }
   }
 }

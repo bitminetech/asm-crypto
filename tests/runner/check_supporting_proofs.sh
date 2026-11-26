@@ -1,5 +1,5 @@
 #!/bin/sh
-# Check the reference and ARM64 proofs, axioms, fresh kernel replay, vectors
+# Check the reference, ARM64 and x86-64 proofs, axioms, fresh kernel replay, vectors
 # and artifacts. CI then checks the external statement pin and issues the
 # checked receipt. Run with pinned Lean 4.29.1 after dependency/cache setup.
 set -eu
@@ -22,6 +22,8 @@ python3 -I tests/runner/test_equal_pin.py
 lake env leanchecker --fresh Proofs > build/verification/kernel.log 2>&1
 python3 -I tests/runner/check_arm64_artifacts.py > build/verification/arm64-artifacts.json
 python3 -I tests/runner/test_arm64_artifacts.py
+python3 -I tests/runner/check_x86_sha256_artifacts.py > build/verification/x86-sha256-artifacts.json
+python3 -I tests/runner/test_x86_sha256_artifacts.py
 .lake/build/bin/reference-vectors \
     "$vectors/cavp-short.bin" "$vectors/cavp-long.bin" "$vectors/boundary.bin" \
     "$vectors/acvp-aft.bin" "$vectors/cavp-monte.bin" "$vectors/acvp-mct.bin" \

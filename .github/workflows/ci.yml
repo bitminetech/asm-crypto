@@ -13,8 +13,7 @@ permissions:
 
 jobs:
   supporting-proofs:
-    # Supporting checks precede the externally pinned ARM64 SHA-256 equal gate.
-    # Its technical receipt covers only the three recorded ARM64 library builds.
+    # Each SHA-256 receipt is bound to its external pin and three library builds.
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -68,6 +67,24 @@ jobs:
           PYTHON
           python3 -I tests/runner/check_arm64_equal_pin.py \
             --trusted-manifest "$RUNNER_TEMP/arm64-sha256-expected.json" \
+            --trusted-sha256 "$EXPECTED_MANIFEST_SHA256"
+      - name: Check externally pinned x86-64 SHA-256 equal
+        env:
+          EXPECTED_MANIFEST_B64: ${{ vars.X86_64_SHA256_EXPECTED_MANIFEST_B64 }}
+          EXPECTED_MANIFEST_SHA256: ${{ vars.X86_64_SHA256_EXPECTED_MANIFEST_SHA256 }}
+        run: |
+          python3 -I - <<'PYTHON'
+          import base64
+          import os
+          from pathlib import Path
+          encoded = os.environ["EXPECTED_MANIFEST_B64"]
+          if not encoded or not os.environ["EXPECTED_MANIFEST_SHA256"]:
+              raise SystemExit("Externally selected x86-64 SHA-256 manifest and hash are required")
+          manifest = Path(os.environ["RUNNER_TEMP"]) / "x86-64-sha256-expected.json"
+          manifest.write_bytes(base64.b64decode(encoded, validate=True))
+          PYTHON
+          python3 -I tests/runner/check_x86_64_equal_pin.py \
+            --trusted-manifest "$RUNNER_TEMP/x86-64-sha256-expected.json" \
             --trusted-sha256 "$EXPECTED_MANIFEST_SHA256"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         if: always()
@@ -236,11 +253,16 @@ jobs:
         env:
           SUPPORTING_PROOFS_RESULT: ${{ needs.supporting-proofs.result }}
         run: |
-          if [ "$SUPPORTING_PROOFS_RESULT" = success ] && [ -f proof-checks/checked-equal.json ]; then
-            python3 -I tests/runner/tick_tables.py results build proof-checks/checked-equal.json
-          else
-            python3 -I tests/runner/tick_tables.py results build
+          args=(results build)
+          if [ "$SUPPORTING_PROOFS_RESULT" = success ]; then
+            if [ -f proof-checks/checked-equal.json ]; then
+              args+=(proof-checks/checked-equal.json)
+            fi
+            if [ -f proof-checks/checked-equal-x86_64.json ]; then
+              args+=(--x86-equal-receipt proof-checks/checked-equal-x86_64.json)
+            fi
           fi
+          python3 -I tests/runner/tick_tables.py "${args[@]}"
       - name: Write the verification heatmap
         run: python3 -I tests/runner/heatmap.py
       - name: Commit the tick tables

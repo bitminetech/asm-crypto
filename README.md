@@ -131,6 +131,7 @@ Standard: [asm-standard@185917b](https://github.com/bitminetech/asm-standard/blo
 | Lean | 4.29.1, pinned in [lean-toolchain](lean-toolchain) |
 | Imported proofs | [fips-180-4-lean@6b92c77](https://github.com/remix7531/fips-180-4-lean/tree/6b92c7746afc797a1741ff985e04bbc311db7d89), GPL-3.0-or-later |
 | ARM64 ISA | [code-verification@b0f729a](https://github.com/google-deepmind/code-verification/tree/b0f729accbc21a0413e7ca4e1da43fa45b5f2e1b/arm64-semantics/Arm64/Trusted/ISA), Apache-2.0; pinned submodule at [lean/Imports/arm64](lean/Imports/arm64), unchanged ISA source imported by the `ImportedARM64` library |
+| x86-64 ISA | [x86lean@2a32a6e](https://github.com/jyh/x86lean/tree/2a32a6ec0b5ddfe625f3720ac647082830390917), Apache-2.0, imported by the [scalar SHA-256 model](docs/models/x86-64-sha256.md) |
 | Transitive dependencies | Exact commits in [lake-manifest.json](lake-manifest.json) |
 | Imported ARM64 model | [docs/models/arm64-imported.md](docs/models/arm64-imported.md) |
 | ARM64 native proof profile | [docs/models/arm64-sha256-native-profile.md](docs/models/arm64-sha256-native-profile.md) |
