@@ -128,12 +128,13 @@ def source_digest(root, path):
 
 
 def source_paths(root):
-    for directory in ("tests", "platform", ".github"):
+    for directory in ("tests", "platform", ".github", "lean/Imports/ethlib"):
         if any(p.is_symlink() for p in (root / directory).rglob("*")):
             raise ValueError("source symlinks are not admitted in " + directory)
     return sorted(
         [p for p in (root / "lean").rglob("*.lean")
          if "Imports" not in p.relative_to(root / "lean").parts]
+        + [p for p in (root / "lean/Imports/ethlib").rglob("*") if p.is_file()]
         + list((root / "include").rglob("*.inc"))
         + list((root / "asm/core/arm64").rglob("*.s"))
         + [p for p in (root / "tests/runner").rglob("*.py") if "__pycache__" not in p.parts]

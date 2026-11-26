@@ -167,7 +167,7 @@ theorem sha256_framed (base : BitVec 64) (s : Arm64.State) (data : ByteArray) (f
       CallFrame.FramedReturn base (512 + 4000 * ((data.size + 8) / 64 + 1)) ⟨s, fpcr⟩ after ∧
       ModeledCPUABI s after.cpu ∧ after.fpcr = fpcr ∧
       after.cpu.pc = s.readReg64 .x30 ∧ after.cpu.readReg64 .x0 = 0#64 ∧ after.cpu.status = .Running ∧
-      memoryBytes32 after.cpu.mem (s.readReg64 .x1) = (SHS.SHA256.Impl.sha256 data).map UInt8.toBitVec := by
+      memoryBytes32 after.cpu.mem (s.readReg64 .x1) = (Crypto.Reference.digest data).map UInt8.toBitVec := by
   obtain ⟨out, returned, steps, state, nv, sp, pc, zero, running, digest, frame, access, observations, observed⟩ :=
     sha256_fetched base s data entry
   have erased := runWordsObserved_erases (wholeCallCode (BitVec.ofNat 64 data.size)) s

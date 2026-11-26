@@ -5,8 +5,7 @@ namespace Crypto.RISCV64
 
 open Crypto.ARM64.Imported (memoryBlock memoryBlock_reference memoryBytes64 reverseWord_bytes
   lengthOffset paddingBlockCount paddingBlockCount_bytes paddedSpecBlock)
-open SHS.Equiv.SHA256.Lift (toSpecBlock)
-open SHS.Equiv.SHA256.Padding.Layout (paddedBlock paddedBlock_complete implPaddedBytes)
+open Crypto.Reference.ByteLayout (paddedBlock paddedBlock_complete implPaddedBytes)
 
 theorem blockWords_memoryBlock (m : Memory) (base : Addr) :
     blockWords m base = memoryBlock m base := by
@@ -20,7 +19,7 @@ private theorem blockWords_bytes (m : Memory) (base : Addr) (data : ByteArray) (
     (bytes : memoryBytes64 m base = paddedBlock data i) :
     blockWords m base = paddedSpecBlock data i :=
   (blockWords_memoryBlock m base).trans <| (memoryBlock_reference m base).trans <|
-    congrArg (fun b => toSpecBlock (SHS.SHA256.Impl.toU32s b)) bytes
+    congrArg (fun b => Crypto.Reference.WordModel.blockWords b) bytes
 
 theorem complete_block_bytes (m : Memory) (base : Addr) (data : ByteArray)
     (input : ∀ i : Fin data.size, m.read8 (base + BitVec.ofNat 64 i.val) = (data.get! i.val).toBitVec)

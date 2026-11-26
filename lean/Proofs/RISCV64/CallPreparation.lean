@@ -6,7 +6,7 @@ import Proofs.ARM64.ImportedReferenceLayout
 namespace Crypto.RISCV64
 
 open Crypto.ARM64.Imported (lengthOffset lengthOffset_bounds paddingBlockCount region_store_delta wordVector)
-open SHS.Equiv.SHA256.Padding.Layout (implPaddedBytes)
+open Crypto.Reference.ByteLayout (implPaddedBytes)
 
 private theorem marker_keeps (n : Nat) (r : Reg)
     (yes : (markerCode 0).all (fun i => i.op.destination != some r) = true)
@@ -110,7 +110,7 @@ theorem prepare_padding (base : Addr) (s start : CPU) (data : ByteArray)
       copyCells p (by rw [input.pad]; exact Nat.le_trans (by omega : rem ≤ 128) hp)))
 
 private theorem loaded_initial_words (base : Addr) (m : Memory) (loaded : ImageLoaded base m) :
-    wordVector 8 m (base + BitVec.ofNat 64 initialHashOffset) = SHS.SHA256.H0_256 := by
+    wordVector 8 m (base + BitVec.ofNat 64 initialHashOffset) = Crypto.Reference.WordModel.H0_256 := by
   apply Vector.ext
   intro i hi
   simp only [wordVector, Vector.getElem_ofFn]
@@ -133,7 +133,7 @@ structure BodyPrepared (base : Addr) (s body : CPU) (data : ByteArray) : Prop wh
   ret : body.reg 1 = s.reg 1
   constants : body.reg 10 = base + BitVec.ofNat 64 constantsOffset
   loaded : ImageLoaded base body.mem
-  iv : storedHash body = SHS.SHA256.H0_256
+  iv : storedHash body = Crypto.Reference.WordModel.H0_256
   inputBytes : ∀ i : Fin data.size, body.mem.read8 (inputPayload s + BitVec.ofNat 64 i.val) =
     (data.get! i.val).toBitVec
   paddingBytes : ∀ i : Fin (lengthOffset (data.size % 64) + 8),
@@ -178,7 +178,7 @@ theorem prepare_body (base : Addr) (s start : CPU) (data : ByteArray)
     have size : image.size = 0x540 := by decide +kernel
     exact region_store_delta (entryStack s) _ 256 480 32 (by decide)
       (entry.imageOutside _ (by rw [size]; change 0x520 + i.val < 0x540; have := i.isLt; omega))
-  have initial : storedHash body = SHS.SHA256.H0_256 := by
+  have initial : storedHash body = Crypto.Reference.WordModel.H0_256 := by
     unfold storedHash
     rw [bodySp, copiedMem, copyInitialHash_words _ _ _ riv]
     exact loaded_initial_words base padded.mem padLoaded

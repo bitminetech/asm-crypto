@@ -55,7 +55,7 @@ theorem serial_sha256 (base : Addr) (s : CPU) (data : ByteArray)
     (outputOutside : ∀ i : Fin 32, 480 ≤ (s.reg 11 + BitVec.ofNat 64 i.val - entryStack s).toNat) :
     ∃ out, CallPath base s out data ∧ out.pc = s.reg 1 &&& ~~~(1 : Addr) ∧
       out.reg 10 = 0 ∧ out.reg 2 = s.reg 2 ∧ savedRegisters out = savedRegisters s ∧
-      memoryBytes32 out.mem (s.reg 11) = (SHS.SHA256.Impl.sha256 data).map UInt8.toBitVec ∧
+      memoryBytes32 out.mem (s.reg 11) = (Crypto.Reference.digest data).map UInt8.toBitVec ∧
       (∀ p, 480 ≤ (p - entryStack s).toNat → 32 ≤ (p - s.reg 11).toNat →
         out.mem.cells p = s.mem.cells p) := by
   obtain ⟨frame, head, clear, start, save, header, zero, length, args⟩ :=

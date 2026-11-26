@@ -22,7 +22,7 @@ theorem run_sha256 (base : Addr) (s : CPU) (data : ByteArray)
     ∃ out, runUntilReturn base s (callSteps data.size) = some out ∧
       out.pc = s.reg 1 &&& ~~~(1 : Addr) ∧ out.reg 10 = 0 ∧ out.reg 2 = s.reg 2 ∧
       savedRegisters out = savedRegisters s ∧
-      memoryBytes32 out.mem (s.reg 11) = (SHS.SHA256.Impl.sha256 data).map UInt8.toBitVec ∧
+      memoryBytes32 out.mem (s.reg 11) = (Crypto.Reference.digest data).map UInt8.toBitVec ∧
       (∀ p, 480 ≤ (p - entryStack s).toNat → 32 ≤ (p - s.reg 11).toNat →
         out.mem.cells p = s.mem.cells p) := by
   obtain ⟨out, actual, pos, status, sp, saved, bytes, cells⟩ := serial_sha256 base s data entry outputOutside

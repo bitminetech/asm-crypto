@@ -1,29 +1,31 @@
-import impl.SHA256
+import Reference.SHA256
 
 namespace Crypto.Reference
 
-/-- The mathematical byte array denoted by a repeated-content test vector.
-Only proofs construct this array for large messages; the runner uses blocks. -/
+open EthLib.Cryptography.Hash.Sha256
+
+/-- The byte array denoted by a repeated-content test vector. -/
 def repeatedBytes (content : ByteArray) (size : Nat) : ByteArray :=
-  ByteArray.mk (Array.ofFn fun i : Fin size => content[i.val % content.size]!)
+  ⟨Array.ofFn fun i : Fin size => content[i.val % content.size]!⟩
 
-def alignedPadding (size : Nat) : Vector UInt8 64 :=
-  Vector.ofFn fun i : Fin 64 =>
-    if i.val < 56 then (if i.val = 0 then 0x80 else 0)
-    else (((size.toUInt64 <<< 3) >>> (((63 - i.val) * 8).toUInt64)) &&& 0xff).toUInt8
+def alignedPadding (size : Nat) : ByteArray :=
+  ⟨#[0x80] ++ Array.replicate 55 0 ++ (lengthBytes size).data⟩
 
-def emitDigest (state : SHS.SHA256.Impl.State) : Vector UInt8 32 :=
-  Vector.ofFn fun i : Fin 32 =>
-    let word : Fin 8 := ⟨i.val / 4, by omega⟩
-    ((state[word] >>> (UInt32.ofNat ((3 - i.val % 4) * 8))) &&& 0xff).toUInt8
+@[simp] theorem repeatedBytes_size (content : ByteArray) (size : Nat) :
+    (repeatedBytes content size).size = size := Array.size_ofFn
 
-/-- A bounded-memory evaluation path for whole-block repetition. The equality
-with the imported whole-message reference is proved in Proofs.Repeated. -/
+@[simp] theorem alignedPadding_size (size : Nat) : (alignedPadding size).size = 64 := by
+  simp [alignedPadding, ByteArray.size, lengthBytes]
+
+def emitDigest (state : State) : Vector UInt8 32 :=
+  ⟨(EthLib.Cryptography.Hash.Sha256.digest state).data, by rfl⟩
+
+def repeatCompression (content : ByteArray) (count : Nat) : State :=
+  let block := repeatedBytes content 64
+  Fin.foldl count (fun state _ => compress state block 0 (by simp [BLOCK_SIZE_BYTES, block])) initial
+
+/-- A bounded-memory evaluation path for aligned, repeated test vectors. -/
 def repeatedAlignedDigest (content : ByteArray) (size : Nat) : Vector UInt8 32 :=
-  let block : Vector UInt8 64 := Vector.ofFn fun i => content[i.val % content.size]!
-  let words := SHS.SHA256.Impl.toU32s block
-  let state := Fin.foldl (size / 64)
-    (fun state _ => SHS.SHA256.Impl.compress state words) SHS.SHA256.Impl.H256_256
-  emitDigest (SHS.SHA256.Impl.compress state (SHS.SHA256.Impl.toU32s (alignedPadding size)))
+  emitDigest (compress (repeatCompression content (size / 64)) (alignedPadding size) 0 (by simp [BLOCK_SIZE_BYTES]))
 
 end Crypto.Reference

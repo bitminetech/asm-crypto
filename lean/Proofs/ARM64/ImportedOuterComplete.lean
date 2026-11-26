@@ -29,7 +29,7 @@ theorem outer_loop (s : Arm64.State) (ready : BlockReady s)
       out.pc = s.pc + 340#64 ∧ out.readReg64 .x2 = s.readReg64 .x2 + BitVec.ofNat 64 (64 * n) ∧
       out.readReg64 .x3 = 0#64 ∧
       savedHash out = Fin.foldl n
-        (fun H (i : Fin n) => SHS.SHA256.compress H
+        (fun H (i : Fin n) => Crypto.Reference.WordModel.compress H
           (memoryBlock s.mem (s.readReg64 .x2 + BitVec.ofNat 64 (64 * i.val)))) (savedHash s) ∧
       BlockReady out ∧
       (∀ p, 288 ≤ (p - s.sp).toNat → out.mem.cells p = s.mem.cells p) ∧

@@ -1,0 +1,135 @@
+module
+
+/-!
+# `Base.Bytes`
+
+Byte strings of a fixed length, `B_n` in section 3 of the [Yellow Paper][paper], Shanghai version.
+
+[paper]: https://github.com/ethereum/yellowpaper/blob/efc5f9a1f356cba376c978eedb63cb0363c2aa85/Paper.tex
+-/
+
+@[expose] public section
+
+/-- Display packed bytes through their array of byte values. -/
+instance : Repr ByteArray where
+  reprPrec bytes prec := reprPrec bytes.data prec
+
+namespace EthLib.Base
+
+/-- `B_8`: exactly 8 bytes, such as the nonce of a block header. -/
+abbrev Bytes8 := Vector UInt8 8
+
+/-- `B_32`: exactly 32 bytes, such as a storage key. -/
+abbrev Bytes32 := Vector UInt8 32
+
+/-- `B_256`: exactly 256 bytes, such as the logs bloom of a block header. -/
+abbrev Bytes256 := Vector UInt8 256
+
+/-! ## Crossing to and from untyped bytes -/
+
+/-- The bytes of a fixed-size object, in order.
+
+Examples:
+* `(packBytes #v[10, 20]).data = #[10, 20]`
+* `(packBytes #v[10, 20]).size = 2`
+-/
+def packBytes {n : Nat} (v : Vector UInt8 n) : ByteArray :=
+  -- The length invariant is discarded, not checked: every object has one.
+  ⟨v.toArray⟩
+
+/-- The elements of an array as a vector of `n` elements, if the array has exactly `n`.
+
+Examples:
+* `exactArray? 2 #[10, 20] = some #v[10, 20]`
+* `exactArray? 3 #[10, 20] = none`
+-/
+def exactArray? {α : Type} (n : Nat) (a : Array α) : Option (Vector α n) :=
+  if h : a.size = n then some ⟨a, h⟩ else none
+
+/-- The elements of an array as a vector of `n` elements, or an error built from its length.
+
+Examples:
+* `exactArray 2 #[10, 20] id = .ok #v[10, 20]`
+* `exactArray 3 #[10, 20] id = .error 2`
+-/
+def exactArray {α ε : Type} (n : Nat) (a : Array α) (bad : Nat → ε) : Except ε (Vector α n) :=
+  match exactArray? n a with
+  | some v => .ok v
+  -- The error is built only for an array of another length: no padding, no truncation.
+  | none => .error (bad a.size)
+
+/-- The bytes of a buffer as an object of `n` bytes, if the buffer has exactly `n` bytes.
+
+Examples:
+* `exactBytes? 2 (ByteArray.mk #[10, 20]) = some #v[10, 20]`
+* `exactBytes? 3 (ByteArray.mk #[10, 20]) = none`
+-/
+def exactBytes? (n : Nat) (bytes : ByteArray) : Option (Vector UInt8 n) :=
+  exactArray? n bytes.data
+
+/-- The bytes of a buffer as an object of `n` bytes, or an error built from the buffer's length.
+
+Examples:
+* `exactBytes 2 (ByteArray.mk #[10, 20]) id = .ok #v[10, 20]`
+* `exactBytes 3 (ByteArray.mk #[10, 20]) id = .error 2`
+-/
+def exactBytes {ε : Type} (n : Nat) (bytes : ByteArray) (bad : Nat → ε) :
+    Except ε (Vector UInt8 n) :=
+  -- The error is built only for a buffer of another length: no padding, no truncation.
+  exactArray n bytes.data bad
+
+/-- Read the `n` bytes of a buffer that start at an offset.
+
+The caller proves the buffer has room, so the read needs no fallback byte.
+
+Example, with `b = ByteArray.mk #[10, 20, 30, 40]`:
+* `readBytes b 1 2 _ = #v[20, 30]`
+-/
+def readBytes (b : ByteArray) (offset n : Nat) (h : offset + n ≤ b.size) :
+    Vector UInt8 n :=
+  -- Every index below the object's length lands inside the buffer.
+  --
+  -- Each byte is read in place: the array of all the bytes would copy the buffer for every byte.
+  Vector.ofFn fun i => b[offset + i.val]'(by omega)
+
+/-- The byte at index `i` of the buffer, or `0` past its end.
+
+Use it only where the specification reads zeros past the end, and cite that rule at the call.
+
+A decoder checks the length first, then reads with a proof that the byte exists.
+
+It reads the byte in place, since the array of all the bytes would cost a copy of the buffer. -/
+@[inline] def byteAtOrZero (data : ByteArray) (i : Nat) : UInt8 :=
+  if h : i < data.size then data[i] else 0
+
+/-! ## Bitwise operations -/
+
+/-- The exclusive or of two byte strings of one length, byte by byte. -/
+@[inline] def xorBytes {n : Nat} (a b : Vector UInt8 n) : Vector UInt8 n :=
+  Vector.zipWith (· ^^^ ·) a b
+
+/-- The exclusive or of two untyped byte strings, byte by byte, over the length of the first.
+
+A byte past the end of the second string reads as zero.
+
+It writes into the first string, so the bytes stay unboxed and an unshared string is not copied. -/
+def xorByteArray (a b : ByteArray) : ByteArray :=
+  go 0 a
+where
+  /-- Each byte from the index on is XORed with the byte of the second string. -/
+  go (i : Nat) (acc : ByteArray) : ByteArray :=
+    if h : i < acc.size then go (i + 1) (acc.set i (acc[i] ^^^ byteAtOrZero b i)) else acc
+  termination_by acc.size - i
+  decreasing_by simp only [ByteArray.set, ByteArray.size, Array.size_set] at h ⊢; omega
+
+/-- The exclusive or keeps the length of the first string. -/
+theorem xorByteArray_size (a b : ByteArray) : (xorByteArray a b).size = a.size := by
+  suffices ∀ i acc, (xorByteArray.go b i acc).size = acc.size from this 0 a
+  intro i acc
+  induction i, acc using xorByteArray.go.induct b with
+  | case1 i acc h ih =>
+    rw [xorByteArray.go, dif_pos h, ih]
+    simp only [ByteArray.set, ByteArray.size, Array.size_set]
+  | case2 i acc h => rw [xorByteArray.go, dif_neg h]
+
+end EthLib.Base

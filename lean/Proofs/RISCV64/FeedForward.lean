@@ -5,7 +5,7 @@ namespace Crypto.RISCV64
 
 open Crypto.ARM64.Imported (wordVector wordVector_eight bv_add_sub_add_left
   read32_write32_disjoint read32_write32)
-open SHS.Equiv.SHA256.Foldl.Sequential (addH)
+open Crypto.Reference.WordModel (addH)
 
 private def feedWord (r : Reg) (offset : Addr) : List Instruction :=
   [⟨.load .word 5 2 offset, 4⟩, ⟨.addw 5 5 r, 4⟩, ⟨.store .word 5 2 offset, 4⟩]
@@ -31,12 +31,20 @@ private theorem read32_store_other (m : Memory) (sp a b : Addr) (v : Word)
 
 private theorem wordAddComm (x y : Word) : x + y = y + x := BitVec.add_comm _ _
 
+private theorem addH_words (h w : Vector Word 8) :
+    addH h w = #v[w[0] + h[0], w[1] + h[1], w[2] + h[2], w[3] + h[3],
+      w[4] + h[4], w[5] + h[5], w[6] + h[6], w[7] + h[7]] := by
+  apply Vector.ext
+  intro i hi
+  interval_cases i <;> rfl
+
 set_option maxRecDepth 10000 in
 set_option maxHeartbeats 6000000 in
 theorem feed_forward_value (s : CPU) :
     storedHash (run feedForward s) = addH (storedHash s) (working s) := by
+  rw [addH_words]
   simp (config := { decide := true, maxDischargeDepth := 64 }) [storedHash, wordVector_eight,
-    run, feedForward, feedWord, Instruction.step, Width.load, Width.store, addH, working,
+    run, feedForward, feedWord, Instruction.step, Width.load, Width.store, working,
     BitVec.add_assoc, read32_store_other, read32_write32, narrow_sign, wordAddComm]
 
 private theorem feedWord_frame (s : CPU) (r : Reg) (offset : Nat) (p : Addr)

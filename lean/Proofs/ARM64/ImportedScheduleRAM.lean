@@ -43,7 +43,7 @@ theorem schedule_ram_step (s : Arm64.State) (M : Vector (BitVec 32) 16) (t : Fin
     (hr : ∀ i : Fin 64, s.mem.canRead (s.sp + BitVec.ofNat 64 (4 * i.val)) 4 = true)
     (hw : ∀ i : Fin 64, s.mem.canWrite (s.sp + BitVec.ofNat 64 (4 * i.val)) 4 = true) :
     (runWords scheduleCode s).map (fun out => wordVector 64 out.mem out.sp) =
-      some (SHS.Equiv.SHA256.Foldl.Schedule.specScheduleStep M t.val
+      some (Crypto.Reference.WordModel.specScheduleStep M t.val
         (wordVector 64 s.mem s.sp)) := by
   have readable (k : Nat) (hk : k ≤ t.val) :
       s.mem.canRead (scheduleAddress s + (-BitVec.ofNat 64 (4 * k))) 4 = true := by

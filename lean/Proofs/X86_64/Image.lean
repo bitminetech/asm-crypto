@@ -1,5 +1,5 @@
 import Models.X86SHA256Decode
-import spec.Preprocessing
+import Reference.WordModel
 
 namespace Crypto.X86_64
 open X86
@@ -36,8 +36,8 @@ def imageWord (off : Nat) : BitVec 32 :=
   image[off + 1]!.toBitVec ++ image[off]!.toBitVec
 
 theorem image_constants :
-    Vector.ofFn (fun i : Fin 64 => imageWord (0x390 + 4 * i.val)) = SHS.SHA256.K ∧
-    Vector.ofFn (fun i : Fin 8 => imageWord (0x490 + 4 * i.val)) = SHS.SHA256.H0_256 := by
+    Vector.ofFn (fun i : Fin 64 => imageWord (0x390 + 4 * i.val)) = Crypto.Reference.WordModel.K ∧
+    Vector.ofFn (fun i : Fin 8 => imageWord (0x490 + 4 * i.val)) = Crypto.Reference.WordModel.H0_256 := by
   decide +kernel
 
 end Crypto.X86_64

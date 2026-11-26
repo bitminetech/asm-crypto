@@ -2,12 +2,14 @@ import Reference.SHA256
 
 namespace Crypto.Reference
 
-/-- The byte-oriented reference matches the pinned bit-oriented FIPS
-transcription for every message in the SHA-256 byte-length domain. -/
+/-- The byte-oriented reference matches the pinned EthLib FIPS
+specification for every message in the SHA-256 byte-length domain. -/
 theorem sha256_matches_fips (message : ByteList)
     (lengthBound : message.bytes.size < 2 ^ 61) :
     MatchesFIPS message (sha256 message).2 lengthBound := by
-  exact SHS.Equiv.SHA256.sha256_correct message.bytes lengthBound
+  unfold MatchesFIPS sha256 digest
+  simp only [if_neg (Nat.not_le.mpr lengthBound)]
+  exact EthLib.Cryptography.Hash.Sha256.hash32_eq_spec message.bytes lengthBound
 
 theorem sha256_status (message : ByteList) : (sha256 message).1 = 0 := rfl
 
@@ -25,7 +27,7 @@ theorem sha256_length_domain (message : ByteList)
     (wellFormed : message.WellFormed) (extentBound : message.size < 2 ^ 57) :
     message.bytes.size < 2 ^ 61 := by
   rcases wellFormed with ⟨_, _, _, hcount⟩
-  have : message.bytes.size ≤ message.size := le_trans hcount (Nat.sub_le _ _)
+  have : message.bytes.size ≤ message.size := Nat.le_trans hcount (Nat.sub_le _ _)
   omega
 
 end Crypto.Reference

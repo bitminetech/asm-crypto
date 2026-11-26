@@ -2,7 +2,7 @@ import Proofs.X86_64.Compression
 import Proofs.X86_64.Counter
 
 namespace Crypto.X86_64
-open X86 SHS.Equiv.SHA256.Foldl.Sequential
+open X86 Crypto.Reference.WordModel
 
 theorem steps_add (base : Val) (n m : Nat) (s : Cpu) :
     steps base (n + m) s = (steps base n s).bind (steps base m) := by
@@ -69,7 +69,7 @@ set_option maxRecDepth 8000 in
 theorem round_loaded (base : Val) (s : Cpu) (live : s.ms = none)
     (loaded : ImageLoaded base s.mem) (pc : s.rip = base + 0x204) (t : Nat)
     (index : s.regs.get .rbx = BitVec.ofNat 64 t) (W : Vector Word 64)
-    (k : wordsAt s .rdi t = SHS.SHA256.K[t]!) (w : wordsAt s .rsp t = W[t]!) :
+    (k : wordsAt s .rdi t = Crypto.Reference.WordModel.K[t]!) (w : wordsAt s .rsp t = W[t]!) :
     ∃ out, steps base roundBody.length s = some out ∧ out.ms = none ∧
       out.rip = base + 0x279 ∧ out.mem = s.mem ∧ out.regs.get .rbx = s.regs.get .rbx ∧
       out.regs.get .rdi = s.regs.get .rdi ∧ out.regs.get .rsp = s.regs.get .rsp ∧ out.regs.get .rbp = s.regs.get .rbp ∧

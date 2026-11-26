@@ -2,7 +2,7 @@ import Proofs.X86_64.Fragments
 import Proofs.X86_64.CompressionTrace
 
 namespace Crypto.X86_64
-open X86 SHS.Equiv.SHA256.Foldl.Sequential
+open X86 Crypto.Reference.WordModel
 
 private theorem latchBytes :
     decodeAt image 0x279 = some incIndex ∧
@@ -42,7 +42,7 @@ set_option maxRecDepth 800 in
 theorem round_prefix (base : Val) (s : Cpu) (W : Vector Word 64)
     (live : s.ms = none) (pc : s.rip = base + 0x204) (index : s.regs.get .rbx = 0)
     (loaded : ImageLoaded base s.mem) (target : canonical (base + 0x204) = true)
-    (constants : ∀ i : Fin 64, wordsAt s .rdi i.val = SHS.SHA256.K[i.val]!)
+    (constants : ∀ i : Fin 64, wordsAt s .rdi i.val = Crypto.Reference.WordModel.K[i.val]!)
     (schedule : ∀ i : Fin 64, wordsAt s .rsp i.val = W[i.val]!) (n : Nat) (bound : n ≤ 64) :
     ∃ out, steps base (n * 43) s = some out ∧ RoundState base s out W n := by
   induction n with
@@ -87,7 +87,7 @@ r8d–r15d at the feed-forward entry. -/
 theorem rounds_loaded (base : Val) (s : Cpu) (W : Vector Word 64)
     (live : s.ms = none) (pc : s.rip = base + 0x204) (index : s.regs.get .rbx = 0)
     (loaded : ImageLoaded base s.mem) (target : canonical (base + 0x204) = true)
-    (constants : ∀ i : Fin 64, wordsAt s .rdi i.val = SHS.SHA256.K[i.val]!)
+    (constants : ∀ i : Fin 64, wordsAt s .rdi i.val = Crypto.Reference.WordModel.K[i.val]!)
     (schedule : ∀ i : Fin 64, wordsAt s .rsp i.val = W[i.val]!) :
     ∃ out, steps base 2752 s = some out ∧ RoundState base s out W 64 :=
   round_prefix base s W live pc index loaded target constants schedule 64 (by decide)

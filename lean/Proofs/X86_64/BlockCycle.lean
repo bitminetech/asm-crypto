@@ -55,11 +55,11 @@ structure CycleResult (base : Val) (s out : Cpu) : Prop where
   count : blocksLeft out = blocksLeft s - 1
   frame : ∀ p, 288 ≤ (p-s.regs.get .rsp).toNat → 8 ≤ (p-(s.regs.get .rsp+424)).toNat →
     out.mem.read p = s.mem.read p
-  hash : hashWords (project out) = SHS.SHA256.compress (hashWords (project s)) (sourceBlock s)
+  hash : hashWords (project out) = Crypto.Reference.WordModel.compress (hashWords (project s)) (sourceBlock s)
   observations : ObservedExecution base s (cycleEvents base (s.regs.get .rsp)
     (s.regs.get .rbp) (s.regs.get .rdi)) out
 
-attribute [local irreducible] steps hashWords SHS.SHA256.compress image X86.step
+attribute [local irreducible] steps hashWords Crypto.Reference.WordModel.compress image X86.step
 
 theorem block_cycle (base : Val) (s : Cpu) (live : s.ms = none) (pc : s.rip = base+0x15c)
     (loaded : ImageLoaded base s.mem) (k : s.regs.get .rdi = base+0x390) (positive : blocksLeft s ≠ 0)

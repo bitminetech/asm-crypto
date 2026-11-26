@@ -3,20 +3,26 @@ version = "0.1.0"
 defaultTargets = ["Reference", "Proofs"]
 
 [[require]]
-name = "fips-pub-180-4"
-git = "https://github.com/remix7531/fips-180-4-lean"
-rev = "6b92c7746afc797a1741ff985e04bbc311db7d89"
-
-[[require]]
 name = "x86lean"
 git = "https://github.com/jyh/x86lean"
 rev = "2a32a6ec0b5ddfe625f3720ac647082830390917"
+
+[[require]]
+name = "mathlib"
+git = "https://github.com/leanprover-community/mathlib4"
+rev = "5e932f97dd25535344f80f9dd8da3aab83df0fe6"
 
 [[lean_lib]]
 name = "ImportedARM64"
 srcDir = "lean/Imports/arm64/arm64-semantics"
 roots = ["Arm64"]
 globs = ["Arm64.Trusted.ISA.*", "Arm64.Trusted.Syscalls.*", "Arm64.Trusted.Syscalls"]
+
+[[lean_lib]]
+name = "ImportedEthLib"
+srcDir = "lean/Imports/ethlib"
+roots = ["EthLib"]
+globs = ["EthLib.Base.Bytes", "EthLib.Cryptography.Hash.Padding", "EthLib.Cryptography.Hash.Sha256", "EthLib.Cryptography.Proofs.Hash.Sha256"]
 
 [[lean_lib]]
 name = "Reference"

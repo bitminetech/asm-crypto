@@ -30,7 +30,7 @@ private theorem feed_forward_decoded : feedForwardCode.mapM Arm64.decode = some 
   .stp .W32 .x13 .x14 (.Offset .x16 24#64)] := by decide +kernel
 
 def hashSum (s : Arm64.State) : Vector (BitVec 32) 8 :=
-  SHS.Equiv.SHA256.Foldl.Sequential.addH (wordVector 8 s.mem (s.sp + 256#64)) (working s)
+  Crypto.Reference.WordModel.addH (wordVector 8 s.mem (s.sp + 256#64)) (working s)
 
 def storeHashWords (s : Arm64.State) : Arm64.Memory :=
   (List.range 8).foldl (fun m i =>
@@ -106,6 +106,13 @@ theorem feed_forward (s : Arm64.State)
     addWithCarry32_add, addWithCarry64_add, BitVec.truncate_eq_setWidth,
     r0, r1, r2, r3, r4, r5, r6, r7, w0, w1, w2, w3, w4, w5, w6, w7,
     canRead_write32, read32_write32_disjoint, read32_write32, bv_add_sub_add_left,
-    BitVec.add_assoc, working, wordVector_eight, hashSum, storeHashWords, List.range_succ, SHS.Equiv.SHA256.Foldl.Sequential.addH]
+    BitVec.add_assoc, working, wordVector_eight, hashSum, storeHashWords, List.range_succ, Crypto.Reference.WordModel.addH]
+
+  apply Array.ext
+  · simp only [Array.size_ofFn]
+    rfl
+  · intro i hi _
+    have inside : i < 8 := hi
+    interval_cases i <;> rfl
 
 end Crypto.ARM64.Imported

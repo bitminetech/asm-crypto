@@ -4,7 +4,7 @@ import Proofs.ARM64.ImportedCompression
 namespace Crypto.RISCV64
 
 open Crypto.ARM64.Imported (index_shift_two compress_eq_rounds)
-open SHS.Equiv.SHA256.Foldl.Sequential (addH specRoundStep)
+open Crypto.Reference.WordModel (addH specRoundStep)
 
 private theorem round_linear : roundBody.all Instruction.linear = true := by decide +kernel
 
@@ -82,7 +82,7 @@ private theorem round_cycle (base : Addr) (s : CPU) (t : Fin 64)
 private theorem round_prefix (base : Addr) (s : CPU) (W : Vector Word 64)
     (pc : s.pc = base + 0x1d0) (counter : s.reg 15 = 0)
     (constants : ∀ i : Fin 64,
-      s.mem.read32 (s.reg 10 + BitVec.ofNat 64 (4 * i.val)) = SHS.SHA256.K[i.val]!)
+      s.mem.read32 (s.reg 10 + BitVec.ofNat 64 (4 * i.val)) = Crypto.Reference.WordModel.K[i.val]!)
     (schedule : ∀ i : Fin 64,
       s.mem.read32 (s.reg 2 + BitVec.ofNat 64 (4 * i.val)) = W[i.val]!)
     (n : Nat) (bound : n ≤ 64) :
@@ -116,14 +116,14 @@ schedule and K must already occupy their designated tables. -/
 theorem rounds_compress (base : Addr) (s : CPU) (M : Vector Word 16)
     (pc : s.pc = base + 0x1d0) (counter : s.reg 15 = 0)
     (constants : ∀ i : Fin 64,
-      s.mem.read32 (s.reg 10 + BitVec.ofNat 64 (4 * i.val)) = SHS.SHA256.K[i.val]!)
+      s.mem.read32 (s.reg 10 + BitVec.ofNat 64 (4 * i.val)) = Crypto.Reference.WordModel.K[i.val]!)
     (schedule : ∀ i : Fin 64,
-      s.mem.read32 (s.reg 2 + BitVec.ofNat 64 (4 * i.val)) = (SHS.SHA256.schedule M)[i.val]!) :
+      s.mem.read32 (s.reg 2 + BitVec.ofNat 64 (4 * i.val)) = (Crypto.Reference.WordModel.schedule M)[i.val]!) :
     ∃ out, ImageExecution base s (roundCode 64) out ∧ out.pc = base + 0x28e ∧
       out.reg 2 = s.reg 2 ∧ out.reg 10 = s.reg 10 ∧ out.mem = s.mem ∧
-      addH (working s) (working out) = SHS.SHA256.compress (working s) M := by
+      addH (working s) (working out) = Crypto.Reference.WordModel.compress (working s) M := by
   obtain ⟨exec, exit, _, stack, table, same, work⟩ :=
-    round_prefix base s (SHS.SHA256.schedule M) pc counter constants schedule 64 (by decide)
+    round_prefix base s (Crypto.Reference.WordModel.schedule M) pc counter constants schedule 64 (by decide)
   exact ⟨run (roundCode 64) s, exec, by simpa using exit, stack, table, same,
     (congrArg (addH (working s)) work).trans (compress_eq_rounds _ M)⟩
 

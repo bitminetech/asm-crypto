@@ -10,7 +10,7 @@ the instructions used by SHA-256.
 ## Source
 
 - ISA: [code-verification@b0f729a](https://github.com/google-deepmind/code-verification/tree/b0f729accbc21a0413e7ca4e1da43fa45b5f2e1b/arm64-semantics/Arm64/Trusted/ISA), unchanged.
-- Reference: [fips-180-4-lean@6b92c77](https://github.com/remix7531/fips-180-4-lean/tree/6b92c7746afc797a1741ff985e04bbc311db7d89), unchanged; the local reference adapter has a checked equivalence theorem.
+- Reference: [EthLib@784bccaf](https://github.com/ethereum/EthLib/blob/784bccaf1632af158cbe8fd7c056137cfd6c47b8/EthLib/Cryptography/Proofs/Hash/Sha256.lean) via [the local reference adapter](../../lean/Reference/SHA256.lean).
 - ABI: [AAPCS64 2026Q3@a1b5345](https://github.com/ARM-software/abi-aa/blob/a1b53459479e88f3492ca9b11a161313764ab138/aapcs64/aapcs64.rst), pointer-only ordinary scalar leaf interface.
 - Logical caller: [ImportedPermissionView.lean](../../lean/Proofs/ARM64/ImportedPermissionView.lean).
 - Scoped address model: [ARM64OwnedView.lean](../../lean/Models/ARM64OwnedView.lean).

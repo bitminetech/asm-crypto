@@ -210,7 +210,7 @@ theorem round_loop_staticPath (base : BitVec 64) (s : Arm64.State) (W : Vector (
     (hsp : s.spAligned = true) (hc : s.readReg64 .x5 = 0#64)
     (hkr : ∀ i : Fin 64, s.mem.canRead (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) 4 = true)
     (hwr : ∀ i : Fin 64, s.mem.canRead (s.sp + BitVec.ofNat 64 (4 * i.val)) 4 = true)
-    (hkv : ∀ i : Fin 64, s.mem.read32 (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = SHS.SHA256.K[i.val]!)
+    (hkv : ∀ i : Fin 64, s.mem.read32 (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = Crypto.Reference.WordModel.K[i.val]!)
     (hwv : ∀ i : Fin 64, s.mem.read32 (s.sp + BitVec.ofNat 64 (4 * i.val)) = W[i.val]!)
     (out : Arm64.State) (pc : s.pc = base + 292#64)
     (executed : runCycles roundCycleCode 64 s = some out) (running : out.status = .Running) :

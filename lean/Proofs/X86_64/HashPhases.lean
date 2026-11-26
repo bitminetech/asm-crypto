@@ -74,7 +74,7 @@ structure HashPhasesResult (base : Val) (s out : Cpu) (n k : Nat) : Prop where
     (foldBlocks s.mem (s.regs.get .rbp) n (hashWords (project s)))
   observations : ObservedExecution base s (hashPhasesEvents base (s.regs.get .rsp) (s.regs.get .rbp) n k) out
 
-attribute [local irreducible] steps image hashWords SHS.SHA256.compress foldBlocks
+attribute [local irreducible] steps image hashWords Crypto.Reference.WordModel.compress foldBlocks
 
 /-- The message loop, phase switch and padding loop reach serialization with
 the two compression folds of the input snapshot. -/

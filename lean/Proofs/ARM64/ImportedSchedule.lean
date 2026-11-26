@@ -1,5 +1,5 @@
 import Proofs.ARM64.ImportedRound
-import equiv.SHA256.Foldl.Schedule
+import Reference.WordModel
 
 /-!
 One SHA-256 schedule-expansion body under the unchanged imported ISA model:
@@ -44,9 +44,9 @@ def scheduleCode : List (BitVec 32) := (imageWords.toList.drop 49).take 15
 def scheduleAddress (s : Arm64.State) : BitVec 64 := s.sp + (s.readReg64 .x5 <<< 2)
 
 def scheduleValue (s : Arm64.State) : BitVec 32 :=
-  SHS.SHA256.smallSigma1 (s.mem.read32 (scheduleAddress s + 0xfffffffffffffff8#64)) +
+  EthLib.Cryptography.Hash.Sha256.Spec.small1 (s.mem.read32 (scheduleAddress s + 0xfffffffffffffff8#64)) +
   s.mem.read32 (scheduleAddress s + 0xffffffffffffffe4#64) +
-  SHS.SHA256.smallSigma0 (s.mem.read32 (scheduleAddress s + 0xffffffffffffffc4#64)) +
+  EthLib.Cryptography.Hash.Sha256.Spec.small0 (s.mem.read32 (scheduleAddress s + 0xffffffffffffffc4#64)) +
   s.mem.read32 (scheduleAddress s + 0xffffffffffffffc0#64)
 
 private theorem schedule_decoded : scheduleCode.mapM Arm64.decode = some [
@@ -88,7 +88,7 @@ theorem schedule_computes (s : Arm64.State)
     Round.extr_same, BitVec.truncate_eq_setWidth, scheduleAddress,
     h15, h2, h16, h7, hw, BitVec.add_assoc]
   simp (config := { decide := true }) [scheduleValue, scheduleAddress,
-    SHS.SHA256.smallSigma0, SHS.SHA256.smallSigma1, SHS.ROTR, SHS.SHR,
+    EthLib.Cryptography.Hash.Sha256.Spec.small0, EthLib.Cryptography.Hash.Sha256.Spec.small1, BitVec.rotateRight_def,
     Round.narrow_shift, BitVec.rotateRight_def, BitVec.xor_assoc,
     BitVec.add_comm, bv_add_left_comm]
 
@@ -120,7 +120,7 @@ theorem schedule_frame (s : Arm64.State)
     Round.extr_same, BitVec.truncate_eq_setWidth, scheduleAddress,
     h15, h2, h16, h7, hw, BitVec.add_assoc]
   simp (config := { decide := true }) [scheduleValue, scheduleAddress,
-    SHS.SHA256.smallSigma0, SHS.SHA256.smallSigma1, SHS.ROTR, SHS.SHR,
+    EthLib.Cryptography.Hash.Sha256.Spec.small0, EthLib.Cryptography.Hash.Sha256.Spec.small1, BitVec.rotateRight_def,
     Round.narrow_shift, BitVec.rotateRight_def, BitVec.xor_assoc,
     BitVec.add_comm, bv_add_left_comm]
 
@@ -135,8 +135,8 @@ theorem schedule_update_matches_spec (s : Arm64.State)
     (h16 : s.mem.read32 (scheduleAddress s + 0xffffffffffffffc0#64) = W[t.val - 16]!)
     (h7 : s.mem.read32 (scheduleAddress s + 0xffffffffffffffe4#64) = W[t.val - 7]!) :
     W.set! t.val (scheduleValue s) =
-      SHS.Equiv.SHA256.Foldl.Schedule.specScheduleStep M t.val W := by
-  simp [SHS.Equiv.SHA256.Foldl.Schedule.specScheduleStep,
+      Crypto.Reference.WordModel.specScheduleStep M t.val W := by
+  simp [Crypto.Reference.WordModel.specScheduleStep,
     show ¬t.val < 16 by omega, scheduleValue, h15, h2, h16, h7]
 
 end Crypto.ARM64.Imported

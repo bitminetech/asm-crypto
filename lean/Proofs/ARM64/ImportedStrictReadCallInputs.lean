@@ -30,8 +30,8 @@ structure RawSHAInputs (base : BitVec 64) (s : Arm64.State) (data : ByteArray) :
   inputOutside : ∀ i : Fin data.size, 416 ≤ (inputPayload s + BitVec.ofNat 64 i.val - entryStack s).toNat
   outputOutside : ∀ i : Fin 32, 416 ≤ (s.readReg64 .x1 + BitVec.ofNat 64 i.val - entryStack s).toNat
   inputBytes : ∀ i : Fin data.size, s.mem.read8 (inputPayload s + BitVec.ofNat 64 i.val) = (data.get! i.val).toBitVec
-  initialPool : wordVector 8 s.mem (base + 864#64) = SHS.SHA256.H0_256
-  roundPool : wordVector 64 s.mem (base + 608#64) = SHS.SHA256.K
+  initialPool : wordVector 8 s.mem (base + 864#64) = Crypto.Reference.WordModel.H0_256
+  roundPool : wordVector 64 s.mem (base + 608#64) = Crypto.Reference.WordModel.K
 
 theorem strict_logical_wordVector (base : BitVec 64) (s : Arm64.State)
     (message : Crypto.Reference.ByteList) (p : BitVec 64) (n : Nat) :
@@ -41,24 +41,24 @@ theorem strict_logical_wordVector (base : BitVec 64) (s : Arm64.State)
   simp only [wordVector, Vector.getElem_ofFn, Arm64.Memory.read32, strictMemory_read8, logicalMemory_read8]
 
 theorem loaded_initial_pool_at (base : BitVec 64) (memory : Arm64.Memory)
-    (loaded : (program base).CodeLoaded memory) : wordVector 8 memory (base + 864#64) = SHS.SHA256.H0_256 := by
+    (loaded : (program base).CodeLoaded memory) : wordVector 8 memory (base + 864#64) = Crypto.Reference.WordModel.H0_256 := by
   let state : Arm64.State := { mem := memory, pc := base + 132#64 }
   have pool := loaded_initial_pool base state loaded rfl
-  change wordVector 8 memory ((base + 132#64) + 732#64) = SHS.SHA256.H0_256 at pool
+  change wordVector 8 memory ((base + 132#64) + 732#64) = Crypto.Reference.WordModel.H0_256 at pool
   rw [BitVec.add_assoc, show 132#64 + 732#64 = 864#64 from rfl] at pool
   exact pool
 
 theorem strict_initial_pool (base : BitVec 64) (s : Arm64.State)
     (message : Crypto.Reference.ByteList) (extent : Nat) (authority : Authority)
     (entry : PermissionViewInputs base s message extent authority) :
-    wordVector 8 (strictMemory base s message) (base + 864#64) = SHS.SHA256.H0_256 := by
+    wordVector 8 (strictMemory base s message) (base + 864#64) = Crypto.Reference.WordModel.H0_256 := by
   have source := permission_view_inputs base s message extent authority entry
   exact (strict_logical_wordVector base s message _ 8).trans (loaded_initial_pool_at base _ source.loaded)
 
 theorem strict_round_pool (base : BitVec 64) (s : Arm64.State)
     (message : Crypto.Reference.ByteList) (extent : Nat) (authority : Authority)
     (entry : PermissionViewInputs base s message extent authority) :
-    wordVector 64 (strictMemory base s message) (base + 608#64) = SHS.SHA256.K := by
+    wordVector 64 (strictMemory base s message) (base + 608#64) = Crypto.Reference.WordModel.K := by
   have source := permission_view_inputs base s message extent authority entry
   exact (strict_logical_wordVector base s message _ 64).trans (loaded_round_pool base _ source.loaded)
 

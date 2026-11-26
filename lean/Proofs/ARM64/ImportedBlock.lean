@@ -27,7 +27,7 @@ theorem block_compression (s : Arm64.State) (M : Vector (BitVec 32) 16)
     (hOutside : ∀ (i : Fin 16) (b : Fin 4),
       256 ≤ (s.readReg64 .x2 + BitVec.ofNat 64 (4 * i.val) + BitVec.ofNat 64 b.val - s.sp).toNat)
     (hkr : ∀ i : Fin 64, s.mem.canRead (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) 4 = true)
-    (hkv : ∀ i : Fin 64, s.mem.read32 (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = SHS.SHA256.K[i.val]!)
+    (hkv : ∀ i : Fin 64, s.mem.read32 (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = Crypto.Reference.WordModel.K[i.val]!)
     (hKOutside : ∀ (i : Fin 64) (b : Fin 4),
       256 ≤ (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val) + BitVec.ofNat 64 b.val - s.sp).toNat)
     (hhr : ∀ i : Fin 8, s.mem.canRead ((s.sp + 256#64) + BitVec.ofNat 64 (4 * i.val)) 4 = true)
@@ -35,7 +35,7 @@ theorem block_compression (s : Arm64.State) (M : Vector (BitVec 32) 16)
     ∃ out, runWords blockCode s = some out ∧ DataFrame s out ∧
       out.pc = s.pc + 320#64 ∧ out.readReg64 .x5 = 64#64 ∧
       wordVector 8 out.mem (out.sp + 256#64) =
-        SHS.SHA256.compress (wordVector 8 s.mem (s.sp + 256#64)) M ∧
+        Crypto.Reference.WordModel.compress (wordVector 8 s.mem (s.sp + 256#64)) M ∧
       (∀ p, 288 ≤ (p - s.sp).toNat → out.mem.cells p = s.mem.cells p) ∧
       (∀ a n, s.mem.canRead a n = true → out.mem.canRead a n = true) ∧
       (∀ i : Fin 64, out.mem.canWrite (out.sp + BitVec.ofNat 64 (4 * i.val)) 4 = true) ∧
@@ -60,7 +60,7 @@ theorem block_compression (s : Arm64.State) (M : Vector (BitVec 32) 16)
     rw [fws.x0]
     exact readableSchedule _ _ (readableCopy _ _ (hkr i))
   have kv (i : Fin 64) : scheduled.mem.read32
-      (scheduled.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = SHS.SHA256.K[i.val]! := by
+      (scheduled.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = Crypto.Reference.WordModel.K[i.val]! := by
     rw [fws.x0]
     have preserved := read32_of_cells (m := scheduled.mem) (before := s.mem)
       (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val))
@@ -93,7 +93,7 @@ theorem block_compression (s : Arm64.State) (M : Vector (BitVec 32) 16)
     simp only [BitVec.add_assoc]
     exact congrArg (s.pc + ·) (by decide +kernel)
   · exact hashCompression.trans
-      (congrArg (fun H : Vector (BitVec 32) 8 => SHS.SHA256.compress H M) hashBefore)
+      (congrArg (fun H : Vector (BitVec 32) 8 => Crypto.Reference.WordModel.compress H M) hashBefore)
 
   · intro p hp
     have dist : 288 ≤ (p - scheduled.sp).toNat := by rw [fws.sp]; exact hp
@@ -115,7 +115,7 @@ theorem sourceBlock_bytes (s : Arm64.State) (i : Fin 16) :
       let base := s.readReg64 .x2 + BitVec.ofNat 64 (4 * i.val)
       s.mem.read8 base ++ s.mem.read8 (base + 1#64) ++
         s.mem.read8 (base + 2#64) ++ s.mem.read8 (base + 3#64) := by
-  rw [SHS.Equiv.VecBridge.getElem_bang_eq_getElem _ _ i.isLt]
+  rw [Crypto.Reference.WordModel.getElem_bang_eq_getElem _ _ i.isLt]
   simp only [sourceBlock, Vector.getElem_ofFn, Arm64.Memory.read32,
     reverseWord_bytes, BitVec.add_zero]
 
@@ -127,7 +127,7 @@ theorem block_compression_source (s : Arm64.State)
     (hOutside : ∀ (i : Fin 16) (b : Fin 4),
       256 ≤ (s.readReg64 .x2 + BitVec.ofNat 64 (4 * i.val) + BitVec.ofNat 64 b.val - s.sp).toNat)
     (hkr : ∀ i : Fin 64, s.mem.canRead (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) 4 = true)
-    (hkv : ∀ i : Fin 64, s.mem.read32 (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = SHS.SHA256.K[i.val]!)
+    (hkv : ∀ i : Fin 64, s.mem.read32 (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = Crypto.Reference.WordModel.K[i.val]!)
     (hKOutside : ∀ (i : Fin 64) (b : Fin 4),
       256 ≤ (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val) + BitVec.ofNat 64 b.val - s.sp).toNat)
     (hhr : ∀ i : Fin 8, s.mem.canRead ((s.sp + 256#64) + BitVec.ofNat 64 (4 * i.val)) 4 = true)
@@ -135,7 +135,7 @@ theorem block_compression_source (s : Arm64.State)
     ∃ out, runWords blockCode s = some out ∧ DataFrame s out ∧
       out.pc = s.pc + 320#64 ∧ out.readReg64 .x5 = 64#64 ∧
       wordVector 8 out.mem (out.sp + 256#64) =
-        SHS.SHA256.compress (wordVector 8 s.mem (s.sp + 256#64)) (sourceBlock s) ∧
+        Crypto.Reference.WordModel.compress (wordVector 8 s.mem (s.sp + 256#64)) (sourceBlock s) ∧
       (∀ p, 288 ≤ (p - s.sp).toNat → out.mem.cells p = s.mem.cells p) ∧
       (∀ a n, s.mem.canRead a n = true → out.mem.canRead a n = true) ∧
       (∀ i : Fin 64, out.mem.canWrite (out.sp + BitVec.ofNat 64 (4 * i.val)) 4 = true) ∧

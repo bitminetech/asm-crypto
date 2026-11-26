@@ -5,7 +5,7 @@ import Proofs.ARM64.ImportedScheduleSpec
 import Proofs.ARM64.ImportedMemoryRange
 
 namespace Crypto.X86_64
-open X86 SHS.Equiv.SHA256.Foldl.Schedule
+open X86 Crypto.Reference.WordModel
 open Crypto.ARM64.Imported (wordVector expandedWords)
 
 private theorem slot (s : Cpu) (t : Fin 64) (index : s.regs.get .rbx = BitVec.ofNat 64 t.val) :
@@ -122,7 +122,7 @@ theorem schedule_loaded (base : Val) (s : Cpu) (M : Vector Word 16)
     (separate : ∀ j, j < image.size → 256 ≤ (base + BitVec.ofNat 64 j - s.regs.get .rsp).toNat)
     (target : canonical (base + 0x17f) = true)
     (initial : ∀ j, j < 16 → (stackWords s)[j]! = M[j]!) :
-    ∃ out, steps base 1104 s = some out ∧ ScheduleState s out base (SHS.SHA256.schedule M) 64 ∧
+    ∃ out, steps base 1104 s = some out ∧ ScheduleState s out base (Crypto.Reference.WordModel.schedule M) 64 ∧
       ObservedExecution base s (WordLoop.expansion.prefix base (s.regs.get .rsp)
         (s.regs.get .rbp) (s.regs.get .rdi) 48) out := by
   obtain ⟨out, run, post, observed⟩ := schedule_prefix base s M live pc index loaded separate target 48 (by decide)

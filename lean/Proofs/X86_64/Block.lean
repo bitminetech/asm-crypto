@@ -34,11 +34,11 @@ structure BlockResult (base : Val) (s out : Cpu) : Prop where
   blockPtr : out.regs.get .rbp = s.regs.get .rbp
   index : out.regs.get .rbx = 64
   frame : ∀ p, 288 ≤ (p - s.regs.get .rsp).toNat → out.mem.read p = s.mem.read p
-  hash : hashWords (project out) = SHS.SHA256.compress (hashWords (project s)) (sourceBlock s)
+  hash : hashWords (project out) = Crypto.Reference.WordModel.compress (hashWords (project s)) (sourceBlock s)
   observations : ObservedExecution base s (blockEvents base (s.regs.get .rsp)
     (s.regs.get .rbp) (s.regs.get .rdi)) out
 
-attribute [local irreducible] WordLoop.prefix frameFragment steps working hashWords SHS.SHA256.compress SHS.SHA256.schedule
+attribute [local irreducible] WordLoop.prefix frameFragment steps working hashWords Crypto.Reference.WordModel.compress Crypto.Reference.WordModel.schedule
 
 set_option maxHeartbeats 1500000 in
 /-- A block from memory, in big-endian byte order, is compressed into the

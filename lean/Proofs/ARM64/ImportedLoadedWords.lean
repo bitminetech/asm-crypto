@@ -77,17 +77,17 @@ theorem image_fetch (base : BitVec 64) (i : Fin 224) :
   rfl
 
 theorem image_initial_spec :
-    (Vector.ofFn fun i : Fin 8 => imageWords[216 + i.val]!) = SHS.SHA256.H0_256 := by
+    (Vector.ofFn fun i : Fin 8 => imageWords[216 + i.val]!) = Crypto.Reference.WordModel.H0_256 := by
   decide +kernel
 
 theorem image_round_spec :
-    (Vector.ofFn fun i : Fin 64 => imageWords[152 + i.val]!) = SHS.SHA256.K := by
+    (Vector.ofFn fun i : Fin 64 => imageWords[152 + i.val]!) = Crypto.Reference.WordModel.K := by
   decide +kernel
 
 set_option maxRecDepth 16384 in
 theorem loaded_initial_pool (base : BitVec 64) (s : Arm64.State)
     (loaded : (program base).CodeLoaded s.mem) (pc : s.pc = base + 132#64) :
-    wordVector 8 s.mem (s.pc + 732#64) = SHS.SHA256.H0_256 := by
+    wordVector 8 s.mem (s.pc + 732#64) = Crypto.Reference.WordModel.H0_256 := by
   apply Vector.ext
   intro i hi
   simp only [wordVector, Vector.getElem_ofFn]
@@ -103,13 +103,13 @@ theorem loaded_initial_pool (base : BitVec 64) (s : Arm64.State)
 
 theorem initialHashMemory_fips (base : BitVec 64) (s : Arm64.State)
     (loaded : (program base).CodeLoaded s.mem) (pc : s.pc = base + 132#64) :
-    wordVector 8 (initialHashMemory s) (s.sp + 256#64) = SHS.SHA256.H0_256 :=
+    wordVector 8 (initialHashMemory s) (s.sp + 256#64) = Crypto.Reference.WordModel.H0_256 :=
   (initialHashMemory_words s).trans (loaded_initial_pool base s loaded pc)
 
 set_option maxRecDepth 16384 in
 theorem loaded_round_pool (base : BitVec 64) (m : Arm64.Memory)
     (loaded : (program base).CodeLoaded m) :
-    wordVector 64 m (base + 608#64) = SHS.SHA256.K := by
+    wordVector 64 m (base + 608#64) = Crypto.Reference.WordModel.K := by
   apply Vector.ext
   intro i hi
   simp only [wordVector, Vector.getElem_ofFn]

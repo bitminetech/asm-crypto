@@ -43,7 +43,7 @@ theorem initialize_hash_fips (base : BitVec 64) (s : Arm64.State)
     (hr : ∀ i : Fin 4, s.mem.canRead ((s.pc + 732#64) + BitVec.ofNat 64 (8 * i.val)) 8 = true)
     (hw : ∀ i : Fin 4, s.mem.canWrite ((s.sp + 256#64) + BitVec.ofNat 64 (8 * i.val)) 8 = true) :
     ∃ out, runWords hashInitCode s = some out ∧
-      savedHash out = SHS.SHA256.H0_256 ∧ nonMemory out = nonMemory s ∧
+      savedHash out = Crypto.Reference.WordModel.H0_256 ∧ nonMemory out = nonMemory s ∧
       nonvolatile out = nonvolatile s ∧ out.pc = s.pc + 32#64 ∧
       out.readReg64 .x0 = base + 608#64 ∧ out.readReg64 .x1 = s.readReg64 .x1 ∧
       out.readReg64 .x2 = s.readReg64 .x2 ∧ out.readReg64 .x3 = s.readReg64 .x3 ∧

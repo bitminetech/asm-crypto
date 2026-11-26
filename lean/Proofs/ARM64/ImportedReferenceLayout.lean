@@ -6,8 +6,7 @@ blocks. The recorded hash body through RET produces the pinned byte-oriented
 SHA-256 result under the prepared-state memory/register hypotheses.
 -/
 namespace Crypto.ARM64.Imported
-open SHS.Equiv.SHA256.Lift
-open SHS.Equiv.SHA256.Padding.Layout
+open Crypto.Reference.ByteLayout
 
 theorem paddingBlockCount_bytes (data : ByteArray) :
     64 * paddingBlockCount data = lengthOffset (data.size % 64) + 8 := by
@@ -34,7 +33,7 @@ theorem memoryBlock_complete_reference (s : Arm64.State) (data : ByteArray)
     have ih := i.isLt
     have enough : 64 * i.val + j < data.size := by omega
     simpa only [BitVec.ofNat_add, BitVec.add_assoc, Nat.mul_comm] using input ⟨64 * i.val + j, enough⟩
-  have decoded := congrArg (fun B : Vector UInt8 64 => toSpecBlock (SHS.SHA256.Impl.toU32s B)) bytes
+  have decoded := congrArg (fun B : Vector UInt8 64 => Crypto.Reference.WordModel.blockWords B) bytes
   exact (memoryBlock_reference _ _).trans decoded
 
 set_option maxHeartbeats 2000000 in
@@ -57,11 +56,11 @@ theorem memoryBlock_padding_reference (s : Arm64.State) (data : ByteArray)
       omega
     simpa only [BitVec.ofNat_add, BitVec.add_assoc, Nat.add_mul, Nat.mul_add, Nat.mul_comm, Nat.add_assoc]
       using padding ⟨64 * i.val + j, enough⟩
-  have decoded := congrArg (fun B : Vector UInt8 64 => toSpecBlock (SHS.SHA256.Impl.toU32s B)) bytes
+  have decoded := congrArg (fun B : Vector UInt8 64 => Crypto.Reference.WordModel.blockWords B) bytes
   exact (memoryBlock_reference _ _).trans decoded
 
 theorem phasesHash_reference_bytes (s : Arm64.State) (data : ByteArray)
-    (initial : savedHash s = SHS.SHA256.H0_256)
+    (initial : savedHash s = Crypto.Reference.WordModel.H0_256)
     (input : ∀ i : Fin data.size, s.mem.read8 (s.readReg64 .x2 + BitVec.ofNat 64 i.val) =
       (data.get! i.val).toBitVec)
     (padding : ∀ i : Fin (lengthOffset (data.size % 64) + 8),
@@ -85,7 +84,7 @@ theorem hash_body_sha256 (s : Arm64.State) (data : ByteArray) (ready : BlockRead
     (outputWrite : ∀ i : Fin 8, s.mem.canWrite (s.readReg64 .x1 + BitVec.ofNat 64 (4 * i.val)) 4 = true)
     (outputOutside : ∀ (i : Fin 8) (b : Fin 4),
       288 ≤ (s.readReg64 .x1 + BitVec.ofNat 64 (4 * i.val) + BitVec.ofNat 64 b.val - s.sp).toNat)
-    (initial : savedHash s = SHS.SHA256.H0_256)
+    (initial : savedHash s = Crypto.Reference.WordModel.H0_256)
     (input : ∀ i : Fin data.size, s.mem.read8 (s.readReg64 .x2 + BitVec.ofNat 64 i.val) =
       (data.get! i.val).toBitVec)
     (padding : ∀ i : Fin (lengthOffset (data.size % 64) + 8),
@@ -95,7 +94,7 @@ theorem hash_body_sha256 (s : Arm64.State) (data : ByteArray) (ready : BlockRead
       returnStable out = returnStable s ∧ nonvolatile out = nonvolatile s ∧
       out.sp = s.sp + 416#64 ∧ out.pc = s.readReg64 .x30 ∧
       out.readReg64 .x0 = 0#64 ∧ out.readReg64 .x1 = s.readReg64 .x1 ∧
-      memoryBytes32 out.mem (s.readReg64 .x1) = (SHS.SHA256.Impl.sha256 data).map UInt8.toBitVec := by
+      memoryBytes32 out.mem (s.readReg64 .x1) = (Crypto.Reference.digest data).map UInt8.toBitVec := by
   obtain ⟨out, he, state, nv, sp, pc, status, output, bytes⟩ :=
     hash_body s ready (data.size / 64) (paddingBlockCount data) (by omega)
       (paddingBlockCount_bounds data).2 count phase padCount hr sep padRead outputWrite outputOutside

@@ -1,9 +1,7 @@
-import equiv.SHA256.Main
+import EthLib.Cryptography.Proofs.Hash.Sha256
 
 /-!
-The imported definitions remain unchanged at the dependency pin in lakefile.toml.
-This module adapts the byte-oriented reference to the library's portable values.
-It does not model or verify assembly execution.
+The portable ByteList interface uses the pinned EthLib SHA-256 reference.
 -/
 
 namespace Crypto.Reference
@@ -28,15 +26,17 @@ abbrev Digest := Vector UInt8 32
 
 /-- The reference result. The only successful status is zero. No modeled machine
 execution, memory safety or constant-time claim follows from this definition. -/
-def sha256 (message : ByteList) : Nat × Digest :=
-  (0, SHS.SHA256.Impl.sha256 message.bytes)
+def digest (bytes : ByteArray) : Digest :=
+  if 2 ^ 61 ≤ bytes.size then
+    panic! s!"SHA-256 input size {bytes.size} exceeds the FIPS 180-4 limit"
+  else EthLib.Cryptography.Hash.Sha256.hash32 bytes
 
-/-- Independent FIPS bit-oriented statement expected of the byte adapter. -/
-def MatchesFIPS (message : ByteList) (digest : Digest)
-    (lengthBound : message.bytes.size < 2 ^ 61) : Prop :=
-  SHS.Equiv.SHA256.Digest.digestBitVec digest =
-    SHS.SHA256.sha256
-      (SHS.Equiv.SHA256.Padding.ByteDecoding.bytesToBitMessage message.bytes)
-      (SHS.Equiv.SHA256.Pipeline.bitLen_lt_of_size_lt message.bytes lengthBound)
+def sha256 (message : ByteList) : Nat × Digest :=
+  (0, digest message.bytes)
+
+/-- Digest conformance to EthLib's FIPS 180-4 specification. -/
+def MatchesFIPS (message : ByteList) (result : Digest)
+    (_lengthBound : message.bytes.size < 2 ^ 61) : Prop :=
+  EthLib.Base.packBytes result = EthLib.Cryptography.Hash.Sha256.Spec.hash message.bytes
 
 end Crypto.Reference

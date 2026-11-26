@@ -36,7 +36,7 @@ theorem schedule_loop_prefix (s : Arm64.State) (M : Vector (BitVec 32) 16)
       out.pc = (if 16 + n < 64 then s.pc else s.pc + 72#64) ∧
       out.readReg64 .x5 = BitVec.ofNat 64 (16 + n) ∧
       wordVector 64 out.mem out.sp = Fin.foldl n
-        (fun W (i : Fin n) => SHS.Equiv.SHA256.Foldl.Schedule.specScheduleStep M (16 + i.val) W)
+        (fun W (i : Fin n) => Crypto.Reference.WordModel.specScheduleStep M (16 + i.val) W)
         (wordVector 64 s.mem s.sp) ∧
       (∀ i : Fin 64, out.mem.canRead (out.sp + BitVec.ofNat 64 (4 * i.val)) 4 = true) ∧
       (∀ i : Fin 64, out.mem.canWrite (out.sp + BitVec.ofNat 64 (4 * i.val)) 4 = true) ∧
@@ -46,7 +46,7 @@ theorem schedule_loop_prefix (s : Arm64.State) (M : Vector (BitVec 32) 16)
     DataFrame s mid ∧ mid.pc = (if 16 + i < 64 then s.pc else s.pc + 72#64) ∧
     mid.readReg64 .x5 = BitVec.ofNat 64 (16 + i) ∧
     wordVector 64 mid.mem mid.sp = Fin.foldl i
-      (fun W (j : Fin i) => SHS.Equiv.SHA256.Foldl.Schedule.specScheduleStep M (16 + j.val) W)
+      (fun W (j : Fin i) => Crypto.Reference.WordModel.specScheduleStep M (16 + j.val) W)
       (wordVector 64 s.mem s.sp) ∧
     (∀ j : Fin 64, mid.mem.canRead (mid.sp + BitVec.ofNat 64 (4 * j.val)) 4 = true) ∧
     (∀ j : Fin 64, mid.mem.canWrite (mid.sp + BitVec.ofNat 64 (4 * j.val)) 4 = true) ∧
@@ -65,19 +65,19 @@ theorem schedule_loop_prefix (s : Arm64.State) (M : Vector (BitVec 32) 16)
       simpa only [t, hp, Nat.add_assoc] using pc
     · simpa only [t, Nat.add_assoc] using count
     · have hpure :
-          SHS.Equiv.SHA256.Foldl.Schedule.specScheduleStep M (16 + i)
+          Crypto.Reference.WordModel.specScheduleStep M (16 + i)
             (Fin.foldl i (fun W (j : Fin i) =>
-              SHS.Equiv.SHA256.Foldl.Schedule.specScheduleStep M (16 + j.val) W)
+              Crypto.Reference.WordModel.specScheduleStep M (16 + j.val) W)
               (wordVector 64 s.mem s.sp)) =
           Fin.foldl (i + 1) (fun W (j : Fin (i + 1)) =>
-            SHS.Equiv.SHA256.Foldl.Schedule.specScheduleStep M (16 + j.val) W)
+            Crypto.Reference.WordModel.specScheduleStep M (16 + j.val) W)
             (wordVector 64 s.mem s.sp) :=
         (Fin.foldl_succ_last
           (fun W (j : Fin (i + 1)) =>
-            SHS.Equiv.SHA256.Foldl.Schedule.specScheduleStep M (16 + j.val) W)
+            Crypto.Reference.WordModel.specScheduleStep M (16 + j.val) W)
           (wordVector 64 s.mem s.sp)).symm
       exact words.trans ((congrArg
-        (SHS.Equiv.SHA256.Foldl.Schedule.specScheduleStep M (16 + i)) hwords).trans hpure)
+        (Crypto.Reference.WordModel.specScheduleStep M (16 + i)) hwords).trans hpure)
     · intro j
       rw [mem, ff.sp]
       exact canRead_write32 _ _ _ _ _ (hr' j)
@@ -101,7 +101,7 @@ theorem schedule_loop (s : Arm64.State) (M : Vector (BitVec 32) 16)
     ∃ out, runCycles scheduleCycleCode 48 s = some out ∧ DataFrame s out ∧
       out.pc = s.pc + 72#64 ∧ out.readReg64 .x5 = 64#64 ∧
       wordVector 64 out.mem out.sp = Fin.foldl 48
-        (fun W (i : Fin 48) => SHS.Equiv.SHA256.Foldl.Schedule.specScheduleStep M (16 + i.val) W)
+        (fun W (i : Fin 48) => Crypto.Reference.WordModel.specScheduleStep M (16 + i.val) W)
         (wordVector 64 s.mem s.sp) ∧
       (∀ i : Fin 64, out.mem.canRead (out.sp + BitVec.ofNat 64 (4 * i.val)) 4 = true) ∧
       (∀ i : Fin 64, out.mem.canWrite (out.sp + BitVec.ofNat 64 (4 * i.val)) 4 = true) ∧
@@ -117,7 +117,7 @@ theorem schedule_loop_matches_spec (s : Arm64.State) (M : Vector (BitVec 32) 16)
     (hfirst : ∀ j, j < 16 → (wordVector 64 s.mem s.sp)[j]! = M[j]!) :
     ∃ out, runCycles scheduleCycleCode 48 s = some out ∧ DataFrame s out ∧
       out.pc = s.pc + 72#64 ∧ out.readReg64 .x5 = 64#64 ∧
-      wordVector 64 out.mem out.sp = SHS.SHA256.schedule M ∧
+      wordVector 64 out.mem out.sp = Crypto.Reference.WordModel.schedule M ∧
       (∀ i : Fin 64, out.mem.canRead (out.sp + BitVec.ofNat 64 (4 * i.val)) 4 = true) ∧
       (∀ i : Fin 64, out.mem.canWrite (out.sp + BitVec.ofNat 64 (4 * i.val)) 4 = true) ∧
       (∀ p, 256 ≤ (p - s.sp).toNat → out.mem.cells p = s.mem.cells p) ∧

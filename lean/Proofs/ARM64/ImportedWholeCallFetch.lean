@@ -83,7 +83,7 @@ theorem whole_call_sha256_staticPath (base : BitVec 64) (s : Arm64.State) (data 
       StaticPath base (wholeCallCode (BitVec.ofNat 64 data.size)) s ∧
       returnStable out = returnStable s ∧ nonvolatile out = nonvolatile s ∧
       out.sp = s.sp ∧ out.pc = s.readReg64 .x30 ∧ out.readReg64 .x0 = 0#64 ∧
-      out.status = .Running ∧ memoryBytes32 out.mem (s.readReg64 .x1) = (SHS.SHA256.Impl.sha256 data).map UInt8.toBitVec := by
+      out.status = .Running ∧ memoryBytes32 out.mem (s.readReg64 .x1) = (Crypto.Reference.digest data).map UInt8.toBitVec := by
   obtain ⟨out, executed, state, nv, sp, pc, zero, running, digest⟩ := whole_call_sha256 base s data entry
   exact ⟨out, executed, whole_call_staticPath base s data entry out executed running,
     state, nv, sp, pc, zero, running, digest⟩

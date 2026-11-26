@@ -30,8 +30,10 @@ example (base : X86.Val) (s : X86.Cpu) (msg : Crypto.Reference.ByteList) (extent
 open Lean Elab Command in
 run_cmd do
   let names := #[
-    ``SHS.Equiv.SHA256.sha256_correct,
-    ``SHS.Equiv.SHA256.compress_correct,
+    ``EthLib.Cryptography.Hash.Sha256.hash32_eq_spec,
+    ``EthLib.Cryptography.Hash.Sha256.padded_bits,
+    ``EthLib.Cryptography.Hash.Sha256.inputWords_bits,
+    ``EthLib.Cryptography.Hash.Sha256.compress_toState,
     ``Crypto.Reference.sha256_matches_fips,
     ``Crypto.Reference.sha256_status,
     ``Crypto.Reference.sha256_digest_size,
@@ -241,11 +243,10 @@ run_cmd do
     ``Crypto.ARM64.Imported.loaded_initial_pool,
     ``Crypto.ARM64.Imported.initialHashMemory_fips,
     ``Crypto.ARM64.Imported.loaded_round_pool,
-    ``Crypto.ARM64.Imported.beU32_bytes,
+    ``Crypto.Reference.WordModel.block_agrees,
     ``Crypto.ARM64.Imported.memoryBlock_reference,
-    ``Crypto.ARM64.Imported.reference_state_fold,
-    ``Crypto.ARM64.Imported.reference_word_byte,
-    ``Crypto.ARM64.Imported.digestBytes_toSpecState,
+    ``Crypto.Reference.WordModel.fold_agrees,
+    ``Crypto.Reference.WordModel.reference_digest_bytes,
     ``Crypto.ARM64.Imported.reference_digest_bytes,
     ``Crypto.ARM64.Imported.padded_block_count,
     ``Crypto.ARM64.Imported.phasesHash_reference,

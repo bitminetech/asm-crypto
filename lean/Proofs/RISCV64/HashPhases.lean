@@ -5,7 +5,7 @@ namespace Crypto.RISCV64
 
 open Crypto.ARM64.Imported (digestBytes paddingBlockCount paddedSpecBlock paddedSpecFold
   reference_digest_bytes address_delta)
-open SHS.Equiv.SHA256.Padding.Layout (implPaddedBytes)
+open Crypto.Reference.ByteLayout (implPaddedBytes)
 
 private theorem reg_eq_of_regs {s t : CPU} (h : s.regs = t.regs) (r : Reg) :
     s.reg r = t.reg r := by
@@ -54,7 +54,7 @@ theorem hash_phases (base : Addr) (s : CPU) (data : ByteArray)
     (constants : s.reg 10 = base + BitVec.ofNat 64 constantsOffset)
     (codeApart : ∀ j, j < image.size → 288 ≤ (base + BitVec.ofNat 64 j - s.reg 2).toNat)
     (inputApart : PhaseInputApart s (data.size / 64))
-    (initial : storedHash s = SHS.SHA256.H0_256)
+    (initial : storedHash s = Crypto.Reference.WordModel.H0_256)
     (messageWords : ∀ i : Fin (data.size / 64),
       blockWords s.mem (s.reg 12 + BitVec.ofNat 64 (64*i.val)) = paddedSpecBlock data i.val)
     (paddingWords : ∀ i : Fin (paddingBlockCount data),
@@ -69,7 +69,7 @@ theorem hash_phases (base : Addr) (s : CPU) (data : ByteArray)
       ImageExecution base padMid [blockGuard] padExit ∧
       ImageExecution base padExit [phaseGuard] out ∧ out.pc = base + 0x300 ∧
       out.reg 2 = s.reg 2 ∧ out.reg 11 = s.reg 11 ∧ out.reg 1 = s.reg 1 ∧
-      digestBytes (storedHash out) = (SHS.SHA256.Impl.sha256 data).map UInt8.toBitVec ∧
+      digestBytes (storedHash out) = (Crypto.Reference.digest data).map UInt8.toBitVec ∧
       (∀ p, 288 ≤ (p - s.reg 2).toNat → out.mem.cells p = s.mem.cells p) := by
   obtain ⟨msg, msgExit, message, h, branchOut, atDispatch, preMem, preRegs⟩ :=
     block_phase base s _ (by omega) pc messageCount loaded constants codeApart inputApart

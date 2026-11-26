@@ -48,7 +48,7 @@ private theorem image_frame (base : Addr) (s t : CPU) (loaded : ImageLoaded base
   rw [frame _ (apart i hi)]
   exact loaded i hi
 
-attribute [local irreducible] run loadCode expansionCode SHS.SHA256.compress SHS.SHA256.schedule
+attribute [local irreducible] run loadCode expansionCode Crypto.Reference.WordModel.compress Crypto.Reference.WordModel.schedule
 
 /-- One block of RV64 SHA-256 from the first input-word load to the end of
 feed-forward. The message and initial chaining value are arbitrary. -/
@@ -65,7 +65,7 @@ theorem block_compression (base : Addr) (s : CPU)
       ImageExecution base afterExpansion loadHashBody startRounds ∧
       ImageExecution base startRounds (roundCode 64) endRounds ∧
       ImageExecution base endRounds feedForward out ∧ out.pc = base + 0x2ee ∧
-      storedHash out = SHS.SHA256.compress (storedHash s) (blockWords s.mem (s.reg 12)) ∧
+      storedHash out = Crypto.Reference.WordModel.compress (storedHash s) (blockWords s.mem (s.reg 12)) ∧
       out.reg 2 = s.reg 2 ∧
       (∀ p, 288 ≤ (p - s.reg 2).toNat → out.mem.cells p = s.mem.cells p) := by
   let words := blockWords s.mem (s.reg 12)
@@ -84,7 +84,7 @@ theorem block_compression (base : Addr) (s : CPU)
       (k.trans constants) schedule
   have old : storedHash second = storedHash s := hash_frame s second (expSP.trans loadSP) frame
   refine ⟨first, second, start, finish, out, input, expansion, loadHash, rounds, feed, exit,
-    value.trans (congrArg (SHS.SHA256.compress · words) old), stack.trans (expSP.trans loadSP), ?_⟩
+    value.trans (congrArg (Crypto.Reference.WordModel.compress · words) old), stack.trans (expSP.trans loadSP), ?_⟩
   intro p outside
   have sameSP : second.reg 2 = s.reg 2 := expSP.trans loadSP
   exact (preserve p (by rw [sameSP]; exact outside)).trans (frame p (by omega))

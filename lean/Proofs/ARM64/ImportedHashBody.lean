@@ -52,10 +52,10 @@ theorem hash_phases (s : Arm64.State) (ready : BlockReady s)
       out.readReg64 .x1 = s.readReg64 .x1 ∧ out.readReg64 .x4 = 1#64 ∧
       out.readReg64 .x6 = s.readReg64 .x6 ∧ BlockReady out ∧
       savedHash out = Fin.foldl padding
-        (fun H (i : Fin padding) => SHS.SHA256.compress H
+        (fun H (i : Fin padding) => Crypto.Reference.WordModel.compress H
           (memoryBlock s.mem (s.sp + 288#64 + BitVec.ofNat 64 (64 * i.val))))
         (Fin.foldl full
-          (fun H (i : Fin full) => SHS.SHA256.compress H
+          (fun H (i : Fin full) => Crypto.Reference.WordModel.compress H
             (memoryBlock s.mem (s.readReg64 .x2 + BitVec.ofNat 64 (64 * i.val)))) (savedHash s)) ∧
       (∀ p, 288 ≤ (p - s.sp).toNat → out.mem.cells p = s.mem.cells p) ∧
       (∀ a n, s.mem.canRead a n = true → out.mem.canRead a n = true) := by
@@ -100,13 +100,13 @@ theorem hash_phases (s : Arm64.State) (ready : BlockReady s)
   have finalState : nonMemory out = nonMemory s :=
     lastFrame.state.trans (pf.state.trans (stateSwitch.trans cf.state))
   have blocks :
-      (fun H (i : Fin padding) => SHS.SHA256.compress H
+      (fun H (i : Fin padding) => Crypto.Reference.WordModel.compress H
         (memoryBlock switched.mem (switched.readReg64 .x2 + BitVec.ofNat 64 (64 * i.val)))) =
-      (fun H (i : Fin padding) => SHS.SHA256.compress H
+      (fun H (i : Fin padding) => Crypto.Reference.WordModel.compress H
         (memoryBlock s.mem (s.sp + 288#64 + BitVec.ofNat 64 (64 * i.val)))) := by
     funext H i
     rw [pointerSwitch, smem]
-    exact congrArg (SHS.SHA256.compress H)
+    exact congrArg (Crypto.Reference.WordModel.compress H)
       (padding_block_of_frame complete.mem s.mem s.sp cframe ⟨i.val, by have := i.isLt; omega⟩)
   have hashSwitch : savedHash switched = savedHash complete := by
     unfold savedHash
@@ -135,10 +135,10 @@ theorem hash_phases (s : Arm64.State) (ready : BlockReady s)
 
 def phasesHash (s : Arm64.State) (full padding : Nat) : Vector (BitVec 32) 8 :=
   Fin.foldl padding
-    (fun H (i : Fin padding) => SHS.SHA256.compress H
+    (fun H (i : Fin padding) => Crypto.Reference.WordModel.compress H
       (memoryBlock s.mem (s.sp + 288#64 + BitVec.ofNat 64 (64 * i.val))))
     (Fin.foldl full
-      (fun H (i : Fin full) => SHS.SHA256.compress H
+      (fun H (i : Fin full) => Crypto.Reference.WordModel.compress H
         (memoryBlock s.mem (s.readReg64 .x2 + BitVec.ofNat 64 (64 * i.val)))) (savedHash s))
 
 def hashBodyCode (full padding : Nat) := hashPhasesCode full padding ++ exitCode

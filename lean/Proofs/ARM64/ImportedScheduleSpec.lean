@@ -1,5 +1,5 @@
 import Proofs.ARM64.ImportedScheduleRAM
-import equiv.SHA256.Foldl.Fused
+import Reference.WordModel
 
 /-!
 Pure adapter proofs over the unchanged imported FIPS schedule. Expansion only
@@ -7,17 +7,15 @@ reads earlier words, so arbitrary workspace contents beyond the initialized
 16-word message block do not affect the completed 64-word schedule.
 -/
 namespace Crypto.ARM64.Imported
-open SHS.Equiv.VecBridge
-open SHS.Equiv.SHA256.Foldl.Schedule
-open SHS.Equiv.SHA256.Foldl.Fused
+open Crypto.Reference.WordModel
 
 abbrev ScheduleWords := Vector (BitVec 32) 64
 
 theorem schedule_step_get_self (M : Vector (BitVec 32) 16) (W : ScheduleWords) (t : Fin 64) :
     (specScheduleStep M t.val W)[t.val]! =
       if t.val < 16 then M[t.val]! else
-        SHS.SHA256.smallSigma1 W[t.val - 2]! + W[t.val - 7]! +
-        SHS.SHA256.smallSigma0 W[t.val - 15]! + W[t.val - 16]! := by
+        Crypto.Reference.WordModel.smallSigma1 W[t.val - 2]! + W[t.val - 7]! +
+        Crypto.Reference.WordModel.smallSigma0 W[t.val - 15]! + W[t.val - 16]! := by
   unfold specScheduleStep
   split <;>
     rw [getElem_bang_eq_getElem _ _ t.isLt, set_bang_eq_set _ _ t.isLt, Vector.getElem_set_self]
@@ -73,8 +71,8 @@ theorem initial_schedule_prefix (M : Vector (BitVec 32) 16) (n : Nat) (hn : n �
 
 theorem expanded_eq_schedule (M : Vector (BitVec 32) 16) (W : ScheduleWords)
     (h : ∀ j, j < 16 → W[j]! = M[j]!) :
-    expandedWords M W 48 = SHS.SHA256.schedule M := by
-  have split : SHS.SHA256.schedule M = expandedWords M (initialSchedule M 16) 48 := by
+    expandedWords M W 48 = Crypto.Reference.WordModel.schedule M := by
+  have split : Crypto.Reference.WordModel.schedule M = expandedWords M (initialSchedule M 16) 48 := by
     exact (schedule_eq_foldl M).trans
       (Fin.foldl_add (n := 16) (m := 48)
         (fun W (i : Fin (16 + 48)) => specScheduleStep M i.val W) (Vector.replicate 64 default))

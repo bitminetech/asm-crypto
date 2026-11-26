@@ -70,20 +70,20 @@ theorem round_loop_prefix (s : Arm64.State) (W : Vector (BitVec 32) 64)
     (hsp : s.spAligned = true) (hc : s.readReg64 .x5 = 0#64)
     (hkr : ∀ i : Fin 64, s.mem.canRead (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) 4 = true)
     (hwr : ∀ i : Fin 64, s.mem.canRead (s.sp + BitVec.ofNat 64 (4 * i.val)) 4 = true)
-    (hkv : ∀ i : Fin 64, s.mem.read32 (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = SHS.SHA256.K[i.val]!)
+    (hkv : ∀ i : Fin 64, s.mem.read32 (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = Crypto.Reference.WordModel.K[i.val]!)
     (hwv : ∀ i : Fin 64, s.mem.read32 (s.sp + BitVec.ofNat 64 (4 * i.val)) = W[i.val]!)
     (n : Nat) (hn : n ≤ 64) :
     ∃ out, runCycles roundCycleCode n s = some out ∧ CoreFrame s out ∧
       out.pc = (if n < 64 then s.pc else s.pc + 132#64) ∧
       out.readReg64 .x5 = BitVec.ofNat 64 n ∧
       working out = Fin.foldl n
-        (fun work (i : Fin n) => SHS.Equiv.SHA256.Foldl.Sequential.specRoundStep W i.val work)
+        (fun work (i : Fin n) => Crypto.Reference.WordModel.specRoundStep W i.val work)
         (working s) := by
   let P (i : Nat) (mid : Arm64.State) : Prop :=
     CoreFrame s mid ∧ mid.pc = (if i < 64 then s.pc else s.pc + 132#64) ∧
     mid.readReg64 .x5 = BitVec.ofNat 64 i ∧
     working mid = Fin.foldl i
-      (fun work (j : Fin i) => SHS.Equiv.SHA256.Foldl.Sequential.specRoundStep W j.val work)
+      (fun work (j : Fin i) => Crypto.Reference.WordModel.specRoundStep W j.val work)
       (working s)
   have h0 : P 0 s := ⟨CoreFrame.refl s, rfl, hc, (Fin.foldl_zero _ _).symm⟩
   have hs (i : Nat) (hi : i < n) (mid : Arm64.State) (hp : P i mid) :
@@ -96,7 +96,7 @@ theorem round_loop_prefix (s : Arm64.State) (W : Vector (BitVec 32) 64)
     have wr : mid.mem.canRead (mid.sp + (mid.readReg64 .x5 <<< 2)) 4 = true := by
       rw [hc', show i = t.val from rfl, index_shift_two, hf.mem, hf.sp]
       exact hwr t
-    have kv : mid.mem.read32 (mid.readReg64 .x0 + (mid.readReg64 .x5 <<< 2)) = SHS.SHA256.K[t.val]! := by
+    have kv : mid.mem.read32 (mid.readReg64 .x0 + (mid.readReg64 .x5 <<< 2)) = Crypto.Reference.WordModel.K[t.val]! := by
       rw [hc', show i = t.val from rfl, index_shift_two, hf.mem, hf.x0]
       exact hkv t
     have wv : mid.mem.read32 (mid.sp + (mid.readReg64 .x5 <<< 2)) = W[t.val]! := by
@@ -109,16 +109,16 @@ theorem round_loop_prefix (s : Arm64.State) (W : Vector (BitVec 32) 64)
       simp only [if_pos hlt] at hp
       simpa only [t, hp] using pc
     · have hpure :
-          SHS.Equiv.SHA256.Foldl.Sequential.specRoundStep W i
+          Crypto.Reference.WordModel.specRoundStep W i
             (Fin.foldl i (fun work (j : Fin i) =>
-              SHS.Equiv.SHA256.Foldl.Sequential.specRoundStep W j.val work) (working s)) =
+              Crypto.Reference.WordModel.specRoundStep W j.val work) (working s)) =
           Fin.foldl (i + 1) (fun work (j : Fin (i + 1)) =>
-            SHS.Equiv.SHA256.Foldl.Sequential.specRoundStep W j.val work) (working s) :=
+            Crypto.Reference.WordModel.specRoundStep W j.val work) (working s) :=
         (Fin.foldl_succ_last
           (fun work (j : Fin (i + 1)) =>
-            SHS.Equiv.SHA256.Foldl.Sequential.specRoundStep W j.val work)
+            Crypto.Reference.WordModel.specRoundStep W j.val work)
           (working s)).symm
-      have hrewrite := congrArg (SHS.Equiv.SHA256.Foldl.Sequential.specRoundStep W i) hw'
+      have hrewrite := congrArg (Crypto.Reference.WordModel.specRoundStep W i) hw'
       exact work.trans (hrewrite.trans hpure)
   exact iterateStep_invariant (runWords roundCycleCode) P n s h0 hs
 
@@ -126,12 +126,12 @@ theorem round_loop (s : Arm64.State) (W : Vector (BitVec 32) 64)
     (hsp : s.spAligned = true) (hc : s.readReg64 .x5 = 0#64)
     (hkr : ∀ i : Fin 64, s.mem.canRead (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) 4 = true)
     (hwr : ∀ i : Fin 64, s.mem.canRead (s.sp + BitVec.ofNat 64 (4 * i.val)) 4 = true)
-    (hkv : ∀ i : Fin 64, s.mem.read32 (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = SHS.SHA256.K[i.val]!)
+    (hkv : ∀ i : Fin 64, s.mem.read32 (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = Crypto.Reference.WordModel.K[i.val]!)
     (hwv : ∀ i : Fin 64, s.mem.read32 (s.sp + BitVec.ofNat 64 (4 * i.val)) = W[i.val]!) :
     ∃ out, runCycles roundCycleCode 64 s = some out ∧ CoreFrame s out ∧
       out.pc = s.pc + 132#64 ∧ out.readReg64 .x5 = 64#64 ∧
       working out = Fin.foldl 64
-        (fun work (i : Fin 64) => SHS.Equiv.SHA256.Foldl.Sequential.specRoundStep W i.val work)
+        (fun work (i : Fin 64) => Crypto.Reference.WordModel.specRoundStep W i.val work)
         (working s) := by
   obtain ⟨out, he, hf, hp, hc', hw⟩ := round_loop_prefix s W hsp hc hkr hwr hkv hwv 64 (by decide)
   exact ⟨out, he, hf, hp, hc', hw⟩

@@ -143,7 +143,7 @@ theorem input_prefix (base : Val) (s : Cpu) (live : s.ms = none) (pc : s.rip = b
       exact (frame _ (by rw [state.stack]; exact hp)).trans (state.frame _ hp)
     · intro j hj
       have hj' : j < 64 := by omega
-      rw [words, SHS.Equiv.VecBridge.getElem_bang_eq_getElem _ _ hj',
+      rw [words, Crypto.Reference.WordModel.getElem_bang_eq_getElem _ _ hj',
         Crypto.ARM64.Imported.vector_setBang_eq_setIfInBounds, Vector.getElem_setIfInBounds]
       by_cases eq : n = j
       · subst j; simpa [t] using word

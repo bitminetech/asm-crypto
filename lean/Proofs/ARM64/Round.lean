@@ -1,5 +1,5 @@
 import Models.ARM64Round
-import spec.Functions
+import Reference.WordModel
 
 namespace Crypto.ARM64.Round
 
@@ -45,8 +45,8 @@ theorem narrow_shift (x : Word) (n : Nat) :
 def fipsRound (s : Vector Word 8) (k w : Word) : Vector Word 8 :=
   let a := s[0]; let b := s[1]; let c := s[2]; let d := s[3]
   let e := s[4]; let f := s[5]; let g := s[6]; let h := s[7]
-  let t1 := h + SHS.SHA256.bigSigma1 e + SHS.SHA256.Ch e f g + k + w
-  let t2 := SHS.SHA256.bigSigma0 a + SHS.SHA256.Maj a b c
+  let t1 := h + EthLib.Cryptography.Hash.Sha256.Spec.large1 e + Crypto.Reference.WordModel.Ch e f g + k + w
+  let t2 := EthLib.Cryptography.Hash.Sha256.Spec.large0 a + Crypto.Reference.WordModel.Maj a b c
   #v[t1 + t2, a, b, c, d + t1, e, f, g]
 
 theorem code_length : code.length = 30 := by decide
@@ -62,8 +62,8 @@ theorem round_computes (s : State) :
         (read32 s.memory (s.sp + (readX s 5 <<< 2)))) := by
   simp [code, imageWords, runWords, stepWord, field, readW, readX, writeW,
     readBase, working, shifted, fipsRound, BitVec.truncate_eq_setWidth,
-    extr_same, SHS.SHA256.bigSigma0, SHS.SHA256.bigSigma1,
-    SHS.SHA256.Ch, SHS.SHA256.Maj, SHS.ROTR,
+    extr_same, EthLib.Cryptography.Hash.Sha256.Spec.large0, EthLib.Cryptography.Hash.Sha256.Spec.large1,
+    Crypto.Reference.WordModel.Ch, Crypto.Reference.WordModel.Maj, BitVec.rotateRight_def,
     BitVec.add_assoc]
   simp (config := { decide := true }) [ ch_or_eq_xor, maj_factored, BitVec.add_assoc,
     BitVec.rotateRight_def, narrow_shift,

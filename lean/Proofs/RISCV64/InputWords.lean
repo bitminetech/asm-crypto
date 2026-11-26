@@ -7,7 +7,7 @@ set_option maxRecDepth 10000
 
 open Crypto.ARM64.Imported
   (wordVector wordVector_store64 workspace_store_outside vector_setBang_eq_setIfInBounds)
-open SHS.Equiv.VecBridge (getElem_bang_eq_getElem)
+open Crypto.Reference.WordModel (getElem_bang_eq_getElem)
 
 def loadCycle : List Instruction := inputWordBody ++ latch 16#64 (-56)
 

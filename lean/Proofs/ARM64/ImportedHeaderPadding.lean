@@ -48,7 +48,7 @@ theorem header_padding (s : Arm64.State) (data : ByteArray) (bound : data.size <
       out.readReg64 .x17 = BitVec.ofNat 64 (data.size % 64) ∧
       (∀ i : Fin (lengthOffset (data.size % 64) + 8),
         out.mem.read8 (entryStack s + 288#64 + BitVec.ofNat 64 i.val) =
-          ((SHS.Equiv.SHA256.Padding.Layout.implPaddedBytes data).get! (data.size / 64 * 64 + i.val)).toBitVec) ∧
+          ((Crypto.Reference.ByteLayout.implPaddedBytes data).get! (data.size / 64 * 64 + i.val)).toBitVec) ∧
       (∀ p, 128 ≤ (p - (entryStack s + 288#64)).toNat → out.mem.cells p = s.mem.cells p) ∧
       (∀ a n, s.mem.canRead a n = true → out.mem.canRead a n = true) ∧
       (∀ a n, out.mem.canWrite a n = s.mem.canWrite a n) := by

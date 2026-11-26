@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Reject unpinned or modified imported Lean sources before checking proofs."""
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -23,9 +24,20 @@ def check(root):
         if git(directory, "status", "--porcelain", "--untracked-files=all"):
             raise ValueError(name + ": imported dependency was modified")
         report.append({"name": name, "commit": package["rev"], "url": package["url"]})
-    reference = next(p for p in report if p["name"] == "fips-pub-180-4")
-    if reference["commit"] != "6b92c7746afc797a1741ff985e04bbc311db7d89":
-        raise ValueError("reference changed: review and register a new obligation")
+    reference = json.loads((root / "lean/verification-scope.json").read_text())["reference"]
+    if reference["commit"] != "784bccaf1632af158cbe8fd7c056137cfd6c47b8":
+        raise ValueError("EthLib reference changed: review and register a new obligation")
+    directory = root / "lean/Imports/ethlib"
+    entries = list(directory.rglob("*"))
+    if any(entry.is_symlink() for entry in [directory, *entries]):
+        raise ValueError("symbolic links in the imported EthLib closure are not permitted")
+    files = {entry.relative_to(directory).as_posix(): hashlib.sha256(entry.read_bytes()).hexdigest()
+             for entry in entries if entry.is_file()}
+    if files != reference["files_sha256"]:
+        raise ValueError("imported EthLib SHA-256 source closure differs from the pin")
+    report.append({"name": "EthLib", "commit": reference["commit"],
+                   "url": reference["repository"], "path": reference["path"],
+                   "files_sha256": files})
     model_path = "lean/Imports/arm64"
     model_pin = "b0f729accbc21a0413e7ca4e1da43fa45b5f2e1b"
     model = root / model_path

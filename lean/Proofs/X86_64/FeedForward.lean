@@ -2,7 +2,7 @@ import Proofs.X86_64.HashLoad
 import Proofs.ARM64.ImportedHashFrame
 
 namespace Crypto.X86_64
-open X86 SHS.Equiv.SHA256.Foldl.Sequential
+open X86 Crypto.Reference.WordModel
 open Crypto.ARM64.Imported (wordVector)
 
 def workReg (i : Fin 8) : GPR := (#v[.r8, .r9, .r10, .r11, .r12, .r13, .r14, .r15] : Vector GPR 8)[i.val]

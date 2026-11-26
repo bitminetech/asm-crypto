@@ -113,7 +113,7 @@ private theorem iv_prefix (base : Val) (s : Cpu) (live : s.ms = none) (pc : s.ri
       exact prev.frame _ hp
 
 private theorem iv_loaded_words (base : Val) (m : Mem) (loaded : ImageLoaded base m) :
-    wordVector 8 (byteView m) (base+0x490) = SHS.SHA256.H0_256 := by
+    wordVector 8 (byteView m) (base+0x490) = Crypto.Reference.WordModel.H0_256 := by
   apply Vector.ext
   intro j hj
   have size : image.size = 1200 := by decide +kernel
@@ -135,7 +135,7 @@ structure InitialHashState (base : Val) (s out : Cpu) : Prop where
   ptr : out.regs.get .rbp = s.regs.get .rbp
   constants : out.regs.get .rdi = base+0x390
   phase : phase out = 0
-  hash : hashWords (project out) = SHS.SHA256.H0_256
+  hash : hashWords (project out) = Crypto.Reference.WordModel.H0_256
   frame : ∀ p, 288 ≤ (p-s.regs.get .rsp).toNat → 8 ≤ (p-(s.regs.get .rsp+432)).toNat →
     out.mem.read p = s.mem.read p
   observations : ObservedExecution base s (initialHashEvents base (s.regs.get .rsp)) out

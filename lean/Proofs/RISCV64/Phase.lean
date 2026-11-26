@@ -22,7 +22,7 @@ inductive BlockPathPrefix (base : Addr) : CPU → Nat → CPU → Prop where
       BlockPathPrefix base s (n + 1) out
 
 def phaseHash (s : CPU) (n : Nat) : Vector Word 8 :=
-  Fin.foldl n (fun h i => SHS.SHA256.compress h
+  Fin.foldl n (fun h i => Crypto.Reference.WordModel.compress h
     (blockWords s.mem (s.reg 12 + BitVec.ofNat 64 (64*i.val)))) (storedHash s)
 
 def PhaseInputApart (s : CPU) (n : Nat) : Prop :=
@@ -43,7 +43,7 @@ structure PhaseState (base : Addr) (s out : CPU) (total done : Nat) : Prop where
   hash : storedHash out = phaseHash s done
   cells : ∀ p, 288 ≤ (p - s.reg 2).toNat → out.mem.cells p = s.mem.cells p
 
-attribute [local irreducible] SHS.SHA256.compress
+attribute [local irreducible] Crypto.Reference.WordModel.compress
 
 private theorem phase_input (s t : CPU) (total done : Nat) (small : done < total)
     (apart : PhaseInputApart s total) (ptr : t.reg 12 = s.reg 12 + BitVec.ofNat 64 (64*done))

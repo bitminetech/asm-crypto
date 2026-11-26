@@ -33,7 +33,7 @@ theorem schedule_cycle (s : Arm64.State) (M : Vector (BitVec 32) 16) (t : Fin 64
       after.readReg64 .x5 = BitVec.ofNat 64 (t.val + 1) ∧
       after.mem = s.mem.write32 (scheduleAddress s) (scheduleValue s) ∧
       wordVector 64 after.mem after.sp =
-        SHS.Equiv.SHA256.Foldl.Schedule.specScheduleStep M t.val (wordVector 64 s.mem s.sp) := by
+        Crypto.Reference.WordModel.specScheduleStep M t.val (wordVector 64 s.mem s.sp) := by
   have readable (k : Nat) (hk : k ≤ t.val) :
       s.mem.canRead (scheduleAddress s + (-BitVec.ofNat 64 (4 * k))) 4 = true := by
     rw [schedule_back_address s t k hc hk]

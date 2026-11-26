@@ -7,7 +7,7 @@ workspace write permissions and every cell outside the workspace. The entry
 requires the 64 source bytes to be disjoint from the 256-byte workspace.
 -/
 namespace Crypto.ARM64.Imported
-open SHS.Equiv.VecBridge
+open Crypto.Reference.WordModel
 
 theorem DataFrame.x2 {a b : Arm64.State} (h : DataFrame a b) :
     b.readReg64 .x2 = a.readReg64 .x2 := h.2.2.2.2.1

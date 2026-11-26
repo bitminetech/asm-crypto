@@ -6,7 +6,7 @@ import Reference.SHA256
 namespace Crypto.X86_64
 open X86
 open Crypto.ARM64.Imported (paddingBlockCount digestBytes memoryBytes32)
-open SHS.Equiv.SHA256.Padding.Layout
+open Crypto.Reference.ByteLayout
 
 private theorem read_fixed_slot (base : Val) (s out : Cpu) (n k d : Nat) (post : HashPhasesResult base s out n k)
     (outside : ∀ b : Fin 8, 288 ≤ (BitVec.ofNat 64 d+BitVec.ofNat 64 b.val).toNat ∧
@@ -36,7 +36,7 @@ structure DigestResult (s out : Cpu) (message : Crypto.Reference.ByteList) : Pro
     (Crypto.Reference.sha256 message).2.map UInt8.toBitVec
   frame : ∀ p, outsidePhases (s.regs.get .rsp) p → 32 ≤ (p-digestPtr s).toNat → out.mem.read p = s.mem.read p
 
-attribute [local irreducible] steps hashWords foldBlocks SHS.SHA256.Impl.sha256
+attribute [local irreducible] steps hashWords foldBlocks Crypto.Reference.digest
 
 /-- Both block phases through the first RET. The premises identify the IV,
 the two public counts, the original payload and the prepared padding bytes. -/
@@ -47,7 +47,7 @@ theorem prepared_return (base : Val) (s : Cpu) (message : Crypto.Reference.ByteL
     (constants : s.regs.get .rdi = base+0x390) (phase0 : phase s = 0)
     (count : (blocksLeft s).toNat = message.bytes.size/64)
     (pads : (paddingCount s).toNat = paddingBlockCount message.bytes)
-    (initial : hashWords (project s) = SHS.SHA256.H0_256) (bound : message.bytes.size < 2^61)
+    (initial : hashWords (project s) = Crypto.Reference.WordModel.H0_256) (bound : message.bytes.size < 2^61)
     (imageStack : ∀ j, j < image.size → 440 ≤ (base+BitVec.ofNat 64 j-s.regs.get .rsp).toNat)
     (src : ∀ t, t < message.bytes.size/64 → ∀ (i : Fin 16) (b : Fin 4), outsideCycle (s.regs.get .rsp)
       (s.regs.get .rbp+BitVec.ofNat 64 (64*t)+BitVec.ofNat 64 (4*i.val)+BitVec.ofNat 64 b.val))

@@ -43,13 +43,13 @@ theorem round_cycle (s : Arm64.State) (W : Vector (BitVec 32) 64) (t : Fin 64)
     (hsp : s.spAligned = true)
     (hk : s.mem.canRead (s.readReg64 .x0 + (s.readReg64 .x5 <<< 2)) 4 = true)
     (hw : s.mem.canRead (s.sp + (s.readReg64 .x5 <<< 2)) 4 = true)
-    (hK : s.mem.read32 (s.readReg64 .x0 + (s.readReg64 .x5 <<< 2)) = SHS.SHA256.K[t.val]!)
+    (hK : s.mem.read32 (s.readReg64 .x0 + (s.readReg64 .x5 <<< 2)) = Crypto.Reference.WordModel.K[t.val]!)
     (hW : s.mem.read32 (s.sp + (s.readReg64 .x5 <<< 2)) = W[t.val]!)
     (hc : s.readReg64 .x5 = BitVec.ofNat 64 t.val) :
     ∃ after, runWords roundCycleCode s = some after ∧ CoreFrame s after ∧
       after.pc = (if t.val + 1 < 64 then s.pc else s.pc + 132#64) ∧
       after.readReg64 .x5 = BitVec.ofNat 64 (t.val + 1) ∧
-      working after = SHS.Equiv.SHA256.Foldl.Sequential.specRoundStep W t.val (working s) := by
+      working after = Crypto.Reference.WordModel.specRoundStep W t.val (working s) := by
   obtain ⟨body, hb, hwork⟩ := exists_of_map_some _ _ _
     (round_matches_spec s W t.val hsp hk hw hK hW)
   have frame := round_frame s hsp hk hw

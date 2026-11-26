@@ -9,14 +9,23 @@
     ]
   },
   "reference": {
-    "repository": "https://github.com/remix7531/fips-180-4-lean",
-    "commit": "6b92c7746afc797a1741ff985e04bbc311db7d89",
+    "repository": "https://github.com/ethereum/EthLib",
+    "commit": "784bccaf1632af158cbe8fd7c056137cfd6c47b8",
+    "upstream_toolchain": "leanprover/lean4:v4.36.0",
     "lean": "leanprover/lean4:v4.29.1",
-    "license": "GPL-3.0-or-later",
-    "dependencies": "lake-manifest.json",
-    "entry": "SHS.SHA256.sha256",
-    "byte_entry": "SHS.SHA256.Impl.sha256",
-    "bridge": "SHS.Equiv.SHA256.sha256_correct"
+    "license": "CC0-1.0",
+    "path": "lean/Imports/ethlib",
+    "compatibility": "In EthLib/Base/Bytes.lean, dite_eq_left and dite_eq_right are spelled dif_pos and dif_neg on Lean 4.29.1.",
+    "files_sha256": {
+      "EthLib/Base/Bytes.lean": "56f4cb6b2cd7f5901af393bc15ea7ac13bb59a668ca7802beb9307522174a5ef",
+      "EthLib/Cryptography/Hash/Padding.lean": "9ccddf5a1cd7e838d98a8f7ca65e696bada530c617704fc8bb976e706ccb2e03",
+      "EthLib/Cryptography/Hash/Sha256.lean": "2dcdb0680c35533f8c463432d50a6812f2cd010ed57d689561d39b281103c131",
+      "EthLib/Cryptography/Proofs/Hash/Sha256.lean": "66a2ca25cd7a00ffde4f9ba30e347dbba77970deafbcbb970701663bbb14f861",
+      "LICENSE": "36ffd9dc085d529a7e60e1276d73ae5a030b020313e6c5408593a6ae2af39673"
+    },
+    "entry": "EthLib.Cryptography.Hash.Sha256.Spec.hash",
+    "byte_entry": "EthLib.Cryptography.Hash.Sha256.hash32",
+    "bridge": "EthLib.Cryptography.Hash.Sha256.hash32_eq_spec"
   },
   "supporting_claims": [
     {
@@ -60,7 +69,7 @@
       "scope": "3,969 fetched instructions from image offset 0x16d through feed-forward. Includes a memory frame outside the 288-byte workspace."
     },
     {
-      "claim": "The portable reference result matches the imported bit-oriented FIPS transcription.",
+      "claim": "The portable reference result matches the imported EthLib specification for FIPS 180-4.",
       "theorem": "Crypto.Reference.sha256_matches_fips",
       "scope": "Lean values only; message length below 2^61 bytes; no assembly execution"
     },
@@ -421,11 +430,10 @@
     {
       "claim": "The native-memory block decoder, two compression folds and emitted digest match the pinned byte-oriented FIPS implementation.",
       "theorems": [
-        "Crypto.ARM64.Imported.beU32_bytes",
+        "Crypto.Reference.WordModel.block_agrees",
         "Crypto.ARM64.Imported.memoryBlock_reference",
-        "Crypto.ARM64.Imported.reference_state_fold",
-        "Crypto.ARM64.Imported.reference_word_byte",
-        "Crypto.ARM64.Imported.digestBytes_toSpecState",
+        "Crypto.Reference.WordModel.fold_agrees",
+        "Crypto.Reference.WordModel.reference_digest_bytes",
         "Crypto.ARM64.Imported.reference_digest_bytes",
         "Crypto.ARM64.Imported.padded_block_count",
         "Crypto.ARM64.Imported.phasesHash_reference"

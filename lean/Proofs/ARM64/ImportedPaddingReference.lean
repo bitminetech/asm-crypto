@@ -1,5 +1,5 @@
 import Proofs.ARM64.ImportedPreparePadding
-import equiv.SHA256.Padding.Layout
+import Reference.ByteLayout
 
 /-!
 The complete recorded padding buffer agrees byte for byte with the pinned
@@ -7,7 +7,7 @@ FIPS implementation's padded-byte definition, for its one/two tail blocks.
 The bridge uses the independently supplied byte-count and source-tail mapping.
 -/
 namespace Crypto.ARM64.Imported
-open SHS.Equiv.SHA256.Padding.Layout
+open Crypto.Reference.ByteLayout
 
 theorem reference_length_byte (v : BitVec 64) (k : Fin 8) :
     ((lengthBE64 (UInt64.ofBitVec v)).get! k.val).toBitVec =
@@ -27,7 +27,8 @@ theorem reference_length_byte (v : BitVec 64) (k : Fin 8) :
 
 theorem padded_tail_length_start (data : ByteArray) :
     data.size + 1 + zerosCount data = data.size / 64 * 64 + lengthOffset (data.size % 64) := by
-  unfold zerosCount lengthOffset
+  rw [zerosCount_eq]
+  unfold lengthOffset
   split <;> omega
 
 theorem padded_tail_size (data : ByteArray) :

@@ -81,7 +81,7 @@ theorem block_iteration (base : Addr) (s : CPU)
       out.reg 12 = s.reg 12 + 64 ∧ out.reg 13 = s.reg 13 - 1 ∧
       out.reg 2 = s.reg 2 ∧ out.reg 10 = s.reg 10 ∧ out.reg 11 = s.reg 11 ∧
       out.reg 14 = s.reg 14 ∧ out.reg 16 = s.reg 16 ∧ out.reg 1 = s.reg 1 ∧
-      storedHash out = SHS.SHA256.compress (storedHash s) (blockWords s.mem (s.reg 12)) ∧
+      storedHash out = Crypto.Reference.WordModel.compress (storedHash s) (blockWords s.mem (s.reg 12)) ∧
       (∀ p, 288 ≤ (p - s.reg 2).toNat → out.mem.cells p = s.mem.cells p) := by
   let head := blockGuard.step s
   obtain ⟨guardPath, atInit, headMem, headRegs⟩ := block_guard base s pc
@@ -122,8 +122,8 @@ theorem block_iteration (base : Addr) (s : CPU)
     (tailKeeps r h1 h2).trans (saved r hr h3)
   have final : out.mem = compressed.mem := finalMem
   have hash : storedHash out =
-      SHS.SHA256.compress (storedHash s) (blockWords s.mem (s.reg 12)) := by
-    change storedHash out = SHS.SHA256.compress (storedHash s) (blockWords s.mem (s.reg 12))
+      Crypto.Reference.WordModel.compress (storedHash s) (blockWords s.mem (s.reg 12)) := by
+    change storedHash out = Crypto.Reference.WordModel.compress (storedHash s) (blockWords s.mem (s.reg 12))
     have old : storedHash entered = storedHash s := by simp only [storedHash, mem, stack]
     have after : storedHash out = storedHash compressed := by
       simp only [storedHash, final, tailKeeps 2 (by decide) (by decide)]

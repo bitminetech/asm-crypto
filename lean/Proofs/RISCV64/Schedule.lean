@@ -10,14 +10,14 @@ set_option maxRecDepth 10000
 open Crypto.ARM64.Imported
   (wordVector wordVector_store64 index_shift_two slot_address_back schedule_step_get_self
    expandedWords expanded_eq_schedule workspace_store_outside)
-open SHS.Equiv.SHA256.Foldl.Schedule
-open SHS.Equiv.SHA256.Foldl.Fused (getElem!_specScheduleStep_ne)
-open SHS.Equiv.VecBridge (getElem_bang_eq_getElem)
+open Crypto.Reference.WordModel
+open Crypto.Reference.WordModel (getElem!_specScheduleStep_ne)
+open Crypto.Reference.WordModel (getElem_bang_eq_getElem)
 
 private theorem wordVector_get (m : Memory) (base : Addr) (i : Fin 64) :
     (wordVector 64 m base)[i.val]! =
       m.read32 (base + BitVec.ofNat 64 (4 * i.val)) := by
-  rw [SHS.Equiv.VecBridge.getElem_bang_eq_getElem _ _ i.isLt]
+  rw [Crypto.Reference.WordModel.getElem_bang_eq_getElem _ _ i.isLt]
   simp only [wordVector, Vector.getElem_ofFn]
 
 theorem table_index (s : CPU) (base : Reg) (t : Fin 64)
@@ -44,9 +44,9 @@ theorem expansion_schedule (s : CPU) (M : Vector Word 16) (t : Fin 64) (ht : 16 
     rw [schedule_step_get_self, if_neg (by omega)]
     unfold expandedWord
     change
-      SHS.SHA256.smallSigma1 (s.mem.read32 (tableAddress s 2 - BitVec.ofNat 64 (4*2))) +
+      Crypto.Reference.WordModel.smallSigma1 (s.mem.read32 (tableAddress s 2 - BitVec.ofNat 64 (4*2))) +
         s.mem.read32 (tableAddress s 2 - BitVec.ofNat 64 (4*7)) +
-        SHS.SHA256.smallSigma0 (s.mem.read32 (tableAddress s 2 - BitVec.ofNat 64 (4*15))) +
+        Crypto.Reference.WordModel.smallSigma0 (s.mem.read32 (tableAddress s 2 - BitVec.ofNat 64 (4*15))) +
         s.mem.read32 (tableAddress s 2 - BitVec.ofNat 64 (4*16)) = _
     rw [previousWord s t 2 (by omega) index, previousWord s t 7 (by omega) index,
       previousWord s t 15 (by omega) index, previousWord s t 16 ht index]
@@ -146,7 +146,7 @@ theorem expansion_loaded (base : Addr) (s : CPU) (M : Vector Word 16)
     (initial : ∀ j, j < 16 → (wordVector 64 s.mem (s.reg 2))[j]! = M[j]!) :
     let out := run (expansionCode 48) s
     ImageExecution base s (expansionCode 48) out ∧ out.pc = base + 0x1ae ∧
-      out.reg 2 = s.reg 2 ∧ wordVector 64 out.mem (out.reg 2) = SHS.SHA256.schedule M ∧
+      out.reg 2 = s.reg 2 ∧ wordVector 64 out.mem (out.reg 2) = Crypto.Reference.WordModel.schedule M ∧
       (∀ p, 256 ≤ (p - s.reg 2).toNat → out.mem.cells p = s.mem.cells p) := by
   obtain ⟨exec, exit, _, sp, words, frame⟩ := expansion_prefix base s M pc index 48 (by decide)
   exact ⟨exec, by simpa using exit, sp, words.trans (expanded_eq_schedule M _ initial), frame⟩

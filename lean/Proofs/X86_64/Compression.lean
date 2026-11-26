@@ -1,5 +1,5 @@
 import Proofs.X86_64.WordExecution
-import equiv.SHA256.Foldl.Sequential
+import Reference.WordModel
 import Mathlib.Tactic.IntervalCases
 
 namespace Crypto.X86_64
@@ -92,10 +92,10 @@ theorem expansion_decoded :
     decodeSeq 0x17f expansionBody.length = some (instructions expansionBody) := by decide +kernel
 
 private theorem choose (x y z : Word) :
-    ((y ^^^ z) &&& x) ^^^ z = SHS.SHA256.Ch x y z := by
+    ((y ^^^ z) &&& x) ^^^ z = Crypto.Reference.WordModel.Ch x y z := by
   apply BitVec.eq_of_getLsbD_eq
   intro i hi
-  simp only [SHS.SHA256.Ch, BitVec.getLsbD_and, BitVec.getLsbD_xor,
+  simp only [Crypto.Reference.WordModel.Ch, BitVec.getLsbD_and, BitVec.getLsbD_xor,
     BitVec.getLsbD_not, hi, decide_true, Bool.true_and]
   cases x.getLsbD i <;> cases y.getLsbD i <;> cases z.getLsbD i <;> decide
 
@@ -135,13 +135,12 @@ theorem round_value (s : DataState) :
   simp (config := { decide := true }) [evalBlock, roundBody, working, WordInst.eval,
     WordOp.apply, read_put, tableWord, load_put, Crypto.ARM64.Round.fipsRound,
     choose, Crypto.ARM64.Round.maj_factored, rotate_e, rotate_a]
-  simp [SHS.SHA256.bigSigma0, SHS.SHA256.bigSigma1, SHS.SHA256.Maj, SHS.ROTR,
-    BitVec.rotateRight_def, BitVec.add_assoc, BitVec.xor_assoc]
+  simp [EthLib.Cryptography.Hash.Sha256.Spec.large0, EthLib.Cryptography.Hash.Sha256.Spec.large1, Crypto.Reference.WordModel.Maj, BitVec.rotateRight_def, BitVec.add_assoc, BitVec.xor_assoc]
 
 /-- W[t] in terms of the four earlier words in the x86 stack workspace. -/
 def expandedWord (s : DataState) : Word :=
-  SHS.SHA256.smallSigma1 (tableWord s .rsp (-8)) + tableWord s .rsp (-28) +
-  SHS.SHA256.smallSigma0 (tableWord s .rsp (-60)) + tableWord s .rsp (-64)
+  EthLib.Cryptography.Hash.Sha256.Spec.small1 (tableWord s .rsp (-8)) + tableWord s .rsp (-28) +
+  EthLib.Cryptography.Hash.Sha256.Spec.small0 (tableWord s .rsp (-60)) + tableWord s .rsp (-64)
 
 set_option maxRecDepth 8000 in
 set_option maxHeartbeats 4000000 in
@@ -150,7 +149,6 @@ theorem expansion_memory (s : DataState) :
       s.mem.writeSize .d (Indexed.addr ⟨.rsp, 0⟩ s) ((expandedWord s).setWidth 64) := by
   simp (config := { decide := true }) [evalBlock, expansionBody, WordInst.eval,
     WordOp.apply, read_put, tableWord, load_put, addr_put, put_mem, expandedWord,
-    SHS.SHA256.smallSigma0, SHS.SHA256.smallSigma1, SHS.ROTR, SHS.SHR,
-    BitVec.rotateRight_def, BitVec.add_assoc, BitVec.add_comm, BitVec.xor_assoc]
+    EthLib.Cryptography.Hash.Sha256.Spec.small0, EthLib.Cryptography.Hash.Sha256.Spec.small1, BitVec.rotateRight_def, BitVec.add_assoc, BitVec.add_comm, BitVec.xor_assoc]
 
 end Crypto.X86_64

@@ -6,7 +6,7 @@ import Proofs.ARM64.ImportedReferenceLayout
 namespace Crypto.X86_64
 open X86
 open Crypto.ARM64.Imported (lengthOffset paddingBlockCount)
-open SHS.Equiv.SHA256.Padding.Layout
+open Crypto.Reference.ByteLayout
 
 private theorem reference_tail (data : ByteArray) (v : Val) (size : v.toNat = data.size) (i : Nat)
     (hi : i < lengthOffset (data.size%64)+8) :
@@ -70,13 +70,13 @@ structure PreparedState (base : Val) (s out : Cpu) (data : ByteArray) : Prop whe
   phase : phase out = 0
   count : blocksLeft out = BitVec.ofNat 64 (data.size/64)
   pads : paddingCount out = BitVec.ofNat 64 (paddingBlockCount data)
-  hash : hashWords (project out) = SHS.SHA256.H0_256
+  hash : hashWords (project out) = Crypto.Reference.WordModel.H0_256
   padding : ∀ i : Fin (64*paddingBlockCount data), out.mem.read (padBase s+BitVec.ofNat 64 i.val) =
     ((implPaddedBytes data).get! (data.size/64*64+i.val)).toBitVec
   frame : ∀ p, prepKept (s.regs.get .rsp) p → out.mem.read p = s.mem.read p
   observations : ObservedExecution base s (prepareEvents base (s.regs.get .rsp) (s.regs.get .rbp) data.size) out
 
-attribute [local irreducible] steps image hashWords SHS.SHA256.H0_256
+attribute [local irreducible] steps image hashWords EthLib.Cryptography.Hash.Sha256.Spec.initial
 
 theorem preparation_loaded (base : Val) (s : Cpu) (data : ByteArray) (live : s.ms = none)
     (pc : s.rip = base+0x25) (loaded : ImageLoaded base s.mem)

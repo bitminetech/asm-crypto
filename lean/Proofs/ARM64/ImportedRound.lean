@@ -1,6 +1,6 @@
 import Models.ARM64
 import Proofs.ARM64.Round
-import equiv.SHA256.Foldl.Sequential
+import Reference.WordModel
 
 /-!
 Compression-round proofs over the pinned upstream AArch64 instruction semantics.
@@ -159,8 +159,8 @@ theorem round_computes (s : Arm64.State)
     Arm64.MemWidth.bytes, Arm64.Memory.readSized, working,
     addWithCarry32_add, Round.extr_same, BitVec.truncate_eq_setWidth, hk, hw, hsp]
   simp (config := { decide := true }) [Round.fipsRound,
-    SHS.SHA256.bigSigma0, SHS.SHA256.bigSigma1, SHS.SHA256.Ch, SHS.SHA256.Maj,
-    SHS.ROTR, Round.ch_or_eq_xor, Round.maj_factored, BitVec.add_assoc,
+    EthLib.Cryptography.Hash.Sha256.Spec.large0, EthLib.Cryptography.Hash.Sha256.Spec.large1, Crypto.Reference.WordModel.Ch, Crypto.Reference.WordModel.Maj,
+    BitVec.rotateRight_def, Round.ch_or_eq_xor, Round.maj_factored, BitVec.add_assoc,
     BitVec.rotateRight_def, BitVec.xor_assoc]
 
 set_option maxHeartbeats 1000000 in
@@ -191,10 +191,10 @@ theorem round_matches_spec (s : Arm64.State) (W : Vector (BitVec 32) 64) (t : Na
     (hsp : s.spAligned = true)
     (hk : s.mem.canRead (s.readReg64 .x0 + (s.readReg64 .x5 <<< 2)) 4 = true)
     (hw : s.mem.canRead (s.sp + (s.readReg64 .x5 <<< 2)) 4 = true)
-    (hK : s.mem.read32 (s.readReg64 .x0 + (s.readReg64 .x5 <<< 2)) = SHS.SHA256.K[t]!)
+    (hK : s.mem.read32 (s.readReg64 .x0 + (s.readReg64 .x5 <<< 2)) = Crypto.Reference.WordModel.K[t]!)
     (hW : s.mem.read32 (s.sp + (s.readReg64 .x5 <<< 2)) = W[t]!) :
     (runWords Round.code s).map working =
-      some (SHS.Equiv.SHA256.Foldl.Sequential.specRoundStep W t (working s)) := by
+      some (Crypto.Reference.WordModel.specRoundStep W t (working s)) := by
   rw [round_computes s hsp hk hw, hK, hW]
   rfl
 

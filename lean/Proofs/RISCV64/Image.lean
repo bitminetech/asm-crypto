@@ -1,11 +1,11 @@
 import Models.RISCV64SHA256Decode
-import spec.Preprocessing
+import Reference.WordModel
 
 namespace Crypto.RISCV64
 
 theorem image_constants :
-    Vector.ofFn (fun i : Fin 64 => imageWord (constantsOffset + 4 * i.val)) = SHS.SHA256.K ∧
-    Vector.ofFn (fun i : Fin 8 => imageWord (initialHashOffset + 4 * i.val)) = SHS.SHA256.H0_256 := by
+    Vector.ofFn (fun i : Fin 64 => imageWord (constantsOffset + 4 * i.val)) = Crypto.Reference.WordModel.K ∧
+    Vector.ofFn (fun i : Fin 8 => imageWord (initialHashOffset + 4 * i.val)) = Crypto.Reference.WordModel.H0_256 := by
   decide +kernel
 
 def ImageLoaded (base : Addr) (m : Memory) : Prop :=

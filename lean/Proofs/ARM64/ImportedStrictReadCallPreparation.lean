@@ -14,9 +14,9 @@ theorem initialize_hash_from_iv (base : BitVec 64) (s : Arm64.State)
     (pc : s.pc = base + 132#64)
     (hr : ∀ i : Fin 4, s.mem.canRead ((s.pc + 732#64) + BitVec.ofNat 64 (8 * i.val)) 8 = true)
     (hw : ∀ i : Fin 4, s.mem.canWrite ((s.sp + 256#64) + BitVec.ofNat 64 (8 * i.val)) 8 = true)
-    (iv : wordVector 8 s.mem (s.pc + 732#64) = SHS.SHA256.H0_256) :
+    (iv : wordVector 8 s.mem (s.pc + 732#64) = Crypto.Reference.WordModel.H0_256) :
     ∃ out, runWords hashInitCode s = some out ∧
-      savedHash out = SHS.SHA256.H0_256 ∧ nonMemory out = nonMemory s ∧
+      savedHash out = Crypto.Reference.WordModel.H0_256 ∧ nonMemory out = nonMemory s ∧
       nonvolatile out = nonvolatile s ∧ out.pc = s.pc + 32#64 ∧
       out.readReg64 .x0 = base + 608#64 ∧ out.readReg64 .x1 = s.readReg64 .x1 ∧
       out.readReg64 .x2 = s.readReg64 .x2 ∧ out.readReg64 .x3 = s.readReg64 .x3 ∧
@@ -67,11 +67,11 @@ structure RawPreparedBody (base : BitVec 64) (s : Arm64.State) (data : ByteArray
   outWrite : ∀ i : Fin 8, body.mem.canWrite (body.readReg64 .x1 + BitVec.ofNat 64 (4 * i.val)) 4 = true
   outSep : ∀ (i : Fin 8) (b : Fin 4),
     288 ≤ (body.readReg64 .x1 + BitVec.ofNat 64 (4 * i.val) + BitVec.ofNat 64 b.val - body.sp).toNat
-  initial : savedHash body = SHS.SHA256.H0_256
+  initial : savedHash body = Crypto.Reference.WordModel.H0_256
   input : ∀ i : Fin data.size, body.mem.read8 (body.readReg64 .x2 + BitVec.ofNat 64 i.val) = (data.get! i.val).toBitVec
   padding : ∀ i : Fin (lengthOffset (data.size % 64) + 8),
     body.mem.read8 (body.sp + 288#64 + BitVec.ofNat 64 i.val) =
-      ((SHS.Equiv.SHA256.Padding.Layout.implPaddedBytes data).get! (data.size / 64 * 64 + i.val)).toBitVec
+      ((Crypto.Reference.ByteLayout.implPaddedBytes data).get! (data.size / 64 * 64 + i.val)).toBitVec
   outside : ∀ p, 416 ≤ (p - entryStack s).toNat → body.mem.cells p = s.mem.cells p
 
 
@@ -114,7 +114,7 @@ theorem prepare_raw_call (base : BitVec 64) (s : Arm64.State) (data : ByteArray)
   have paddedImage (i : Fin 896) : padded.mem.cells (base + BitVec.ofNat 64 i.val) =
       s.mem.cells (base + BitVec.ofNat 64 i.val) :=
     pframe _ (region_store_delta (entryStack s) _ 288 416 128 (by decide) (entry.imageOutside i))
-  have ivValues : wordVector 8 padded.mem (padded.pc + 732#64) = SHS.SHA256.H0_256 := by
+  have ivValues : wordVector 8 padded.mem (padded.pc + 732#64) = Crypto.Reference.WordModel.H0_256 := by
     have samePool : wordVector 8 padded.mem (base + 864#64) = wordVector 8 s.mem (base + 864#64) := by
       apply Vector.ext
       intro i hi
@@ -140,7 +140,7 @@ theorem prepare_raw_call (base : BitVec 64) (s : Arm64.State) (data : ByteArray)
   have frame (a : BitVec 64) (h : 416 ≤ (a - entryStack s).toNat) : body.mem.cells a = s.mem.cells a := by
     have dist : 288 ≤ (a - padded.sp).toNat := by rw [psp]; omega
     exact (iframe a dist).trans (pframe a (region_store_delta _ _ 288 416 128 (by decide) h))
-  have constants (i : Fin 64) : body.mem.read32 (body.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = SHS.SHA256.K[i.val]! := by
+  have constants (i : Fin 64) : body.mem.read32 (body.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = Crypto.Reference.WordModel.K[i.val]! := by
     rw [i0]
     have preserved : body.mem.read32 (base + 608#64 + BitVec.ofNat 64 (4 * i.val)) =
         s.mem.read32 (base + 608#64 + BitVec.ofNat 64 (4 * i.val)) := by
@@ -149,7 +149,7 @@ theorem prepare_raw_call (base : BitVec 64) (s : Arm64.State) (data : ByteArray)
       have cell := frame _ (entry.imageOutside ⟨608 + 4 * i.val + b.val, by have := i.isLt; have := b.isLt; omega⟩)
       simpa only [BitVec.ofNat_add, BitVec.add_assoc] using cell
     have words := congrArg (fun W : Vector (BitVec 32) 64 => W[i.val]!) entry.roundPool
-    have expected : s.mem.read32 (base + 608#64 + BitVec.ofNat 64 (4 * i.val)) = SHS.SHA256.K[i.val]! := by
+    have expected : s.mem.read32 (base + 608#64 + BitVec.ofNat 64 (4 * i.val)) = Crypto.Reference.WordModel.K[i.val]! := by
       simpa [wordVector, i.isLt] using words
     exact preserved.trans expected
   have constantsOutside (i : Fin 64) (b : Fin 4) :
@@ -222,7 +222,7 @@ theorem prepare_raw_call (base : BitVec 64) (s : Arm64.State) (data : ByteArray)
     exact (read8_of_cell _ (frame _ (entry.inputOutside i))).trans (entry.inputBytes i)
   have padValues (i : Fin (lengthOffset (data.size % 64) + 8)) :
       body.mem.read8 (body.sp + 288#64 + BitVec.ofNat 64 i.val) =
-        ((SHS.Equiv.SHA256.Padding.Layout.implPaddedBytes data).get! (data.size / 64 * 64 + i.val)).toBitVec := by
+        ((Crypto.Reference.ByteLayout.implPaddedBytes data).get! (data.size / 64 * 64 + i.val)).toBitVec := by
     rw [stack]
     have limits := lengthOffset_bounds (data.size % 64) (Nat.mod_lt _ (by decide))
     have ih := i.isLt

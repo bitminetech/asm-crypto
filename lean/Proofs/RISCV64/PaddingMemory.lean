@@ -7,7 +7,7 @@ namespace Crypto.RISCV64
 open Crypto.ARM64.Imported (lengthOffset lengthOffset_bounds address_delta region_store_delta
   cells_write8_outside write64_cells_outside read8_write8 write64_byte rev64_byte
   read8_write64_outside_ne byte128_address_inj)
-open SHS.Equiv.SHA256.Padding.Layout (implPaddedBytes)
+open Crypto.Reference.ByteLayout (implPaddedBytes)
 
 private theorem writeLength_eq (m : Memory) (dst nBits : Addr) :
     writeLength m dst nBits = m.write64 dst (Arm64.rev64 nBits) := by
@@ -61,13 +61,13 @@ theorem padding_bytes (m : Memory) (dst : Addr) (data : ByteArray)
   have limits := lengthOffset_bounds rem rb
   have ib : i.val < start + 8 := i.isLt
   have full : data.size / 64 * 64 + rem = data.size := by dsimp [rem]; omega
-  have lenStart : data.size + 1 + SHS.Equiv.SHA256.Padding.Layout.zerosCount data =
+  have lenStart : data.size + 1 + Crypto.Reference.ByteLayout.zerosCount data =
       data.size / 64 * 64 + start := Crypto.ARM64.Imported.padded_tail_length_start data
   have total : data.size / 64 * 64 + i.val < (implPaddedBytes data).size := by
     rw [Crypto.ARM64.Imported.padded_tail_size]
     change _ < data.size / 64 * 64 + start + 8
     omega
-  rw [SHS.Equiv.SHA256.Padding.Layout.get!_implPaddedBytes_eq data _ total]
+  rw [Crypto.Reference.ByteLayout.get!_implPaddedBytes_eq data _ total]
   change (writeLength mark (dst + BitVec.ofNat 64 start) bits).read8 _ = _
   rw [writeLength_eq]
   by_cases digit : start ≤ i.val
@@ -81,9 +81,9 @@ theorem padding_bytes (m : Memory) (dst : Addr) (data : ByteArray)
     have before : ¬data.size / 64 * 64 + i.val < data.size := by omega
     have beyond : data.size / 64 * 64 + i.val ≠ data.size := by omega
     have zeroEnd : ¬data.size / 64 * 64 + i.val <
-        data.size + 1 + SHS.Equiv.SHA256.Padding.Layout.zerosCount data := by omega
+        data.size + 1 + Crypto.Reference.ByteLayout.zerosCount data := by omega
     have index : data.size / 64 * 64 + i.val -
-        (data.size + 1 + SHS.Equiv.SHA256.Padding.Layout.zerosCount data) = k.val := by dsimp [k]; omega
+        (data.size + 1 + Crypto.Reference.ByteLayout.zerosCount data) = k.val := by dsimp [k]; omega
     rw [addr, write64_byte, rev64_byte, if_neg before, if_neg beyond, if_neg zeroEnd, index]
     have same := Crypto.ARM64.Imported.count_length_bits (BitVec.ofNat 64 data.size)
     rw [BitVec.toNat_ofNat, Nat.mod_eq_of_lt (by omega : data.size < 2^64)] at same
@@ -113,7 +113,7 @@ theorem padding_bytes (m : Memory) (dst : Addr) (data : ByteArray)
         rfl
       · rw [if_neg atMarker, if_neg (by omega : data.size / 64 * 64 + i.val ≠ data.size),
           if_pos (by omega : data.size / 64 * 64 + i.val <
-            data.size + 1 + SHS.Equiv.SHA256.Padding.Layout.zerosCount data)]
+            data.size + 1 + Crypto.Reference.ByteLayout.zerosCount data)]
         exact zero ⟨i.val, by omega⟩ le
 
 end Crypto.RISCV64

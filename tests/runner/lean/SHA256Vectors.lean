@@ -23,7 +23,7 @@ def take64 (cursor : Cursor) : Except String (Nat × Cursor) := do
   return (value, next)
 
 def digest (message : ByteArray) : ByteArray :=
-  ByteArray.mk (SHS.SHA256.Impl.sha256 message).toArray
+  ByteArray.mk (Crypto.Reference.digest message).toArray
 
 def require (condition : Bool) (message : String) : IO Unit :=
   unless condition do throw (IO.userError message)

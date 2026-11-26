@@ -20,7 +20,7 @@ theorem sha256_fetched (base : BitVec 64) (s : Arm64.State) (data : ByteArray)
       returnStable out = returnStable s ∧ nonvolatile out = nonvolatile s ∧
       out.sp = s.sp ∧ out.pc = s.readReg64 .x30 ∧ out.readReg64 .x0 = 0#64 ∧
       out.status = .Running ∧
-      memoryBytes32 out.mem (s.readReg64 .x1) = (SHS.SHA256.Impl.sha256 data).map UInt8.toBitVec ∧
+      memoryBytes32 out.mem (s.readReg64 .x1) = (Crypto.Reference.digest data).map UInt8.toBitVec ∧
       (∀ p, 416 ≤ (p - entryStack s).toNat → 32 ≤ (p - s.readReg64 .x1).toNat →
         out.mem.cells p = s.mem.cells p) ∧
       AccessPath (wholeCallCode (BitVec.ofNat 64 data.size)) s ∧

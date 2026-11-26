@@ -17,7 +17,7 @@ structure BlockReady (s : Arm64.State) : Prop where
   hashRead : ∀ i : Fin 8, s.mem.canRead ((s.sp + 256#64) + BitVec.ofNat 64 (4 * i.val)) 4 = true
   hashWrite : ∀ i : Fin 8, s.mem.canWrite ((s.sp + 256#64) + BitVec.ofNat 64 (4 * i.val)) 4 = true
   constantsRead : ∀ i : Fin 64, s.mem.canRead (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) 4 = true
-  constantsValue : ∀ i : Fin 64, s.mem.read32 (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = SHS.SHA256.K[i.val]!
+  constantsValue : ∀ i : Fin 64, s.mem.read32 (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = Crypto.Reference.WordModel.K[i.val]!
   constantsOutside : ∀ (i : Fin 64) (b : Fin 4),
     288 ≤ (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val) + BitVec.ofNat 64 b.val - s.sp).toNat
 
@@ -52,7 +52,7 @@ theorem block_preserves_ready (s : Arm64.State) (ready : BlockReady s)
       288 ≤ (s.readReg64 .x2 + BitVec.ofNat 64 (4 * i.val) + BitVec.ofNat 64 b.val - s.sp).toNat) :
     ∃ out, runWords blockCode s = some out ∧ DataFrame s out ∧
       out.pc = s.pc + 320#64 ∧ out.readReg64 .x5 = 64#64 ∧
-      savedHash out = SHS.SHA256.compress (savedHash s) (sourceBlock s) ∧
+      savedHash out = Crypto.Reference.WordModel.compress (savedHash s) (sourceBlock s) ∧
       BlockReady out ∧
       (∀ p, 288 ≤ (p - s.sp).toNat → out.mem.cells p = s.mem.cells p) ∧
       (∀ a n, s.mem.canRead a n = true → out.mem.canRead a n = true) := by
@@ -107,7 +107,7 @@ theorem block_iteration (s : Arm64.State) (ready : BlockReady s)
     ∃ out, runWords blockIterationCode s = some out ∧ OuterFrame s out ∧
       out.pc = s.pc ∧ out.readReg64 .x2 = s.readReg64 .x2 + 64#64 ∧
       out.readReg64 .x3 = s.readReg64 .x3 - 1#64 ∧
-      savedHash out = SHS.SHA256.compress (savedHash s) (sourceBlock s) ∧
+      savedHash out = Crypto.Reference.WordModel.compress (savedHash s) (sourceBlock s) ∧
       BlockReady out ∧
       (∀ p, 288 ≤ (p - s.sp).toNat → out.mem.cells p = s.mem.cells p) ∧
       (∀ a n, s.mem.canRead a n = true → out.mem.canRead a n = true) := by
@@ -171,7 +171,7 @@ theorem outer_loop_prefix (s : Arm64.State) (ready : BlockReady s)
       out.pc = s.pc ∧ out.readReg64 .x2 = s.readReg64 .x2 + BitVec.ofNat 64 (64 * k) ∧
       out.readReg64 .x3 = BitVec.ofNat 64 (n - k) ∧
       savedHash out = Fin.foldl k
-        (fun H (i : Fin k) => SHS.SHA256.compress H
+        (fun H (i : Fin k) => Crypto.Reference.WordModel.compress H
           (memoryBlock s.mem (s.readReg64 .x2 + BitVec.ofNat 64 (64 * i.val)))) (savedHash s) ∧
       BlockReady out ∧
       (∀ p, 288 ≤ (p - s.sp).toNat → out.mem.cells p = s.mem.cells p) ∧
@@ -181,7 +181,7 @@ theorem outer_loop_prefix (s : Arm64.State) (ready : BlockReady s)
     mid.readReg64 .x2 = s.readReg64 .x2 + BitVec.ofNat 64 (64 * i) ∧
     mid.readReg64 .x3 = BitVec.ofNat 64 (n - i) ∧
     savedHash mid = Fin.foldl i
-      (fun H (j : Fin i) => SHS.SHA256.compress H
+      (fun H (j : Fin i) => Crypto.Reference.WordModel.compress H
         (memoryBlock s.mem (s.readReg64 .x2 + BitVec.ofNat 64 (64 * j.val)))) (savedHash s) ∧
     BlockReady mid ∧
     (∀ p, 288 ≤ (p - s.sp).toNat → mid.mem.cells p = s.mem.cells p) ∧
@@ -227,7 +227,7 @@ theorem outer_loop_prefix (s : Arm64.State) (ready : BlockReady s)
       rw [arithmetic, BitVec.ofNat_add, BitVec.add_sub_cancel]
     · rw [oh, hash, source]
       exact (Fin.foldl_succ_last
-        (fun H (j : Fin (i + 1)) => SHS.SHA256.compress H
+        (fun H (j : Fin (i + 1)) => Crypto.Reference.WordModel.compress H
           (memoryBlock s.mem (s.readReg64 .x2 + BitVec.ofNat 64 (64 * j.val))))
         (savedHash s)).symm
     · intro p hp

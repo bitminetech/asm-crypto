@@ -28,8 +28,8 @@ theorem compression_staticPath (base : BitVec 64) (s : Arm64.State) (M : Vector 
     (hsp : s.spAligned = true)
     (hkr : ∀ i : Fin 64, s.mem.canRead (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) 4 = true)
     (hwr : ∀ i : Fin 64, s.mem.canRead (s.sp + BitVec.ofNat 64 (4 * i.val)) 4 = true)
-    (hkv : ∀ i : Fin 64, s.mem.read32 (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = SHS.SHA256.K[i.val]!)
-    (hW : wordVector 64 s.mem s.sp = SHS.SHA256.schedule M)
+    (hkv : ∀ i : Fin 64, s.mem.read32 (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = Crypto.Reference.WordModel.K[i.val]!)
+    (hW : wordVector 64 s.mem s.sp = Crypto.Reference.WordModel.schedule M)
     (hhr : ∀ i : Fin 8, s.mem.canRead ((s.sp + 256#64) + BitVec.ofNat 64 (4 * i.val)) 4 = true)
     (hhw : ∀ i : Fin 8, s.mem.canWrite ((s.sp + 256#64) + BitVec.ofNat 64 (4 * i.val)) 4 = true) (out : Arm64.State)
     (pc : s.pc = base + 268#64) (executed : runWords compressionCode s = some out)
@@ -45,10 +45,10 @@ theorem compression_staticPath (base : BitVec 64) (s : Arm64.State) (M : Vector 
   have wr (i : Fin 64) : loaded.mem.canRead (loaded.sp + BitVec.ofNat 64 (4 * i.val)) 4 = true := by
     rw [fl.mem, fl.sp]
     exact hwr i
-  have kv (i : Fin 64) : loaded.mem.read32 (loaded.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = SHS.SHA256.K[i.val]! := by
+  have kv (i : Fin 64) : loaded.mem.read32 (loaded.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = Crypto.Reference.WordModel.K[i.val]! := by
     rw [fl.mem, fl.x0]
     exact hkv i
-  have wv (i : Fin 64) : loaded.mem.read32 (loaded.sp + BitVec.ofNat 64 (4 * i.val)) = (SHS.SHA256.schedule M)[i.val]! := by
+  have wv (i : Fin 64) : loaded.mem.read32 (loaded.sp + BitVec.ofNat 64 (4 * i.val)) = (Crypto.Reference.WordModel.schedule M)[i.val]! := by
     rw [fl.mem, fl.sp]
     have words := congrArg (fun W : Vector (BitVec 32) 64 => W[i.val]!) hW
     simpa [wordVector, i.isLt] using words
@@ -66,7 +66,7 @@ theorem compression_staticPath (base : BitVec 64) (s : Arm64.State) (M : Vector 
   have loadedRunning := runWords_running_before (List.replicate 64 roundCycleCode).flatten loaded rounded
     (round_cycle_permitted.repeated 64) roundsExec roundedRunning
   have roundCycles := (runCycles_words roundCycleCode 64 loaded).trans roundsExec
-  obtain ⟨known, native, _, nativePC, _⟩ := round_loop_prefix loaded (SHS.SHA256.schedule M)
+  obtain ⟨known, native, _, nativePC, _⟩ := round_loop_prefix loaded (Crypto.Reference.WordModel.schedule M)
     (by rw [fl.aligned]; exact hsp) l5 kr wr kv wv 64 (by decide)
   have equal := Option.some.inj (roundCycles.symm.trans native)
   have roundedPC : rounded.pc = loaded.pc + 132#64 := by
@@ -80,7 +80,7 @@ theorem compression_staticPath (base : BitVec 64) (s : Arm64.State) (M : Vector 
     runWords_code_cast initialLoadCode (imageSlice 67 6) s loaded rfl hl
   have initialPath : StaticPath base initialLoadCode s := @StaticPath.of_code_eq base s initialLoadCode (imageSlice 67 6) rfl
     (sequential_slice_path base 67 6 s loaded (by decide) initialSequential pc initialImageExec loadedRunning).1
-  have roundPath := round_loop_staticPath base loaded (SHS.SHA256.schedule M)
+  have roundPath := round_loop_staticPath base loaded (Crypto.Reference.WordModel.schedule M)
     (by rw [fl.aligned]; exact hsp) l5 kr wr kv wv rounded loadedPC roundCycles roundedRunning
   have feedPC : rounded.pc = base + 424#64 := by
     rw [roundedPC, loadedPC, BitVec.add_assoc]
@@ -110,7 +110,7 @@ theorem block_staticPath (base : BitVec 64) (s : Arm64.State) (M : Vector (BitVe
     (hOutside : ∀ (i : Fin 16) (b : Fin 4),
       256 ≤ (s.readReg64 .x2 + BitVec.ofNat 64 (4 * i.val) + BitVec.ofNat 64 b.val - s.sp).toNat)
     (hkr : ∀ i : Fin 64, s.mem.canRead (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) 4 = true)
-    (hkv : ∀ i : Fin 64, s.mem.read32 (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = SHS.SHA256.K[i.val]!)
+    (hkv : ∀ i : Fin 64, s.mem.read32 (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = Crypto.Reference.WordModel.K[i.val]!)
     (hKOutside : ∀ (i : Fin 64) (b : Fin 4),
       256 ≤ (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val) + BitVec.ofNat 64 b.val - s.sp).toNat)
     (hhr : ∀ i : Fin 8, s.mem.canRead ((s.sp + 256#64) + BitVec.ofNat 64 (4 * i.val)) 4 = true)
@@ -137,7 +137,7 @@ theorem block_staticPath (base : BitVec 64) (s : Arm64.State) (M : Vector (BitVe
     rw [fws.x0]
     exact readableSchedule _ _ (readableCopy _ _ (hkr i))
   have kv (i : Fin 64) : scheduled.mem.read32
-      (scheduled.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = SHS.SHA256.K[i.val]! := by
+      (scheduled.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val)) = Crypto.Reference.WordModel.K[i.val]! := by
     rw [fws.x0]
     have preserved := read32_of_cells (m := scheduled.mem) (before := s.mem)
       (s.readReg64 .x0 + BitVec.ofNat 64 (4 * i.val))

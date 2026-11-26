@@ -10,7 +10,7 @@ def wordsFrom (m : Mem) (ptr : Val) : Vector Word 16 := Vector.ofFn fun i =>
 def foldBlocks (m : Mem) (ptr : Val) (n : Nat) (h : Vector Word 8) : Vector Word 8 :=
   match n with
   | 0 => h
-  | k+1 => foldBlocks m (ptr+64) k (SHS.SHA256.compress h (wordsFrom m ptr))
+  | k+1 => foldBlocks m (ptr+64) k (Crypto.Reference.WordModel.compress h (wordsFrom m ptr))
 
 def outsideCycle (sp p : Val) : Prop :=
   288 ≤ (p-sp).toNat ∧ 8 ≤ (p-(sp+424)).toNat
@@ -65,7 +65,7 @@ structure PhaseResult (base : Val) (s out : Cpu) (m : Mem) (n : Nat) : Prop wher
   observations : ObservedExecution base s (phaseEvents base (s.regs.get .rsp) (s.regs.get .rdi)
     n (s.regs.get .rbp)) out
 
-attribute [local irreducible] steps hashWords image SHS.SHA256.compress
+attribute [local irreducible] steps hashWords image Crypto.Reference.WordModel.compress
 
 private theorem phase_loop (base : Val) (sites : CycleSites base) (m : Mem) (n : Nat) (s : Cpu)
     (live : s.ms = none) (pc : s.rip = base+0x15c) (loaded : ImageLoaded base s.mem)

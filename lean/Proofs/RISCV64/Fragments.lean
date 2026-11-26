@@ -1,6 +1,6 @@
 import Models.RISCV64SHA256Decode
 import Proofs.ARM64.Round
-import spec.Preprocessing
+import Reference.WordModel
 
 namespace Crypto.RISCV64
 
@@ -147,32 +147,32 @@ theorem narrow_sign (x : Word) : (x.signExtend 64).setWidth 32 = x := by
 private theorem smallSigma0 (x : Word) :
     ((x >>> (7 : Nat)) ||| (x <<< (25 : Nat))) ^^^
       ((x >>> (18 : Nat)) ||| (x <<< (14 : Nat))) ^^^ (x >>> (3 : Nat)) =
-      SHS.SHA256.smallSigma0 x := by
-  simp only [SHS.SHA256.smallSigma0, SHS.ROTR, SHS.SHR, BitVec.xor_assoc]
+      EthLib.Cryptography.Hash.Sha256.Spec.small0 x := by
+  simp only [EthLib.Cryptography.Hash.Sha256.Spec.small0, BitVec.rotateRight_def, BitVec.xor_assoc]
 
 private theorem smallSigma1 (x : Word) :
     ((x >>> (17 : Nat)) ||| (x <<< (15 : Nat))) ^^^
       ((x >>> (19 : Nat)) ||| (x <<< (13 : Nat))) ^^^ (x >>> (10 : Nat)) =
-      SHS.SHA256.smallSigma1 x := by
-  simp only [SHS.SHA256.smallSigma1, SHS.ROTR, SHS.SHR, BitVec.xor_assoc]
+      EthLib.Cryptography.Hash.Sha256.Spec.small1 x := by
+  simp only [EthLib.Cryptography.Hash.Sha256.Spec.small1, BitVec.rotateRight_def, BitVec.xor_assoc]
 
 private theorem bigSigma0 (x : Word) :
     ((x >>> (2 : Nat)) ||| (x <<< (30 : Nat))) ^^^
       ((x >>> (13 : Nat)) ||| (x <<< (19 : Nat))) ^^^
-      ((x >>> (22 : Nat)) ||| (x <<< (10 : Nat))) = SHS.SHA256.bigSigma0 x := by
-  simp only [SHS.SHA256.bigSigma0, SHS.ROTR, BitVec.xor_assoc]
+      ((x >>> (22 : Nat)) ||| (x <<< (10 : Nat))) = EthLib.Cryptography.Hash.Sha256.Spec.large0 x := by
+  simp only [EthLib.Cryptography.Hash.Sha256.Spec.large0, BitVec.rotateRight_def, BitVec.xor_assoc]
 
 private theorem bigSigma1 (x : Word) :
     ((x >>> (6 : Nat)) ||| (x <<< (26 : Nat))) ^^^
       ((x >>> (11 : Nat)) ||| (x <<< (21 : Nat))) ^^^
-      ((x >>> (25 : Nat)) ||| (x <<< (7 : Nat))) = SHS.SHA256.bigSigma1 x := by
-  simp only [SHS.SHA256.bigSigma1, SHS.ROTR, BitVec.xor_assoc]
+      ((x >>> (25 : Nat)) ||| (x <<< (7 : Nat))) = EthLib.Cryptography.Hash.Sha256.Spec.large1 x := by
+  simp only [EthLib.Cryptography.Hash.Sha256.Spec.large1, BitVec.rotateRight_def, BitVec.xor_assoc]
 
 private theorem choose (x y z : Word) :
-    ((y ^^^ z) &&& x) ^^^ z = SHS.SHA256.Ch x y z := by
+    ((y ^^^ z) &&& x) ^^^ z = Crypto.Reference.WordModel.Ch x y z := by
   apply BitVec.eq_of_getLsbD_eq
   intro i hi
-  simp only [SHS.SHA256.Ch, BitVec.getLsbD_and, BitVec.getLsbD_xor,
+  simp only [Crypto.Reference.WordModel.Ch, BitVec.getLsbD_and, BitVec.getLsbD_xor,
     BitVec.getLsbD_not, hi, decide_true, Bool.true_and]
   cases x.getLsbD i <;> cases y.getLsbD i <;> cases z.getLsbD i <;> decide
 
@@ -180,8 +180,8 @@ def tableAddress (s : CPU) (base : Reg) : Addr := s.reg base + (s.reg 15 <<< (2 
 
 def expandedWord (s : CPU) : Word :=
   let a := tableAddress s 2
-  SHS.SHA256.smallSigma1 (s.mem.read32 (a - 8)) + s.mem.read32 (a - 28) +
-    SHS.SHA256.smallSigma0 (s.mem.read32 (a - 60)) + s.mem.read32 (a - 64)
+  EthLib.Cryptography.Hash.Sha256.Spec.small1 (s.mem.read32 (a - 8)) + s.mem.read32 (a - 28) +
+    EthLib.Cryptography.Hash.Sha256.Spec.small0 (s.mem.read32 (a - 60)) + s.mem.read32 (a - 64)
 
 set_option maxRecDepth 10000 in
 set_option maxHeartbeats 6000000 in
@@ -189,9 +189,8 @@ theorem round_value (s : CPU) :
     working (run roundBody s) = Crypto.ARM64.Round.fipsRound (working s)
       (s.mem.read32 (tableAddress s 10)) (s.mem.read32 (tableAddress s 2)) := by
   simp (config := { decide := true }) [run, roundBody, Instruction.step, Width.load, working,
-    Crypto.ARM64.Round.fipsRound, tableAddress, narrow_sign, SHS.SHA256.Maj,
+    Crypto.ARM64.Round.fipsRound, tableAddress, narrow_sign, Crypto.Reference.WordModel.Maj,
     Crypto.ARM64.Round.maj_factored, choose, bigSigma0, bigSigma1, BitVec.add_assoc]
-  simp only [BitVec.xor_assoc]
 
 private theorem addLeftComm (x y z : Word) :
     x + (y + z) = y + (x + z) := by

@@ -18,7 +18,7 @@ theorem hash_to_return (base : Addr) (s : CPU) (data : ByteArray)
     (inputApart : PhaseInputApart s (data.size / 64))
     (outputApart : ∀ i : Fin 8, ∀ d : Fin 4,
       32 ≤ (s.reg 2 + BitVec.ofNat 64 (256+4*i.val) + BitVec.ofNat 64 d.val - s.reg 11).toNat)
-    (initial : storedHash s = SHS.SHA256.H0_256)
+    (initial : storedHash s = Crypto.Reference.WordModel.H0_256)
     (messageWords : ∀ i : Fin (data.size / 64),
       blockWords s.mem (s.reg 12 + BitVec.ofNat 64 (64*i.val)) = paddedSpecBlock data i.val)
     (paddingWords : ∀ i : Fin (paddingBlockCount data),
@@ -35,7 +35,7 @@ theorem hash_to_return (base : Addr) (s : CPU) (data : ByteArray)
       ImageExecution base finished digestCode written ∧
       ImageExecution base written returnCode out ∧
       out.pc = s.reg 1 &&& ~~~(1 : Addr) ∧ out.reg 10 = 0 ∧ out.reg 2 = s.reg 2 + 480 ∧
-      memoryBytes32 out.mem (s.reg 11) = (SHS.SHA256.Impl.sha256 data).map UInt8.toBitVec ∧
+      memoryBytes32 out.mem (s.reg 11) = (Crypto.Reference.digest data).map UInt8.toBitVec ∧
       savedRegisters out = savedStack written ∧ written.reg 2 = s.reg 2 ∧ written.mem = out.mem ∧
       (∀ p, 288 ≤ (p - s.reg 2).toNat → 32 ≤ (p - s.reg 11).toNat →
         out.mem.cells p = s.mem.cells p) := by
