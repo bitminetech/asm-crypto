@@ -8,7 +8,7 @@ the instructions used by SHA-256.
 ## Source
 
 - ISA: [code-verification@b0f729a](https://github.com/google-deepmind/code-verification/tree/b0f729accbc21a0413e7ca4e1da43fa45b5f2e1b/arm64-semantics/Arm64/Trusted/ISA), unchanged.
-- Reference: [fips-180-4-lean@0018b08](https://github.com/remix7531/fips-180-4-lean/tree/0018b08f3458553ad511e92a96336979c1e0c45a), unchanged; the local reference adapter has a checked equivalence theorem.
+- Reference: [fips-180-4-lean@6b92c77](https://github.com/remix7531/fips-180-4-lean/tree/6b92c7746afc797a1741ff985e04bbc311db7d89), unchanged; the local reference adapter has a checked equivalence theorem.
 - ABI: [AAPCS64 2026Q3@a1b5345](https://github.com/ARM-software/abi-aa/blob/a1b53459479e88f3492ca9b11a161313764ab138/aapcs64/aapcs64.rst), pointer-only ordinary scalar leaf interface.
 - Logical caller: [ImportedPermissionView.lean](../../lean/Proofs/ARM64/ImportedPermissionView.lean).
 - Scoped address model: [ARM64OwnedView.lean](../../lean/Models/ARM64OwnedView.lean).

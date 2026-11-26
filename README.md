@@ -129,7 +129,7 @@ Standard: [asm-standard@185917b](https://github.com/bitminetech/asm-standard/blo
 | Item | Value |
 |---|---|
 | Lean | 4.29.1, pinned in [lean-toolchain](lean-toolchain) |
-| Imported proofs | [fips-180-4-lean@0018b08](https://github.com/remix7531/fips-180-4-lean/tree/0018b08f3458553ad511e92a96336979c1e0c45a), GPL-3.0-or-later |
+| Imported proofs | [fips-180-4-lean@6b92c77](https://github.com/remix7531/fips-180-4-lean/tree/6b92c7746afc797a1741ff985e04bbc311db7d89), GPL-3.0-or-later |
 | ARM64 ISA | [code-verification@b0f729a](https://github.com/google-deepmind/code-verification/tree/b0f729accbc21a0413e7ca4e1da43fa45b5f2e1b/arm64-semantics/Arm64/Trusted/ISA), Apache-2.0; pinned submodule at [lean/Imports/arm64](lean/Imports/arm64), unchanged ISA source imported by the `ImportedARM64` library |
 | Transitive dependencies | Exact commits in [lake-manifest.json](lake-manifest.json) |
 | Imported ARM64 model | [docs/models/arm64-imported.md](docs/models/arm64-imported.md) |

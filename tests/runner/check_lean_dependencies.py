@@ -24,7 +24,7 @@ def check(root):
             raise ValueError(name + ": imported dependency was modified")
         report.append({"name": name, "commit": package["rev"], "url": package["url"]})
     reference = next(p for p in report if p["name"] == "fips-pub-180-4")
-    if reference["commit"] != "0018b08f3458553ad511e92a96336979c1e0c45a":
+    if reference["commit"] != "6b92c7746afc797a1741ff985e04bbc311db7d89":
         raise ValueError("reference changed: review and register a new obligation")
     model_path = "lean/Imports/arm64"
     model_pin = "b0f729accbc21a0413e7ca4e1da43fa45b5f2e1b"

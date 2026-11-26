@@ -5,7 +5,7 @@ defaultTargets = ["Reference", "Proofs"]
 [[require]]
 name = "fips-pub-180-4"
 git = "https://github.com/remix7531/fips-180-4-lean"
-rev = "0018b08f3458553ad511e92a96336979c1e0c45a"
+rev = "6b92c7746afc797a1741ff985e04bbc311db7d89"
 
 [[lean_lib]]
 name = "ImportedARM64"

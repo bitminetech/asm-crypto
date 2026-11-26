@@ -10,7 +10,7 @@
   },
   "reference": {
     "repository": "https://github.com/remix7531/fips-180-4-lean",
-    "commit": "0018b08f3458553ad511e92a96336979c1e0c45a",
+    "commit": "6b92c7746afc797a1741ff985e04bbc311db7d89",
     "lean": "leanprover/lean4:v4.29.1",
     "license": "GPL-3.0-or-later",
     "dependencies": "lake-manifest.json",
