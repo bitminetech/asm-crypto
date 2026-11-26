@@ -2,7 +2,8 @@
 Write the tick table of every documented function into the Results section
 of its document (ARCHITECTURE.md section 10).
 
-Usage: python3 -I tests/runner/tick_tables.py RESULTS_DIR BUILD_DIR [ARM64_EQUAL_RECEIPT] [--x86-equal-receipt PATH]
+Usage: python3 -I tests/runner/tick_tables.py RESULTS_DIR BUILD_DIR [ARM64_EQUAL_RECEIPT]
+       [--x86-equal-receipt PATH] [--riscv64-equal-receipt PATH]
 Runs from the repo root.
 
 - RESULTS_DIR holds results-<os>-<isa>.txt: the runner output of each target.
@@ -14,10 +15,8 @@ An OS cell gets a tick when that target's runner printed PASS for the
 function. A function with no vectors of its own (an L0 helper) is tested
 through the functions that call it: it gets a tick when every L2 or L3
 function that reaches it passed on that target. A missing results file leaves the
-cells of its target empty. The ARM64 and scalar x86-64 crypto_sha256 proof
-cells each require a current checked receipt and passing vectors on all three
-targets for that ISA. Missing or invalid receipts leave
-proof cells empty.
+cells of its target empty. Each crypto_sha256 proof cell requires a current
+checked receipt and passing vectors on every supported target for that ISA.
 """
 
 import argparse
@@ -137,6 +136,18 @@ def checked_x86_equal(receipt_path, build_dir, root):
         return False
 
 
+def checked_riscv64_equal(receipt_path, build_dir, root):
+    if receipt_path is None:
+        return False
+    try:
+        from check_riscv64_equal_pin import validate_receipt
+        receipt = json.loads(Path(receipt_path).read_text())
+        return validate_receipt(Path(root).resolve(), Path(build_dir).resolve(), receipt)
+    except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
+        print("RV64 equal receipt ignored: " + str(error), file=sys.stderr)
+        return False
+
+
 def documented():
     """[(path, [(function, role)])] in document order."""
     docs = []
@@ -208,20 +219,23 @@ def tick(function, role, os_name, isa, results_dir, graph, roles):
     return bool(tested_by) and tested_by <= ok
 
 
-def table(function, role, results_dir, graphs, roles, equal_checked=False, x86_equal_checked=False):
+def table(function, role, results_dir, graphs, roles, equal_checked=False, x86_equal_checked=False,
+          riscv64_equal_checked=False):
     lines = [f"### `{function}`", "", "| ISA | Linux | Windows | macOS | `equal` |", "|---|---|---|---|---|"]
     for isa, label in ISAS:
         cells = [TICK if tick(function, role, o, isa, results_dir, graphs[isa], roles) else "" for o in OSES]
-        checked = {"arm64": equal_checked, "x86_64": x86_equal_checked}.get(isa, False)
-        proof = checked and function == "crypto_sha256" and all(cell == TICK for cell in cells)
+        checked = {"arm64": equal_checked, "x86_64": x86_equal_checked, "riscv64": riscv64_equal_checked}[isa]
+        proof = checked and function == "crypto_sha256" and all(
+            cell == TICK for os_name, cell in zip(OSES, cells) if (os_name, isa) in SUPPORTED)
         lines.append("| " + " | ".join([label] + cells + [TICK if proof else ""]) + " |")
     return "\n".join(lines)
 
 
-def main(results_dir, build_dir, receipt_path=None, x86_receipt_path=None):
+def main(results_dir, build_dir, receipt_path=None, x86_receipt_path=None, riscv64_receipt_path=None):
     root = Path(__file__).resolve().parents[2]
     equal_checked = checked_equal(receipt_path, build_dir, root)
     x86_equal_checked = checked_x86_equal(x86_receipt_path, build_dir, root)
+    riscv64_equal_checked = checked_riscv64_equal(riscv64_receipt_path, build_dir, root)
     docs = documented()
     roles = {f: r for _, functions in docs for f, r in functions}
     graphs = {isa: callers(build_dir, isa) for isa, _ in ISAS}
@@ -233,7 +247,7 @@ def main(results_dir, build_dir, receipt_path=None, x86_receipt_path=None):
             sys.exit(f"{path}: no Results section")
         end = re.search(r"^## ", text[m.end():], re.M)
         rest = text[m.end() + end.start():] if end else ""
-        tables = "\n\n".join(table(f, r, results_dir, graphs, roles, equal_checked, x86_equal_checked)
+        tables = "\n\n".join(table(f, r, results_dir, graphs, roles, equal_checked, x86_equal_checked, riscv64_equal_checked)
                              for f, r in functions)
         new = text[: m.end()] + "\n" + MARKER + "\n\n" + tables + "\n" + ("\n" + rest if rest else "")
         if new != text:
@@ -248,5 +262,6 @@ if __name__ == "__main__":
     parser.add_argument("build_dir")
     parser.add_argument("arm64_receipt", nargs="?")
     parser.add_argument("--x86-equal-receipt")
+    parser.add_argument("--riscv64-equal-receipt")
     args = parser.parse_args()
-    main(args.results_dir, args.build_dir, args.arm64_receipt, args.x86_equal_receipt)
+    main(args.results_dir, args.build_dir, args.arm64_receipt, args.x86_equal_receipt, args.riscv64_equal_receipt)

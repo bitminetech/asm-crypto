@@ -765,7 +765,7 @@
     "remaining": [
       "Each build must match the external expected-statement/semantic-closure pin and pass all recorded CI checks; deployment and caller/profile assumptions remain explicit."
     ],
-    "scope": "ARM64 crypto_sha256 only. The scalar x86-64 candidate is recorded under x86_64_isa_model. RISC-V has no equal claim. Final consuming-application loading/unwind registration and caller premise discharge are outside this isolated library entry theorem.",
+    "scope": "ARM64 crypto_sha256 only. The scalar x86-64 candidate is recorded under x86_64_isa_model. The Linux RV64 candidate is recorded under riscv64_isa_model. Final consuming-application loading/unwind registration and caller premise discharge are outside this isolated library entry theorem.",
     "candidate": {
       "theorem": "Crypto.ARM64.sha256.equal",
       "expected_statement": "lean/Proofs/ARM64/NativeStatement.lean:Crypto.ARM64.NativeRequirements.requirements",
@@ -823,6 +823,27 @@
     "program": "Crypto.ARM64.Imported.program",
     "hooks": "none; supervisor calls fail closed",
     "scope": "Single-thread EL0 user-mode instruction semantics. Upstream Linux process/loading guarantees do not cover macOS/Windows or concurrent executions."
+  },
+  "riscv64_isa_model": {
+    "standard_commit": "0db3e07f58a9ba89c5b6a46925b179de265ee7e8",
+    "semantics": "lean/Models/RISCV64SHA256.lean",
+    "decoder": "lean/Models/RISCV64SHA256Decode.lean",
+    "image": "lean/Models/RISCV64SHA256Image.lean",
+    "artifact_check": "tests/runner/check_riscv64_sha256_artifacts.py",
+    "equal_candidate": {
+      "theorem": "Crypto.RISCV64.modeled_baseline",
+      "expected_statement": "lean/Proofs/RISCV64/ModeledBaseline.lean:Crypto.RISCV64.modeledRequirements",
+      "baseline": "lean/Proofs/StatelessBaseline.lean:Crypto.Baseline.Stateless.Equal",
+      "profiles": ["linux-riscv64"],
+      "boundary": "Scalar RV64GC LP64D leaf, first return. Loader, external caller, borrow and timing premises are in the model.",
+      "review_generator": "tests/runner/prepare_riscv64_equal_review.py",
+      "independent_expected_statement_pin": {
+        "manifest_variable": "RISCV64_SHA256_EXPECTED_MANIFEST_B64",
+        "sha256_variable": "RISCV64_SHA256_EXPECTED_MANIFEST_SHA256",
+        "trusted_default_branch_bootstrap": ".github/workflows/arm64-equal-pin.yml"
+      },
+      "checked_targets_evidence": "build/verification/checked-equal-riscv64.json"
+    }
   },
   "x86_64_isa_model": {
     "repository": "https://github.com/jyh/x86lean",

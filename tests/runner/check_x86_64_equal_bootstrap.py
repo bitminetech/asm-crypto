@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Verify x86-64 technical evidence using the trusted default branch and external pin."""
 import argparse
-import base64
 import hashlib
 import json
 import os
@@ -10,6 +9,7 @@ import re
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from read_equal_manifest import decode
 from check_arm64_equal_bootstrap import load_module, safe_sources
 from prepare_arm64_equal_review import source_digest
 
@@ -18,7 +18,7 @@ def validate(root, evidence, build, encoded, selected_hash):
     root = root.resolve()
     if not re.fullmatch("[0-9a-f]{64}", selected_hash):
         raise ValueError("externally selected x86-64 manifest SHA-256 is required")
-    raw = base64.b64decode(encoded, validate=True)
+    raw = decode(encoded)
     if hashlib.sha256(raw).hexdigest() != selected_hash:
         raise ValueError("external x86-64 manifest SHA-256 differs")
     manifest = json.loads(raw)

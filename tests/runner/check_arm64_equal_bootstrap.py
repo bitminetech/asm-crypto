@@ -6,7 +6,6 @@ validated. External manifest selection is a repository policy boundary. This
 program stores no personal statements, identities or approval attestations.
 """
 import argparse
-import base64
 import hashlib
 import json
 import os
@@ -14,6 +13,9 @@ from pathlib import Path
 import re
 import sys
 from types import ModuleType
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from read_equal_manifest import decode
 
 BOOTSTRAP_SOURCES = ("tests/runner/prepare_arm64_equal_review.py",
                      "tests/runner/check_arm64_equal_pin.py",
@@ -73,7 +75,7 @@ def validate_ci_run(run, registered, repository, expected_sha=None):
 def selected_manifest(encoded, selected_hash):
     if not re.fullmatch(r"[0-9a-f]{64}", selected_hash):
         raise ValueError("externally selected manifest SHA-256 is required")
-    raw = base64.b64decode(encoded, validate=True)
+    raw = decode(encoded)
     if hashlib.sha256(raw).hexdigest() != selected_hash:
         raise ValueError("external manifest SHA-256 differs")
     manifest = json.loads(raw)

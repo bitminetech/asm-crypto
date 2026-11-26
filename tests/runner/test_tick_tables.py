@@ -165,5 +165,35 @@ class X86ReceiptTests(unittest.TestCase):
             self.assertIn("| x86-64 | ✅ |  | ✅ |  |", table)
 
 
+class RISCV64ReceiptTests(unittest.TestCase):
+    def test_requires_current_receipt_and_linux_pass(self):
+        from check_riscv64_equal_pin import receipt_fields
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            commit = "3" * 40
+            sources = {"proof.lean": "4" * 64}
+            artifacts = {"target": "linux-riscv64"}
+            receipt = receipt_fields(commit, artifacts, sources, "5" * 64)
+            path = root / "checked-equal-riscv64.json"
+            path.write_text(json.dumps(receipt))
+            with (patch.object(tick.subprocess, "check_output", return_value=commit),
+                  patch("check_riscv64_equal_pin.source_hashes", return_value=sources),
+                  patch("check_riscv64_equal_pin.check_artifacts", return_value=artifacts)):
+                self.assertTrue(tick.checked_riscv64_equal(path, root, root))
+                receipt["git_commit"] = "6" * 40
+                path.write_text(json.dumps(receipt))
+                with patch.object(tick, "print"):
+                    self.assertFalse(tick.checked_riscv64_equal(path, root, root))
+
+            vectors = root / "results-linux-riscv64.txt"
+            vectors.write_text("FUNCTION crypto_sha256 PASS\n")
+            graphs = {isa: {} for isa, _ in tick.ISAS}
+            table = tick.table("crypto_sha256", "L2", root, graphs, {}, riscv64_equal_checked=True)
+            self.assertIn("| RISC-V | ✅ |  |  | ✅ |", table)
+            vectors.write_text("FUNCTION crypto_sha256 FAIL\n")
+            table = tick.table("crypto_sha256", "L2", root, graphs, {}, riscv64_equal_checked=True)
+            self.assertIn("| RISC-V |  |  |  |  |", table)
+
+
 if __name__ == "__main__":
     unittest.main()

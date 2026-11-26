@@ -2,6 +2,7 @@
 """Negative tests for the trusted bootstrap; all manifests here are fixtures."""
 import base64
 import copy
+import gzip
 import hashlib
 import importlib.util
 import json
@@ -50,6 +51,8 @@ class BootstrapTests(unittest.TestCase):
             bootstrap.selected_manifest(encoded, "0" * 64)
         selected = hashlib.sha256(raw).hexdigest()
         self.assertEqual(bootstrap.selected_manifest(encoded, selected), self.manifest)
+        compressed = base64.b64encode(gzip.compress(raw, mtime=0)).decode()
+        self.assertEqual(bootstrap.selected_manifest(compressed, selected), self.manifest)
 
     def test_all_three_raw_pins_precede_any_candidate_import(self):
         sentinel = self.root / "executed"
