@@ -1,5 +1,7 @@
 # BLS signatures
 
+Keys, signing, checking and aggregation.
+
 ## Contents
 
 ### Functions

@@ -1,6 +1,6 @@
 /*
  * crypto_sha256 for ARM64 (AAPCS64), FIPS 180-4 section 6.2: the `sha` variant.
- * Requirements: docs/reference/sha-256.md. Needs FEAT_SHA256 (README, Target profile).
+ * Requirements: docs/reference/sha-256.md. Needs FEAT_SHA256 (sha-256.md, The sha variant).
  *
  * The padding, the block order and the digest are those of sha256.s; the 64 rounds of a
  * block run 4 at a time: sha256h and sha256h2 do the rounds, sha256su0 and sha256su1

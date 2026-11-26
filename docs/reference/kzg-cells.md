@@ -1,5 +1,7 @@
 # KZG cells
 
+Proofs of cells.
+
 ## Contents
 
 ### Functions

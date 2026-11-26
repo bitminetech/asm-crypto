@@ -44,23 +44,68 @@ def heatmap_pattern():
     return re.compile("(?:" + body + ")?")
 
 
+PANELS = {
+    "supported platforms panel": ("<!-- CI generates the supported platforms panel here. -->",
+                                  "<!-- End of the supported platforms panel. -->"),
+    "CI panel": ("<!-- CI generates the CI panel here. -->", "<!-- End of the CI panel. -->"),
+    "docs panel": ("<!-- CI generates the docs panel here. -->", "<!-- End of the docs panel. -->"),
+}
+
+
+def panel_picture(name, alt):
+    """The exact picture element that tests/runner/panels.py writes."""
+    return (r'<picture><source media="\(prefers-color-scheme: dark\)" srcset="docs/readme/' +
+            name + r'-dark\.svg"><img src="docs/readme/' + name + r'-light\.svg" alt="' + alt + r'"></picture>')
+
+
+def panel_patterns():
+    """{panel: the exact block that tests/runner/panels.py writes between its markers}."""
+    def framed(body):
+        return re.compile(r"(?:<table><tr><td>\n\n" + body + r"\n\n</td></tr></table>\n)?")
+    targets = "Supported platforms. Linux: x86-64, ARM64, RISC-V; Windows: x86-64, ARM64; macOS 11.0 or later: x86-64, ARM64"
+    run = r'<a href="https://github\.com/bitminetech/asm-crypto/actions/runs/[0-9]+(?:/attempts/[0-9]+)?">'
+    result = r"Latest CI run (?:passed|failed|running|did not finish): [0-9]+ of [0-9]+ jobs passed"
+
+    def group(kind, folder, label):
+        card = ('<a href="docs/' + folder + r'/[a-z0-9-]+\.md">' +
+                panel_picture("docs-" + kind + "-[a-z0-9-]+", r'[^"<>]*') + "</a>")
+        row = card + "(?:" + card + ")?"
+        return panel_picture("docs-" + kind + "s", label) + r"<br>\n" + row + r"(?:<br>\n" + row + ")*"
+    docs = (panel_picture("docs-header", "asm-crypto docs") + r"<br>\n" +
+            group("doc", "reference", "Function docs") +
+            r"(?:\n\n" + group("model", "models", "Lean models") + ")?" +
+            r"\n\n" + panel_picture("docs-footer", re.escape("Select a card to open its doc.")))
+    return {
+        "supported platforms panel": framed(panel_picture("platforms", re.escape(targets))),
+        "CI panel": framed(run + panel_picture("ci", result) + "</a>"),
+        "docs panel": framed(docs),
+    }
+
+
+def omit_block(text, name, start_mark, end_mark, pattern):
+    """Replace one strictly recognized generated block of the README with a placeholder."""
+    if text.count(start_mark) > 1 or text.count(end_mark) > 1:
+        raise ValueError("README must have at most one generated " + name)
+    start, end = text.find(start_mark), text.find(end_mark)
+    if start < 0 and end < 0:
+        return text
+    if start < 0 or end < start:
+        raise ValueError("README " + name + " markers are out of order")
+    body = text[start + len(start_mark) + 1:end]
+    if text[start + len(start_mark)] != "\n" or pattern.fullmatch(body) is None:
+        raise ValueError("unrecognized generated " + name + " content; refusing to omit it from the pin")
+    return text[:start] + "<!-- generated " + name + " -->" + text[end + len(end_mark):]
+
+
 def source_digest(root, path):
     """Pin requirements while excluding only strictly recognized CI tables."""
     data = path.read_bytes()
     if path.relative_to(root).as_posix() == "README.md":
         text = data.decode("utf-8")
-        if text.count(HEATMAP_START) > 1 or text.count(HEATMAP_END) > 1:
-            raise ValueError("README must have at most one generated heatmap")
-        start, end = text.find(HEATMAP_START), text.find(HEATMAP_END)
-        if start >= 0 or end >= 0:
-            if start < 0 or end < start:
-                raise ValueError("README heatmap markers are out of order")
-            body = text[start + len(HEATMAP_START) + 1:end]
-            if text[start + len(HEATMAP_START)] != "\n" or heatmap_pattern().fullmatch(body) is None:
-                raise ValueError("unrecognized generated heatmap content; refusing to omit it from the pin")
-            text = (text[:start] + "<!-- generated verification heatmap -->" +
-                    text[end + len(HEATMAP_END):])
-            data = text.encode("utf-8")
+        text = omit_block(text, "verification heatmap", HEATMAP_START, HEATMAP_END, heatmap_pattern())
+        for name, pattern in panel_patterns().items():
+            text = omit_block(text, name, *PANELS[name], pattern)
+        data = text.encode("utf-8")
     if path.relative_to(root).as_posix() == "docs/reference/sha-256.md":
         text = data.decode("utf-8")
         match = re.search(r"^## Results\n(.*?)(?=^## |\Z)", text, re.M | re.S)

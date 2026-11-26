@@ -1,5 +1,7 @@
 # Hash to curve
 
+Hashes a message to a point of G2.
+
 ## Contents
 
 ### Functions

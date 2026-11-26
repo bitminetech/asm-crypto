@@ -1,5 +1,7 @@
 # ARM64 SHA-256 native proof profile
 
+What the SHA-256 proof assumes.
+
 This profile covers the common `crypto_sha256` leaf entry and its 604 instruction
 bytes, plus the K/H constant pool at image offsets 608–895. The complete recorded
 image is 896 bytes. It does not expand the verified instruction domain beyond

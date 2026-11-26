@@ -1,6 +1,6 @@
 # Imported ARM64 model
 
-The pinned upstream AArch64 instruction semantics used for the ARM64 proofs.
+How ARM64 instructions run.
 
 ## Source
 

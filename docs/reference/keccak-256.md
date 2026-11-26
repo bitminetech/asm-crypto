@@ -1,5 +1,7 @@
 # Keccak-256
 
+Hash.
+
 ## Contents
 
 ### Functions

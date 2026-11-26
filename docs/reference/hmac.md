@@ -1,5 +1,7 @@
 # HMAC-SHA-256
 
+Message authentication codes.
+
 ## Contents
 
 ### Functions

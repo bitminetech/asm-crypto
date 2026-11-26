@@ -1,10 +1,16 @@
 # asm-crypto
 
-Cryptographic primitives for Ethereum, in assembly.
+The cryptography an Ethereum consensus client needs, written in assembly.
 
-SHA-256 for SSZ; the primitives of discv5 and ENR: Keccak-256, HMAC and HKDF with SHA-256, AES-128 in CTR and GCM, and secp256k1; the primitives of libp2p: X25519, ChaCha20-Poly1305 (with Poly1305 on its own), P-256 (ECDSA and ECDH), SHA-512 and Ed25519; and for the consensus layer, the BLS signatures on BLS12-381, with hash to G2, and the KZG commitments of blobs and cells.
+Standard: [asm-standard@0db3e07](https://github.com/bitminetech/asm-standard/blob/0db3e07f58a9ba89c5b6a46925b179de265ee7e8/ARCHITECTURE.md)
 
-Standard: [asm-standard@185917b](https://github.com/bitminetech/asm-standard/blob/185917bedc54ff034e40069318add463c58f4db8/ARCHITECTURE.md)
+<!-- CI generates the supported platforms panel here. -->
+<table><tr><td>
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/platforms-dark.svg"><img src="docs/readme/platforms-light.svg" alt="Supported platforms. Linux: x86-64, ARM64, RISC-V; Windows: x86-64, ARM64; macOS 11.0 or later: x86-64, ARM64"></picture>
+
+</td></tr></table>
+<!-- End of the supported platforms panel. -->
 
 <!-- CI generates the verification heatmap here. -->
 <table><tr><td>
@@ -40,101 +46,35 @@ Standard: [asm-standard@185917b](https://github.com/bitminetech/asm-standard/blo
 </td></tr></table>
 <!-- End of the verification heatmap. -->
 
-## Reference
+<!-- CI generates the CI panel here. -->
+<table><tr><td>
 
-| File | Covers |
-|---|---|
-| [docs/reference/sha-256.md](docs/reference/sha-256.md) | SHA-256 |
-| [docs/reference/keccak-256.md](docs/reference/keccak-256.md) | Keccak-256 |
-| [docs/reference/hmac.md](docs/reference/hmac.md) | HMAC-SHA-256 |
-| [docs/reference/hkdf.md](docs/reference/hkdf.md) | HKDF-SHA-256 |
-| [docs/reference/aes.md](docs/reference/aes.md) | AES-128 |
-| [docs/reference/ctr.md](docs/reference/ctr.md) | AES-128-CTR |
-| [docs/reference/gcm.md](docs/reference/gcm.md) | AES-128-GCM |
-| [docs/reference/secp256k1.md](docs/reference/secp256k1.md) | secp256k1 |
-| [docs/reference/chacha20.md](docs/reference/chacha20.md) | ChaCha20 |
-| [docs/reference/poly1305.md](docs/reference/poly1305.md) | Poly1305 |
-| [docs/reference/chacha20-poly1305.md](docs/reference/chacha20-poly1305.md) | ChaCha20-Poly1305 |
-| [docs/reference/x25519.md](docs/reference/x25519.md) | X25519 |
-| [docs/reference/p256.md](docs/reference/p256.md) | P-256 |
-| [docs/reference/sha-512.md](docs/reference/sha-512.md) | SHA-512 |
-| [docs/reference/ed25519.md](docs/reference/ed25519.md) | Ed25519 |
-| [docs/reference/bls12-381.md](docs/reference/bls12-381.md) | BLS12-381: the fields, the groups and the pairing |
-| [docs/reference/hash-to-curve.md](docs/reference/hash-to-curve.md) | Hash to G2 (RFC 9380) |
-| [docs/reference/bls-signatures.md](docs/reference/bls-signatures.md) | BLS signatures |
-| [docs/reference/kzg.md](docs/reference/kzg.md) | KZG: the trusted setup and the blob functions |
-| [docs/reference/kzg-cells.md](docs/reference/kzg-cells.md) | KZG: the cell functions |
-| [include/crypto.inc](include/crypto.inc) | Constants: shared, SHA-256, the shared status codes |
-| [include/keccak.inc](include/keccak.inc) | Constants: Keccak-256 |
-| [include/hmac.inc](include/hmac.inc) | Constants: HMAC and HKDF |
-| [include/aes.inc](include/aes.inc) | Constants: AES, CTR and GCM |
-| [include/secp256k1.inc](include/secp256k1.inc) | Constants: secp256k1 |
-| [include/chacha20.inc](include/chacha20.inc) | Constants: ChaCha20, Poly1305 and ChaCha20-Poly1305 |
-| [include/x25519.inc](include/x25519.inc) | Constants: X25519 |
-| [include/p256.inc](include/p256.inc) | Constants: P-256 |
-| [include/sha512.inc](include/sha512.inc) | Constants: SHA-512 |
-| [include/ed25519.inc](include/ed25519.inc) | Constants: Ed25519 |
-| [include/bls12381.inc](include/bls12381.inc) | Constants: BLS12-381, hash to G2 and BLS signatures |
-| [include/kzg.inc](include/kzg.inc) | Constants: KZG |
+<a href="https://github.com/bitminetech/asm-crypto/actions/runs/45786390564"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/ci-dark.svg"><img src="docs/readme/ci-light.svg" alt="Latest CI run passed: 9 of 9 jobs passed"></picture></a>
 
-## Targets
+</td></tr></table>
+<!-- End of the CI panel. -->
 
-| OS | ISAs |
-|---|---|
-| Linux | x86-64, ARM64, RISC-V |
-| Windows | x86-64, ARM64 |
-| macOS | x86-64, ARM64 |
+<!-- CI generates the docs panel here. -->
+<table><tr><td>
 
-## Build tools
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-header-dark.svg"><img src="docs/readme/docs-header-light.svg" alt="asm-crypto docs"></picture><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-docs-dark.svg"><img src="docs/readme/docs-docs-light.svg" alt="Function docs"></picture><br>
+<a href="docs/reference/aes.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-doc-aes-dark.svg"><img src="docs/readme/docs-doc-aes-light.svg" alt="AES-128: Block cipher"></picture></a><a href="docs/reference/ctr.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-doc-ctr-dark.svg"><img src="docs/readme/docs-doc-ctr-light.svg" alt="AES-128-CTR: Encryption in counter mode"></picture></a><br>
+<a href="docs/reference/gcm.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-doc-gcm-dark.svg"><img src="docs/readme/docs-doc-gcm-light.svg" alt="AES-128-GCM: Encrypts and checks data"></picture></a><a href="docs/reference/bls-signatures.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-doc-bls-signatures-dark.svg"><img src="docs/readme/docs-doc-bls-signatures-light.svg" alt="BLS signatures: Keys, signing, checking and aggregation"></picture></a><br>
+<a href="docs/reference/bls12-381.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-doc-bls12-381-dark.svg"><img src="docs/readme/docs-doc-bls12-381-light.svg" alt="BLS12-381: The curve: fields, groups and pairing"></picture></a><a href="docs/reference/chacha20.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-doc-chacha20-dark.svg"><img src="docs/readme/docs-doc-chacha20-light.svg" alt="ChaCha20: Stream cipher"></picture></a><br>
+<a href="docs/reference/chacha20-poly1305.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-doc-chacha20-poly1305-dark.svg"><img src="docs/readme/docs-doc-chacha20-poly1305-light.svg" alt="ChaCha20-Poly1305: Encrypts and checks data"></picture></a><a href="docs/reference/ed25519.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-doc-ed25519-dark.svg"><img src="docs/readme/docs-doc-ed25519-light.svg" alt="Ed25519: Keys, signing and checking"></picture></a><br>
+<a href="docs/reference/hash-to-curve.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-doc-hash-to-curve-dark.svg"><img src="docs/readme/docs-doc-hash-to-curve-light.svg" alt="Hash to curve: Hashes a message to a point of G2"></picture></a><a href="docs/reference/hkdf.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-doc-hkdf-dark.svg"><img src="docs/readme/docs-doc-hkdf-light.svg" alt="HKDF-SHA-256: Key derivation"></picture></a><br>
+<a href="docs/reference/hmac.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-doc-hmac-dark.svg"><img src="docs/readme/docs-doc-hmac-light.svg" alt="HMAC-SHA-256: Message authentication codes"></picture></a><a href="docs/reference/keccak-256.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-doc-keccak-256-dark.svg"><img src="docs/readme/docs-doc-keccak-256-light.svg" alt="Keccak-256: Hash"></picture></a><br>
+<a href="docs/reference/kzg.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-doc-kzg-dark.svg"><img src="docs/readme/docs-doc-kzg-light.svg" alt="KZG: Trusted setup, and proofs of blobs"></picture></a><a href="docs/reference/kzg-cells.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-doc-kzg-cells-dark.svg"><img src="docs/readme/docs-doc-kzg-cells-light.svg" alt="KZG cells: Proofs of cells"></picture></a><br>
+<a href="docs/reference/p256.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-doc-p256-dark.svg"><img src="docs/readme/docs-doc-p256-light.svg" alt="P-256: Keys, ECDSA and ECDH"></picture></a><a href="docs/reference/poly1305.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-doc-poly1305-dark.svg"><img src="docs/readme/docs-doc-poly1305-light.svg" alt="Poly1305: Message authentication codes"></picture></a><br>
+<a href="docs/reference/secp256k1.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-doc-secp256k1-dark.svg"><img src="docs/readme/docs-doc-secp256k1-light.svg" alt="secp256k1: Keys, ECDSA and ECDH"></picture></a><a href="docs/reference/sha-256.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-doc-sha-256-dark.svg"><img src="docs/readme/docs-doc-sha-256-light.svg" alt="SHA-256: Hash"></picture></a><br>
+<a href="docs/reference/sha-512.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-doc-sha-512-dark.svg"><img src="docs/readme/docs-doc-sha-512-light.svg" alt="SHA-512: Hash"></picture></a><a href="docs/reference/x25519.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-doc-x25519-dark.svg"><img src="docs/readme/docs-doc-x25519-light.svg" alt="X25519: Key agreement"></picture></a>
 
-| Used for | Tool |
-|---|---|
-| Library | LLVM 23.1.5, official release (`clang`, `llvm-ar`, `lld`) |
-| Windows test runner | [llvm-mingw 20261104](https://github.com/mstorsjo/llvm-mingw/releases/tag/20261104) (LLVM 23.1.5) |
-| macOS test runner | The host Xcode clang, because it needs the macOS SDK |
-| Build image | [platform/linux/Dockerfile](platform/linux/Dockerfile) on `debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2` |
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-models-dark.svg"><img src="docs/readme/docs-models-light.svg" alt="Lean models"></picture><br>
+<a href="docs/models/arm64-round.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-model-arm64-round-dark.svg"><img src="docs/readme/docs-model-arm64-round-light.svg" alt="ARM64 round model: One round of the SHA-256 code"></picture></a><a href="docs/models/arm64-sha256-native-profile.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-model-arm64-sha256-native-profile-dark.svg"><img src="docs/readme/docs-model-arm64-sha256-native-profile-light.svg" alt="ARM64 SHA-256 native proof profile: What the SHA-256 proof assumes"></picture></a><br>
+<a href="docs/models/arm64-imported.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-model-arm64-imported-dark.svg"><img src="docs/readme/docs-model-arm64-imported-light.svg" alt="Imported ARM64 model: How ARM64 instructions run"></picture></a><a href="docs/models/x86-64-sha256.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-model-x86-64-sha256-dark.svg"><img src="docs/readme/docs-model-x86-64-sha256-light.svg" alt="x86-64 SHA-256: How the SHA-256 code runs"></picture></a>
 
-## Tests
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/docs-footer-dark.svg"><img src="docs/readme/docs-footer-light.svg" alt="Select a card to open its doc."></picture>
 
-| Item | Location |
-|---|---|
-| Export and frame check | [platform/check.py](platform/check.py) |
-| Vector generator | [tests/generator/](tests/generator/) |
-| Test runner | [tests/runner/](tests/runner/) |
-
-## Target profile
-
-| ISA | Instructions |
-|---|---|
-| x86-64 | x86-64-v1 |
-| x86-64, `sha` variant | x86-64-v1, SSSE3 and SHA: CPUID leaf 1 ECX bit 9, and leaf 7 subleaf 0 EBX bit 29 |
-| ARM64 | Armv8.0-A |
-| ARM64, `sha` variant | Armv8.0-A and FEAT_SHA256: on Linux bit 6 (`HWCAP_SHA2`) of `AT_HWCAP` (16), on macOS the sysctl `hw.optional.arm.FEAT_SHA256`, on Windows `IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE)` (30) |
-| RISC-V | RV64GC |
-
-| Item | Value |
-|---|---|
-| macOS objects | Marked for macOS 11.0 or later |
-| `sha` variant | The archive `libasm-crypto-sha.a` of x86-64 and ARM64: `asm/core/<ISA>/sha256x.s` in place of `sha256.s`, with the same functions. The caller's shell checks the CPU features of its row above before it runs this archive's code. |
-| Proof claims | Only the baseline archive `libasm-crypto.a`. |
-
-## Stack
-
-| Item | Value |
-|---|---|
-| Stack per call | At most 4096 bytes, callees included |
-
-## Lean
-
-| Item | Value |
-|---|---|
-| Lean | 4.29.1, pinned in [lean-toolchain](lean-toolchain) |
-| Imported proofs | [fips-180-4-lean@6b92c77](https://github.com/remix7531/fips-180-4-lean/tree/6b92c7746afc797a1741ff985e04bbc311db7d89), GPL-3.0-or-later |
-| ARM64 ISA | [code-verification@b0f729a](https://github.com/google-deepmind/code-verification/tree/b0f729accbc21a0413e7ca4e1da43fa45b5f2e1b/arm64-semantics/Arm64/Trusted/ISA), Apache-2.0; pinned submodule at [lean/Imports/arm64](lean/Imports/arm64), unchanged ISA source imported by the `ImportedARM64` library |
-| x86-64 ISA | [x86lean@2a32a6e](https://github.com/jyh/x86lean/tree/2a32a6ec0b5ddfe625f3720ac647082830390917), Apache-2.0, imported by the [scalar SHA-256 model](docs/models/x86-64-sha256.md) |
-| Transitive dependencies | Exact commits in [lake-manifest.json](lake-manifest.json) |
-| Imported ARM64 model | [docs/models/arm64-imported.md](docs/models/arm64-imported.md) |
-| ARM64 native proof profile | [docs/models/arm64-sha256-native-profile.md](docs/models/arm64-sha256-native-profile.md) |
-| ARM64 round model | [docs/models/arm64-round.md](docs/models/arm64-round.md) |
-| Supporting proof checks | [tests/runner/check_supporting_proofs.sh](tests/runner/check_supporting_proofs.sh) |
-| Verification scope | [lean/verification-scope.json](lean/verification-scope.json) |
+</td></tr></table>
+<!-- End of the docs panel. -->

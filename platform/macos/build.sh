@@ -25,7 +25,7 @@ done
 rm -f "$out/libasm-crypto.a"
 llvm-ar --format=darwin rcs "$out/libasm-crypto.a" $objects
 
-# The sha variant (README, Target profile): sha256x.s in place of sha256.s.
+# The sha variant (sha-256.md, The sha variant): sha256x.s in place of sha256.s.
 clang --target=$target -I"$root/include" -I"$root/platform/macos" \
     -c "$root/asm/core/$isa/sha256x.s" -o "$out/sha256x.o"
 rm -f "$out/libasm-crypto-sha.a"

@@ -1,5 +1,7 @@
 # ChaCha20
 
+Stream cipher.
+
 ## Contents
 
 ### Functions

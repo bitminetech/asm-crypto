@@ -8,6 +8,7 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -211,6 +212,62 @@ class ResultNormalizationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "at most one"):
                 pin.source_digest(root, path)
 
+
+    def test_generated_panels_only_are_ignored(self):
+        panels = sys.modules[pin.source_digest.__module__].PANELS
+
+        def picture(name, alt):
+            return (f'<picture><source media="(prefers-color-scheme: dark)" '
+                    f'srcset="docs/readme/{name}-dark.svg"><img src="docs/readme/{name}-light.svg" '
+                    f'alt="{alt}"></picture>')
+
+        def framed(body):
+            return "<table><tr><td>\n\n" + body + "\n\n</td></tr></table>\n"
+
+        def card(kind, folder, name):
+            return (f'<a href="docs/{folder}/{name}.md">' + picture(f"docs-{kind}-{name}", f"{name}: summary") +
+                    "</a>")
+
+        def ci(run, word):
+            return framed(f'<a href="https://github.com/bitminetech/asm-crypto/actions/runs/{run}">' +
+                          picture("ci", f"Latest CI run {word}: 9 of 9 jobs passed") + "</a>")
+
+        platforms = framed(picture("platforms", "Supported platforms. Linux: x86-64, ARM64, RISC-V; "
+                                   "Windows: x86-64, ARM64; macOS 11.0 or later: x86-64, ARM64"))
+        docs = framed(picture("docs-header", "asm-crypto docs") + "<br>\n" +
+                      picture("docs-docs", "Function docs") + "<br>\n" +
+                      card("doc", "reference", "aes") + card("doc", "reference", "sha-256") + "<br>\n" +
+                      card("doc", "reference", "x25519") + "\n\n" +
+                      picture("docs-models", "Lean models") + "<br>\n" + card("model", "models", "arm64-round") +
+                      "\n\n" + picture("docs-footer", "Select a card to open its doc."))
+
+        def readme(blocks, after="\n## End\n"):
+            return ("# asm-crypto\n\nStandard: pinned.\n\n" +
+                    "\n\n".join(start + "\n" + body + end
+                                for body, (start, end) in zip(blocks, panels.values())) + after)
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            path = root / "README.md"
+            path.write_text(readme(("", "", "")))
+            initial = pin.source_digest(root, path)
+            path.write_text(readme((platforms, ci(1, "passed"), docs)))
+            self.assertEqual(initial, pin.source_digest(root, path))
+            path.write_text(readme((platforms, ci(2, "failed"), docs)))
+            self.assertEqual(initial, pin.source_digest(root, path))
+            path.write_text(readme((platforms, ci(2, "failed"), docs), after="\n## Assumptions\n"))
+            self.assertNotEqual(initial, pin.source_digest(root, path))
+            for bad in ((platforms.replace("RISC-V;", "RISC-V, MIPS;"), ci(1, "passed"), docs),
+                        (platforms, ci(1, "proved"), docs),
+                        (platforms, ci(1, "passed").replace("</a>", "</a>Hidden assumption."), docs),
+                        (platforms, ci(1, "passed"), docs.replace("<br>\n", "<br>\nHidden assumption.\n", 1)),
+                        (platforms, ci(1, "passed"), docs.replace("docs/reference/aes.md", "https://example.com/a.md"))):
+                path.write_text(readme(bad))
+                with self.assertRaisesRegex(ValueError, "unrecognized"):
+                    pin.source_digest(root, path)
+            path.write_text(readme((platforms, ci(1, "passed"), docs)) + panels["CI panel"][0])
+            with self.assertRaisesRegex(ValueError, "at most one"):
+                pin.source_digest(root, path)
 
 if __name__ == "__main__":
     unittest.main()

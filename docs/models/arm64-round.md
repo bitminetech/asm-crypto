@@ -1,5 +1,7 @@
 # ARM64 round model
 
+One round of the SHA-256 code.
+
 Model: [ARM64Round.lean](../../lean/Models/ARM64Round.lean).
 
 - The model executes the compression round at offsets `0x124` through `0x198`.

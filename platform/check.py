@@ -9,8 +9,7 @@ after platform/build-all.sh. It exits with status 1 when any check fails.
 Declared interface:
 - Functions and roles: each "## Function" entry in docs/reference/ and its
   "- Role:" line.
-- Dependency functions: the "Functions used" column of the README
-  Dependencies table.
+- Dependency functions: the # uses lines of platform/deps.sh.
 
 Checks on the library archive of each of the 7 targets:
 - Exports: the global symbols are exactly the L2 and L3 functions.
@@ -21,7 +20,7 @@ Checks on the library archive of each of the 7 targets:
   declared dependency function.
 - Unwind: every function has unwind data that starts at its first byte.
 - The sha variant: the same checks on libasm-<library>-sha.a of each x86-64
-  and ARM64 target (README, Target profile).
+  and ARM64 target (sha-256.md, The sha variant).
 
 Checks on the instructions, once for each ISA, on its Linux object. The core
 uses the same instruction sequence on every OS (section 7).
@@ -102,14 +101,14 @@ def declared_roles():
 
 
 def dependency_functions():
-    functions, inside = set(), False
-    with open("README.md", encoding="utf-8") as f:
-        for line in f:
-            if line.startswith("## "):
-                inside = line.strip() == "## Dependencies"
-            elif inside and line.startswith("|") and not line.startswith("|---") and "Functions used" not in line:
-                cells = [c.strip() for c in line.strip().strip("|").split("|")]
-                functions |= set(re.findall(r"`([^`]+)`", cells[-1]))
+    """The functions of the # uses lines of platform/deps.sh."""
+    functions = set()
+    if os.path.exists("platform/deps.sh"):
+        with open("platform/deps.sh", encoding="utf-8") as f:
+            for line in f:
+                m = re.match(r"# uses [^:]+: (.+)$", line.strip())
+                if m:
+                    functions |= set(m.group(1).split())
     return functions
 
 

@@ -24,6 +24,7 @@ tests/runner/macos.sh ~/.cache/asm-crypto/vectors
 | `macos.sh` | Links the runner on a Mac against the library that `docker.sh` built, and runs the vectors. |
 | `tick_tables.py` | Writes the tick table of each function into its document, from the results of every target. |
 | `heatmap.py` | Writes the verification heatmap into the README, from the tick tables |
+| `panels.py` | Writes the supported platforms, CI and docs panels into the README |
 | `abi_x86_64.s`, `abi_arm64.s`, `abi_riscv64.s` | `abi_call`, through which the runner calls every library function. Test code in assembly. |
 
 Name vector files after the folder to run only those files, for example `tests/runner/docker.sh DIR cavp-short.bin`. With no names, every file runs, including the 1 to 8 GiB messages in `acvp-ldt.bin`.
@@ -40,7 +41,7 @@ The runner maps the large messages instead of storing them: it maps one 4 MiB bl
 - Before the call, `abi_call` sets each register that the callee must keep to a known value, and paints the stack below the call.
 - After the call, it records the status, the kept state that changed, and the bytes of stack the call used.
 - It then puts the stack pointer, the flags and the floating point control state back.
-- The runner prints the most stack each function used, and fails when it is over the README cap of 4096 bytes, or when kept state changed.
+- The runner prints the most stack each function used, and fails when it is over the stack limit, `STACK_CAP` of 4096 bytes, or when kept state changed.
 
 | ISA | Kept state it checks |
 |---|---|

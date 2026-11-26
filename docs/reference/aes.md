@@ -1,5 +1,7 @@
 # AES-128
 
+Block cipher.
+
 ## Contents
 
 ### Functions

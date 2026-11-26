@@ -1,6 +1,6 @@
 /*
  * crypto_sha256 for x86-64 (System V AMD64 psABI), FIPS 180-4 section 6.2: the `sha` variant.
- * Requirements: docs/reference/sha-256.md. Needs SSSE3 and SHA (README, Target profile).
+ * Requirements: docs/reference/sha-256.md. Needs SSSE3 and SHA (sha-256.md, The sha variant).
  *
  * The padding, the block order and the digest are those of sha256.s; the 64 rounds of a
  * block run 4 at a time: sha256rnds2 does 2 rounds, sha256msg1 and sha256msg2 extend the

@@ -1,5 +1,7 @@
 # secp256k1
 
+Keys, ECDSA and ECDH.
+
 ## Contents
 
 ### Functions

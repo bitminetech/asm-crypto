@@ -15,7 +15,7 @@
  *
  * Every call goes through abi_call (tests/runner/abi_<ISA>.s). The runner
  * prints the most stack each function used, and fails when a call uses more
- * than the README cap or changes state that the ABI says it must keep.
+ * than STACK_CAP, the stack limit, or changes state that the ABI says it must keep.
  */
 #define _GNU_SOURCE
 #include <stdint.h>
@@ -32,7 +32,7 @@
 #endif
 
 #ifdef CRYPTO_SHA_VARIANT
-/* The CPU features of the sha variant (README, Target profile). */
+/* The CPU features of the sha variant (sha-256.md, The sha variant). */
 #if defined(__x86_64__)
 #include <cpuid.h>
 static int sha_variant_supported(void) {
@@ -159,7 +159,7 @@ CRYPTO_ABI uint64_t crypto_kzg_compute_verify_cell_kzg_proof_batch_challenge(con
  * its return address included on x86-64. The layout of its record is in
  * tests/runner/README.md.
  */
-#define STACK_CAP 4096 /* README: stack per call */
+#define STACK_CAP 4096 /* the stack limit (ARCHITECTURE.md section 6) */
 #define PAINT_BYTES (STACK_CAP + 4096)
 
 typedef struct {

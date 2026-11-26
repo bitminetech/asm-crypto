@@ -1,5 +1,7 @@
 # AES-128-CTR
 
+Encryption in counter mode.
+
 ## Contents
 
 ### Functions

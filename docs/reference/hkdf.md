@@ -1,5 +1,7 @@
 # HKDF-SHA-256
 
+Key derivation.
+
 ## Contents
 
 ### Functions

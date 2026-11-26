@@ -1,5 +1,7 @@
 # ChaCha20-Poly1305
 
+Encrypts and checks data.
+
 ## Contents
 
 ### Functions

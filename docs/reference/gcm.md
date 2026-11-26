@@ -1,5 +1,7 @@
 # AES-128-GCM
 
+Encrypts and checks data.
+
 ## Contents
 
 ### Functions

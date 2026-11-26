@@ -1,5 +1,7 @@
 # KZG
 
+Trusted setup, and proofs of blobs.
+
 ## Contents
 
 ### Functions
