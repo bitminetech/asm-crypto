@@ -52,6 +52,7 @@ jobs:
           if ! command -v llvm-nm || ! command -v ld.lld; then
             sudo apt-get update && sudo apt-get install -y llvm-18 lld-18
           fi
+          echo /usr/lib/llvm-18/bin >> "$GITHUB_PATH"
           tests/runner/check_riscv64_supporting_proofs.sh
       - name: Check receipt consumption and trusted bootstrap guards
         run: |
