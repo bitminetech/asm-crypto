@@ -1,6 +1,6 @@
 # GitHub loads workflow_run definitions from the default branch. Candidate PRs
 # cannot replace this bootstrap before their source pin has been checked.
-name: SHA-256 external pins
+name: SHA-256 and HMAC external pins
 
 on:
   workflow_run:
@@ -123,3 +123,33 @@ jobs:
         with:
           name: riscv64-equal-checked
           path: checked/checked-equal-riscv64.json
+      - name: Download that run's HMAC proof evidence
+        if: vars.HMAC_SHA256_EXPECTED_MANIFEST_B64 != '' || vars.HMAC_SHA256_EXPECTED_MANIFEST_SHA256 != ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: hmac-proof-checks
+          path: hmac-proof-checks
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.candidate.outputs.run_id }}
+      - name: Validate all nine Linux HMAC-SHA-256 claims
+        if: vars.HMAC_SHA256_EXPECTED_MANIFEST_B64 != '' || vars.HMAC_SHA256_EXPECTED_MANIFEST_SHA256 != ''
+        env:
+          EXPECTED_MANIFEST_B64: ${{ vars.HMAC_SHA256_EXPECTED_MANIFEST_B64 }}
+          EXPECTED_MANIFEST_SHA256: ${{ vars.HMAC_SHA256_EXPECTED_MANIFEST_SHA256 }}
+        run: |
+          export PATH="/usr/lib/llvm-18/bin:$PATH"
+          if ! command -v llvm-nm; then
+            sudo apt-get update && sudo apt-get install -y llvm-18
+          fi
+          python3 -I trusted/tests/runner/read_equal_manifest.py "$RUNNER_TEMP/hmac-sha256-expected.json"
+          python3 -I trusted/tests/runner/hmac_equal.py verify \
+            --candidate candidate --evidence hmac-proof-checks --build build \
+            --trusted-manifest "$RUNNER_TEMP/hmac-sha256-expected.json" \
+            --trusted-sha256 "$EXPECTED_MANIFEST_SHA256" \
+            --output checked/checked-equal-hmac-sha256.json
+      - name: Publish HMAC-SHA-256 technical receipt
+        if: vars.HMAC_SHA256_EXPECTED_MANIFEST_B64 != '' || vars.HMAC_SHA256_EXPECTED_MANIFEST_SHA256 != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: hmac-sha256-equal-checked
+          path: checked/checked-equal-hmac-sha256.json

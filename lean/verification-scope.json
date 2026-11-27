@@ -15,11 +15,13 @@
     "lean": "leanprover/lean4:v4.29.1",
     "license": "CC0-1.0",
     "path": "lean/Imports/ethlib",
-    "compatibility": "In EthLib/Base/Bytes.lean, dite_eq_left and dite_eq_right are spelled dif_pos and dif_neg on Lean 4.29.1.",
+    "compatibility": "In EthLib/Base/Bytes.lean, dite_eq_left and dite_eq_right are spelled dif_pos and dif_neg on Lean 4.29.1. In EthLib/Cryptography/Proofs/Hash/Hmac.lean, ite_eq_left and ite_eq_right are spelled if_pos and if_neg.",
     "files_sha256": {
       "EthLib/Base/Bytes.lean": "56f4cb6b2cd7f5901af393bc15ea7ac13bb59a668ca7802beb9307522174a5ef",
+      "EthLib/Cryptography/Hash/Hmac.lean": "0ba25113ed3048f92bfd76e3ef20cf59bdd1fa9b22de41f6529aa8bf86b776cf",
       "EthLib/Cryptography/Hash/Padding.lean": "9ccddf5a1cd7e838d98a8f7ca65e696bada530c617704fc8bb976e706ccb2e03",
       "EthLib/Cryptography/Hash/Sha256.lean": "2dcdb0680c35533f8c463432d50a6812f2cd010ed57d689561d39b281103c131",
+      "EthLib/Cryptography/Proofs/Hash/Hmac.lean": "c12c86793369d4dff3675014ee33152938c0f0505b80b7918058b58e53960a24",
       "EthLib/Cryptography/Proofs/Hash/Sha256.lean": "66a2ca25cd7a00ffde4f9ba30e347dbba77970deafbcbb970701663bbb14f861",
       "LICENSE": "36ffd9dc085d529a7e60e1276d73ae5a030b020313e6c5408593a6ae2af39673"
     },
@@ -885,5 +887,47 @@
       },
       "checked_targets_evidence": "build/verification/checked-equal-x86_64.json"
     }
+  },
+  "hmac_sha256_equal": {
+    "proof_id": "equal",
+    "baseline": "Crypto.Baseline.Stateless.Equal",
+    "targets": {
+      "linux-arm64": {
+        "abi": "AAPCS64",
+        "statement_module": "lean/Proofs/HMACSHA256/ARM64Equal.lean",
+        "theorems": {
+          "crypto_hmac_sha256": "Crypto.HMACSHA256.ARM64.hmac_sha256.equal",
+          "crypto_hmac_key": "Crypto.HMACSHA256.ARM64.hmac_key.equal",
+          "crypto_hmac_finish": "Crypto.HMACSHA256.ARM64.hmac_finish.equal"
+        }
+      },
+      "linux-x86_64": {
+        "abi": "System V AMD64",
+        "statement_module": "lean/Proofs/HMACSHA256/X86Equal.lean",
+        "theorems": {
+          "crypto_hmac_sha256": "Crypto.HMACSHA256.X86_64.hmac_sha256.equal",
+          "crypto_hmac_key": "Crypto.HMACSHA256.X86_64.hmac_key.equal",
+          "crypto_hmac_finish": "Crypto.HMACSHA256.X86_64.hmac_finish.equal"
+        }
+      },
+      "linux-riscv64": {
+        "abi": "RV64GC LP64D",
+        "statement_module": "lean/Proofs/HMACSHA256/RISCV64Equal.lean",
+        "theorems": {
+          "crypto_hmac_sha256": "Crypto.HMACSHA256.RISCV64.hmac_sha256.equal",
+          "crypto_hmac_key": "Crypto.HMACSHA256.RISCV64.hmac_key.equal",
+          "crypto_hmac_finish": "Crypto.HMACSHA256.RISCV64.hmac_finish.equal"
+        }
+      }
+    },
+    "reference": "EthLib.Cryptography.Hash.Hmac.hmac32",
+    "image": "lean/Models/HMACSHA256Image.lean",
+    "artifact": "Linux runner ELF executable",
+    "artifact_check": "tests/runner/check_hmac_linked_images.py",
+    "runtime_binding": "The loader maps the recorded read-execute bytes and relative call targets. Caller authority and physical aliasing establish the borrowed regions. The target conforms to the pinned ISA semantics and the declared timing law.",
+    "expected_manifest_variable": "HMAC_SHA256_EXPECTED_MANIFEST_B64",
+    "expected_manifest_sha256_variable": "HMAC_SHA256_EXPECTED_MANIFEST_SHA256",
+    "trusted_default_branch_bootstrap": ".github/workflows/arm64-equal-pin.yml",
+    "checked_targets_evidence": "build/verification/checked-equal-hmac-sha256.json"
   }
 }

@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   supporting-proofs:
-    # Each SHA-256 receipt is bound to its external pin and three library builds.
+    # Each SHA-256 receipt is bound to its external pin and library builds.
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -52,7 +52,6 @@ jobs:
           if ! command -v llvm-nm || ! command -v ld.lld; then
             sudo apt-get update && sudo apt-get install -y llvm-18 lld-18
           fi
-          echo /usr/lib/llvm-18/bin >> "$GITHUB_PATH"
           tests/runner/check_riscv64_supporting_proofs.sh
       - name: Check receipt consumption and trusted bootstrap guards
         run: |
@@ -90,6 +89,59 @@ jobs:
         if: always()
         with:
           name: supporting-proof-checks
+          path: build/verification/
+
+  hmac-proofs:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          submodules: true
+      - name: Clear pre-existing bytecode and reject source symlinks
+        run: |
+          find tests platform -type l -name '__pycache__' -delete
+          find tests platform \( -type f -o -type l \) \( -name '*.pyc' -o -name '*.pyo' \) -delete
+          if [ -n "$(find tests platform .github -type l -print -quit)" ]; then
+            echo 'Symbolic links in CI source trees are not permitted' >&2
+            exit 1
+          fi
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with: { name: build, path: build }
+      - name: Install pinned Lean
+        run: |
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/lean.tar.zst" https://github.com/leanprover/lean4/releases/download/v4.29.1/lean-4.29.1-linux.tar.zst
+          echo "bf062d29556d655685fb287563c249ad6a8fde34352c18b5e32568a595c1aec1  $RUNNER_TEMP/lean.tar.zst" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/lean"
+          tar --zstd -xf "$RUNNER_TEMP/lean.tar.zst" -C "$RUNNER_TEMP/lean" --strip-components=1
+          echo "$RUNNER_TEMP/lean/bin" >> "$GITHUB_PATH"
+      - name: Fetch pinned proof dependencies
+        run: |
+          lake exe cache get Mathlib.Data.List.Induction Mathlib.Data.List.Range Mathlib.Data.Nat.Find Mathlib.Data.Nat.ModEq Mathlib.Logic.Basic Mathlib.Tactic.IntervalCases Mathlib.Tactic.Linarith Mathlib.Tactic.NormNum Mathlib.Tactic.Ring
+      - name: Check HMAC-SHA-256 proofs, fresh kernel replay and linked Linux artifacts
+        run: |
+          export PATH="/usr/lib/llvm-18/bin:$PATH"
+          if ! command -v llvm-nm; then
+            sudo apt-get update && sudo apt-get install -y llvm-18
+          fi
+          echo /usr/lib/llvm-18/bin >> "$GITHUB_PATH"
+          tests/runner/check_hmac_supporting_proofs.sh
+      - name: Check externally pinned Linux HMAC-SHA-256 equal
+        if: vars.HMAC_SHA256_EXPECTED_MANIFEST_B64 != '' || vars.HMAC_SHA256_EXPECTED_MANIFEST_SHA256 != ''
+        env:
+          EXPECTED_MANIFEST_B64: ${{ vars.HMAC_SHA256_EXPECTED_MANIFEST_B64 }}
+          EXPECTED_MANIFEST_SHA256: ${{ vars.HMAC_SHA256_EXPECTED_MANIFEST_SHA256 }}
+        run: |
+          python3 -I tests/runner/read_equal_manifest.py "$RUNNER_TEMP/hmac-sha256-expected.json"
+          python3 -I tests/runner/hmac_equal.py check \
+            --trusted-manifest "$RUNNER_TEMP/hmac-sha256-expected.json" \
+            --trusted-sha256 "$EXPECTED_MANIFEST_SHA256"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        if: always()
+        with:
+          name: hmac-proof-checks
           path: build/verification/
 
   build:
@@ -223,7 +275,7 @@ jobs:
   # On a push to main, commit them when they changed. When main has moved on,
   # the push is skipped: the newer run writes the tables then.
   results:
-    needs: [supporting-proofs, build, linux, windows, macos]
+    needs: [supporting-proofs, hmac-proofs, build, linux, windows, macos]
     if: always()
     runs-on: ubuntu-24.04
     permissions:
@@ -250,9 +302,13 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         continue-on-error: true
         with: { name: supporting-proof-checks, path: proof-checks }
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        continue-on-error: true
+        with: { name: hmac-proof-checks, path: hmac-proof-checks }
       - name: Write the tick tables
         env:
           SUPPORTING_PROOFS_RESULT: ${{ needs.supporting-proofs.result }}
+          HMAC_PROOFS_RESULT: ${{ needs.hmac-proofs.result }}
         run: |
           args=(results build)
           if [ "$SUPPORTING_PROOFS_RESULT" = success ]; then
@@ -269,6 +325,14 @@ jobs:
               fi
               args+=(--riscv64-equal-receipt proof-checks/checked-equal-riscv64.json)
             fi
+          fi
+          if [ "$SUPPORTING_PROOFS_RESULT" = success ] && [ "$HMAC_PROOFS_RESULT" = success ] &&
+             [ -f hmac-proof-checks/checked-equal-hmac-sha256.json ]; then
+            export PATH="/usr/lib/llvm-18/bin:$PATH"
+            if ! command -v llvm-nm; then
+              sudo apt-get update && sudo apt-get install -y llvm-18
+            fi
+            args+=(--hmac-equal-receipt hmac-proof-checks/checked-equal-hmac-sha256.json)
           fi
           python3 -I tests/runner/tick_tables.py "${args[@]}"
       - name: Write the verification heatmap

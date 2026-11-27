@@ -22,7 +22,7 @@ globs = ["Arm64.Trusted.ISA.*", "Arm64.Trusted.Syscalls.*", "Arm64.Trusted.Sysca
 name = "ImportedEthLib"
 srcDir = "lean/Imports/ethlib"
 roots = ["EthLib"]
-globs = ["EthLib.Base.Bytes", "EthLib.Cryptography.Hash.Padding", "EthLib.Cryptography.Hash.Sha256", "EthLib.Cryptography.Proofs.Hash.Sha256"]
+globs = ["EthLib.Base.Bytes", "EthLib.Cryptography.Hash.Padding", "EthLib.Cryptography.Hash.Sha256", "EthLib.Cryptography.Proofs.Hash.Sha256", "EthLib.Cryptography.Hash.Hmac", "EthLib.Cryptography.Proofs.Hash.Hmac"]
 
 [[lean_lib]]
 name = "Reference"

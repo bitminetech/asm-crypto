@@ -3,7 +3,7 @@ Write the tick table of every documented function into the Results section
 of its document (ARCHITECTURE.md section 10).
 
 Usage: python3 -I tests/runner/tick_tables.py RESULTS_DIR BUILD_DIR [ARM64_EQUAL_RECEIPT]
-       [--x86-equal-receipt PATH] [--riscv64-equal-receipt PATH]
+       [--x86-equal-receipt PATH] [--riscv64-equal-receipt PATH] [--hmac-equal-receipt PATH]
 Runs from the repo root.
 
 - RESULTS_DIR holds results-<os>-<isa>.txt: the runner output of each target.
@@ -17,6 +17,8 @@ through the functions that call it: it gets a tick when every L2 or L3
 function that reaches it passed on that target. A missing results file leaves the
 cells of its target empty. Each crypto_sha256 proof cell requires a current
 checked receipt and passing vectors on every supported target for that ISA.
+Each HMAC proof cell requires its checked claim and a Linux vector pass for
+that ISA.
 """
 
 import argparse
@@ -219,23 +221,39 @@ def tick(function, role, os_name, isa, results_dir, graph, roles):
     return bool(tested_by) and tested_by <= ok
 
 
+def checked_hmac_equal(receipt_path, build_dir, root):
+    if receipt_path is None:
+        return {}
+    try:
+        from hmac_equal import validate_receipt
+        receipt = json.loads(Path(receipt_path).read_text())
+        return validate_receipt(Path(root).resolve(), Path(build_dir).resolve(), receipt)
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        print("HMAC-SHA-256 equal receipt ignored: " + str(error), file=sys.stderr)
+        return {}
+
+
 def table(function, role, results_dir, graphs, roles, equal_checked=False, x86_equal_checked=False,
-          riscv64_equal_checked=False):
+          riscv64_equal_checked=False, hmac_claims=None):
     lines = [f"### `{function}`", "", "| ISA | Linux | Windows | macOS | `equal` |", "|---|---|---|---|---|"]
     for isa, label in ISAS:
         cells = [TICK if tick(function, role, o, isa, results_dir, graphs[isa], roles) else "" for o in OSES]
         checked = {"arm64": equal_checked, "x86_64": x86_equal_checked, "riscv64": riscv64_equal_checked}[isa]
         proof = checked and function == "crypto_sha256" and all(
             cell == TICK for os_name, cell in zip(OSES, cells) if (os_name, isa) in SUPPORTED)
-        lines.append("| " + " | ".join([label] + cells + [TICK if proof else ""]) + " |")
+        linux_claims = (hmac_claims or {}).get("linux-" + isa, ())
+        hmac_proof = function in linux_claims and cells[OSES.index("linux")] == TICK
+        lines.append("| " + " | ".join([label] + cells + [TICK if proof or hmac_proof else ""]) + " |")
     return "\n".join(lines)
 
 
-def main(results_dir, build_dir, receipt_path=None, x86_receipt_path=None, riscv64_receipt_path=None):
+def main(results_dir, build_dir, receipt_path=None, x86_receipt_path=None, riscv64_receipt_path=None,
+         hmac_receipt_path=None):
     root = Path(__file__).resolve().parents[2]
     equal_checked = checked_equal(receipt_path, build_dir, root)
     x86_equal_checked = checked_x86_equal(x86_receipt_path, build_dir, root)
     riscv64_equal_checked = checked_riscv64_equal(riscv64_receipt_path, build_dir, root)
+    hmac_claims = checked_hmac_equal(hmac_receipt_path, build_dir, root)
     docs = documented()
     roles = {f: r for _, functions in docs for f, r in functions}
     graphs = {isa: callers(build_dir, isa) for isa, _ in ISAS}
@@ -247,7 +265,7 @@ def main(results_dir, build_dir, receipt_path=None, x86_receipt_path=None, riscv
             sys.exit(f"{path}: no Results section")
         end = re.search(r"^## ", text[m.end():], re.M)
         rest = text[m.end() + end.start():] if end else ""
-        tables = "\n\n".join(table(f, r, results_dir, graphs, roles, equal_checked, x86_equal_checked, riscv64_equal_checked)
+        tables = "\n\n".join(table(f, r, results_dir, graphs, roles, equal_checked, x86_equal_checked, riscv64_equal_checked, hmac_claims)
                              for f, r in functions)
         new = text[: m.end()] + "\n" + MARKER + "\n\n" + tables + "\n" + ("\n" + rest if rest else "")
         if new != text:
@@ -263,5 +281,7 @@ if __name__ == "__main__":
     parser.add_argument("arm64_receipt", nargs="?")
     parser.add_argument("--x86-equal-receipt")
     parser.add_argument("--riscv64-equal-receipt")
+    parser.add_argument("--hmac-equal-receipt")
     args = parser.parse_args()
-    main(args.results_dir, args.build_dir, args.arm64_receipt, args.x86_equal_receipt, args.riscv64_equal_receipt)
+    main(args.results_dir, args.build_dir, args.arm64_receipt, args.x86_equal_receipt, args.riscv64_equal_receipt,
+         args.hmac_equal_receipt)

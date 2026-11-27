@@ -34,7 +34,7 @@ def check(root):
     files = {entry.relative_to(directory).as_posix(): hashlib.sha256(entry.read_bytes()).hexdigest()
              for entry in entries if entry.is_file()}
     if files != reference["files_sha256"]:
-        raise ValueError("imported EthLib SHA-256 source closure differs from the pin")
+        raise ValueError("imported EthLib source closure differs from the pin")
     report.append({"name": "EthLib", "commit": reference["commit"],
                    "url": reference["repository"], "path": reference["path"],
                    "files_sha256": files})

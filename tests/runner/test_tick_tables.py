@@ -195,5 +195,43 @@ class RISCV64ReceiptTests(unittest.TestCase):
             self.assertIn("| RISC-V |  |  |  |  |", table)
 
 
+class HmacReceiptTests(unittest.TestCase):
+    def test_requires_current_linux_claim_and_transitive_vector_pass(self):
+        from hmac_equal import receipt_fields
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            path = root / "checked-equal-hmac-sha256.json"
+            artifacts = {"linux-riscv64": {"runner_sha256": "2" * 64}}
+            sources = {"proof.lean": "3" * 64}
+            with (patch("hmac_equal.commit", return_value="4" * 40),
+                  patch("hmac_equal.source_hashes", return_value=sources),
+                  patch("hmac_equal.check_artifacts", return_value=artifacts)):
+                receipt = receipt_fields(root, root, "5" * 64)
+                path.write_text(json.dumps(receipt))
+                claims = tick.checked_hmac_equal(path, root, root)
+                self.assertEqual(claims["linux-riscv64"],
+                                 {"crypto_hmac_sha256", "crypto_hmac_key", "crypto_hmac_finish"})
+                with patch("hmac_equal.check_artifacts", return_value={}):
+                    with patch.object(tick, "print"):
+                        self.assertFalse(tick.checked_hmac_equal(path, root, root))
+
+            entry = "crypto_hmac_sha256"
+            helper = "crypto_hmac_key"
+            graphs = {isa: {helper: {entry}} for isa, _ in tick.ISAS}
+            roles = {entry: "L2", helper: "L0"}
+
+            vectors = root / "results-linux-riscv64.txt"
+            vectors.write_text(f"FUNCTION {entry} PASS\n")
+            table = tick.table(helper, "L0", root, graphs, roles, hmac_claims=claims)
+            self.assertIn("| RISC-V | ✅ |  |  | ✅ |", table)
+            table = tick.table(helper, "L0", root, graphs, roles)
+            self.assertIn("| RISC-V | ✅ |  |  |  |", table)
+
+            vectors.write_text(f"FUNCTION {entry} FAIL\n")
+            table = tick.table(helper, "L0", root, graphs, roles, hmac_claims=claims)
+            self.assertIn("| RISC-V |  |  |  |  |", table)
+
+
 if __name__ == "__main__":
     unittest.main()

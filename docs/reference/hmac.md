@@ -23,6 +23,7 @@ Message authentication codes.
 
 - Document: [RFC 2104](https://www.rfc-editor.org/rfc/rfc2104), February 1997, with H = SHA-256 ([FIPS 180-4](https://doi.org/10.6028/NIST.FIPS.180-4)).
 - Section: 2.
+- Lean reference: [EthLib HMAC](../../lean/Imports/ethlib/EthLib/Cryptography/Hash/Hmac.lean) with [EthLib SHA-256](../../lean/Imports/ethlib/EthLib/Cryptography/Hash/Sha256.lean).
 - The key rules follow [FIPS 198-1](https://doi.org/10.6028/NIST.FIPS.198-1) section 4: K0 is the key, or the hash of a key longer than 64 bytes, then zeros to 64 bytes.
 
 ## Function `crypto_hmac_sha256`
@@ -47,11 +48,13 @@ crypto_hmac_sha256(key, message, scratch, mac) -> status
 ### Returns
 
 - `CRYPTO_OK`: `mac` holds the result.
-- `CRYPTO_BUFFER_TOO_SMALL`: `scratch` holds fewer than 96 + `count` of `message` bytes. Nothing is written.
+- `CRYPTO_BUFFER_TOO_SMALL`: `scratch` holds fewer than 96 + `count` of `message` bytes. The scratch and MAC buffers stay unchanged.
 
 ### Caller must
 
 - Pass valid `ByteList` values in `key` and `message`. They are not checked.
+- Keep the key length below 2^61 bytes and the message length below 2^61 − 64 bytes
+  so the SHA-256 inputs, including the 64-byte inner pad, stay below the FIPS limit.
 - Set the `size` field of `scratch` to its buffer size.
 - Keep `scratch` and `mac` apart from each other and from the inputs.
 
@@ -64,7 +67,7 @@ crypto_hmac_sha256(key, message, scratch, mac) -> status
 
 ### Function never
 
-- Reads more than the two `ByteList` headers and their `count` bytes, and the `size` field of `scratch`.
+- Reads outside the two `ByteList` headers and their `count` bytes in the input buffers. It reads the scratch capacity and uses the inner list it writes.
 - Writes more than `scratch`, `mac` and its own stack.
 - Keeps a pointer after it returns.
 - Makes an OS call.
@@ -72,7 +75,12 @@ crypto_hmac_sha256(key, message, scratch, mac) -> status
 
 ### Effects
 
-- `scratch` holds key material after the call.
+- On success the initialized scratch prefix contains a `ByteList` of K0 ^ ipad followed by the message. The size word and unused tail keep their entry values.
+- The successful MAC is the permitted output. Treat the initialized scratch prefix as secret.
+
+### Confidentiality
+
+Code and return addresses, buffer addresses and accessible extents, stack placement, `ByteList` headers, and scratch capacity are public. Key and message bytes are secret. The entry point and helpers keep the declared addresses and lengths public across calls. The caller is responsible for its buffer preparation, invocation timing, and use of the MAC and scratch.
 
 ### Limits
 
@@ -105,7 +113,7 @@ crypto_hmac_key(key, k0) -> nothing
 
 ### Caller must
 
-- Pass a valid `ByteList` in `key`.
+- Pass a valid `ByteList` in `key` with a count below 2^61 bytes.
 - Pass 64 bytes in `k0`, apart from `key`.
 
 ### Function does
@@ -116,6 +124,11 @@ crypto_hmac_key(key, k0) -> nothing
 
 - Writes more than `k0` and its own stack.
 - Makes an OS call.
+- Branches or picks an address based on key bytes. The key length selects the copy or hash path.
+
+### Effects
+
+- The caller receives the complete K0 block in `k0` and treats it as secret.
 
 ### Limits
 
@@ -148,7 +161,7 @@ crypto_hmac_finish(inner, k0, mac) -> nothing
 
 ### Caller must
 
-- Pass a valid `ByteList` in `inner`.
+- Pass a valid `ByteList` in `inner` with a count below 2^61 bytes.
 - Keep `mac` apart from `inner` and `k0`.
 
 ### Function does
@@ -160,6 +173,11 @@ crypto_hmac_finish(inner, k0, mac) -> nothing
 
 - Writes more than `mac` and its own stack.
 - Makes an OS call.
+- Branches or picks an address based on K0 or the inner list bytes. The inner list header is public.
+
+### Effects
+
+- The caller receives the MAC in `mac`.
 
 ### Limits
 
@@ -215,6 +233,22 @@ The scratch size of `crypto_hmac_sha256` is this plus the message bytes: 8 for `
 - Generated keys and messages
   - Keys of 0, 1, 31, 32, 33, 63, 64, 65, 100, 131 and 200 bytes, with messages of 0 to 1000 bytes.
   - Expected results: `cryptography` 50.0.2 (OpenSSL), pinned with hashes in [tests/generator/requirements.txt](../../tests/generator/requirements.txt).
+
+## Proofs
+
+The Lean `equal` statements cover `crypto_hmac_sha256`, `crypto_hmac_key`, and `crypto_hmac_finish` in the recorded Linux runners. They apply the shared stateless baseline and reuse the SHA-256 proof at each linked call. The three targets use the ARM64 AAPCS64, x86-64 System V AMD64, and RV64GC LP64D conventions. [Stateless baseline](../../lean/Proofs/StatelessBaseline.lean)
+
+| ISA | Lean statements and theorems |
+|---|---|
+| ARM64 | [ARM64Equal.lean](../../lean/Proofs/HMACSHA256/ARM64Equal.lean) |
+| x86-64 | [X86Equal.lean](../../lean/Proofs/HMACSHA256/X86Equal.lean) |
+| RV64 | [RISCV64Equal.lean](../../lean/Proofs/HMACSHA256/RISCV64Equal.lean) |
+
+The caller supplies valid, aligned byte ranges backed by independently established extents. Code is loaded at the recorded relative addresses and stays read-only during the call. The caller reserves the stack and owns the writable buffers throughout the call. The environment may advance between instructions if it preserves the active borrows and satisfies the target's scheduling assumptions. The pinned decoders and their correspondence to the target CPUs and loader are trusted.
+
+The total stack reservations for the entry, key helper and finishing helper are 800, 512 and 640 bytes on ARM64 and 896, 592 and 720 bytes on RV64. On x86-64 they are 832, 576 and 704 bytes, including the incoming return slot. The Lean statements bound modeled steps as functions of the public input lengths. The timing proof uses profiles whose step costs obey the stated public observation law. Physical timing depends on the target satisfying that law.
+
+CI requires the external statement and source pin, fresh kernel replay, the axiom audit, matching linked Linux executables and passing Linux vectors before reporting a checked result in the heatmap. [Registered scope and artifact checks](../../lean/verification-scope.json)
 
 ## Results
 
