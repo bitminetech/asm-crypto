@@ -15,6 +15,7 @@ Keys, signing, checking and aggregation.
 - [`crypto_bls_eth_aggregate_pubkeys`](#function-crypto_bls_eth_aggregate_pubkeys): adds public keys.
 - [`crypto_bls_eth_fast_aggregate_verify`](#function-crypto_bls_eth_fast_aggregate_verify): the fast aggregate check of Ethereum.
 - [`crypto_bls_fast_aggregate_verify_cached`](#function-crypto_bls_fast_aggregate_verify_cached): checks one signature by the keys at several indices, with a cache of checked keys.
+- [`crypto_bls_key_cache_fill`](#function-crypto_bls_key_cache_fill): writes the entries of a range of indices of a cache of checked keys.
 - [`crypto_bls_secret_key`](#function-crypto_bls_secret_key): reads a secret key as a number.
 - [`crypto_bls_key_validate_point`](#function-crypto_bls_key_validate_point): decompresses and checks a public key.
 - [`crypto_bls_aggregate_keys`](#function-crypto_bls_aggregate_keys): adds checked public keys.
@@ -505,8 +506,8 @@ crypto_bls_fast_aggregate_verify_cached(keys, indices, cache, message, signature
 
 - Pass a well formed `BlsIndexList` and `BlsKeyCache`, and a valid `ByteList` in `message`. They are not checked.
 - Hold key i at `keys` for each index i of `indices` below `count` of `cache`, with `keys` at a multiple of 8.
-- Start each entry of `cache` with status 0. After that, only this function writes the entries.
-- Not pass one `cache` to two calls at the same time.
+- Start each entry of `cache` with status 0. After that, only this function and `crypto_bls_key_cache_fill` write the entries.
+- Not pass one `cache` to two calls at the same time, but calls of `crypto_bls_key_cache_fill` as that function allows.
 - Set the `size` field of `scratch` to its buffer size.
 - Keep `cache`, `scratch` and `valid` apart from each other and from the inputs.
 - Check a proof of possession of each key before it uses the key here: the scheme is safe from rogue keys only then (draft section 3.3).
@@ -540,6 +541,62 @@ crypto_bls_fast_aggregate_verify_cached(keys, indices, cache, message, signature
 - Symbol: `crypto_bls_fast_aggregate_verify_cached` (`_crypto_bls_fast_aggregate_verify_cached` on macOS).
 - Convention: the core ABI for each ISA (ARCHITECTURE.md section 6).
 - Argument order: `keys`, `indices`, `cache`, `message`, `signature`, `scratch`, `valid`.
+
+## Function `crypto_bls_key_cache_fill`
+
+Writes the entries of a range of indices of a cache of checked keys, as `crypto_bls_fast_aggregate_verify_cached` writes them.
+
+### Signature
+
+```
+crypto_bls_key_cache_fill(keys, first, count, cache) -> status
+```
+
+### Arguments
+
+| Name | Role | Type |
+|---|---|---|
+| `keys` | input | Key i: the `BlsPublicKey` at `keys` + i * `key_stride` of `cache` |
+| `first` | input | u64 by value: the first index |
+| `count` | input | u64 by value: the indices |
+| `cache` | state | `BlsKeyCache` |
+
+### Returns
+
+- `CRYPTO_OK`, always.
+
+### Caller must
+
+- Pass a well formed `BlsKeyCache`. It is not checked.
+- Hold key i at `keys` for each index i of the range below `count` of `cache`, with `keys` at a multiple of 8.
+- Start each entry of `cache` with status 0, as for `crypto_bls_fast_aggregate_verify_cached`.
+- Keep `cache` apart from `keys`.
+- Run calls on one `cache` at the same time only when their ranges hold no index in common and no `crypto_bls_fast_aggregate_verify_cached` call runs on it.
+- Check a proof of possession of each key before it uses the key in a signature check (draft section 3.3).
+
+### Function does
+
+- For each index i from `first` to the lower of `first` + `count` and `count` of `cache` (a sum past 2^64 - 1 takes `count` of `cache`): when entry i has status 0, or its key is not the 48 bytes of key i, checks key i with `crypto_bls_key_validate_point` and writes the entry: status 1 with the key and its point, or status 2 with the key. An entry of status 1 or 2 with the same key stays.
+- Each entry it writes is the entry `crypto_bls_fast_aggregate_verify_cached` writes for that key, byte for byte.
+
+### Function never
+
+- Reads more than key i and entry i for each index i of the range below `count` of `cache`, and the fixed fields of `cache`.
+- Writes more than the entries of the range and its own stack.
+- Changes the fixed fields of `cache`.
+- Keeps a pointer after it returns.
+- Makes an OS call.
+
+### Limits
+
+- Stack: 2024 bytes on x86-64 (return address included), 2160 bytes on ARM64, 2288 bytes on RISC-V, callees included.
+
+### ABI
+
+- Role: L3.
+- Symbol: `crypto_bls_key_cache_fill` (`_crypto_bls_key_cache_fill` on macOS).
+- Convention: the core ABI for each ISA (ARCHITECTURE.md section 6).
+- Argument order: `keys`, `first`, `count`, `cache`.
 
 ## Function `crypto_bls_secret_key`
 
@@ -1010,6 +1067,7 @@ A list that needs at least one entry has none.
   - Keys that cancel: a key and its negation, whose sum is the point at infinity.
   - A key twice in one list, checked against the signature of the key twice and of the key once.
 - `crypto_bls_fast_aggregate_verify_cached`: every case above of `verify`, `fast_aggregate_verify` and `eth_fast_aggregate_verify` with at least one key, with the keys at a stride of 48 and the indices 0 to n - 1. Each runs with an empty cache, again with the cache it filled, and with a cache filled by the case before. The expected result is that of the case.
+- `crypto_bls_key_cache_fill`: the same cases: entries 0 to n - 1 of a new cache of count n filled in two calls split at n / 2, the second asking past the count, then a call past the count. Each entry must hold status 1 when `crypto_bls_key_validate` gives 1 for its key, else 2, and the key; a second fill changes no byte, and one over an entry of another key writes this key back. Then `crypto_bls_fast_aggregate_verify_cached` on that cache must give the case's result and leave each entry of status 1 as it was. Also each `key_validate` case: a cache of one entry must get status 1 when the case gives 1, else 2.
 - Built from those cases: the keys at a stride of 128 in another order, an index twice, and an index at `count` of the cache.
   - Expected results: `py_arkworks_bls12381` 0.5.0 for the points, the hash to G2, the subgroup checks and the pairing check, with the steps of `Signatures.lean` written out in [tests/generator/bls.py](../../tests/generator/bls.py).
 

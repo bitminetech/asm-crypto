@@ -3663,6 +3663,55 @@ FUNCTION crypto_bls_fast_aggregate_verify_cached
     LEAVE   FC_SIZE
 END_FUNCTION crypto_bls_fast_aggregate_verify_cached
 
+/*
+ * crypto_bls_key_cache_fill(keys, first, count, cache) -> status: the entries of
+ * the indices first to first + count - 1 below count of cache, each written as
+ * crypto_bls_fast_aggregate_verify_cached writes it. rbx keys, rbp the index,
+ * r12 cache, r13 the end, r14 key i, r15 entry i. Stack: a point (G1Point) at 0.
+ */
+.set KF_P, 0
+.set KF_SIZE, 144
+FUNCTION crypto_bls_key_cache_fill
+    ENTER   KF_SIZE
+    mov     %rdi, %rbx
+    mov     %rsi, %rbp
+    mov     %rcx, %r12
+    mov     CRYPTO_BLS_CACHE_COUNT(%r12), %rax
+    mov     %rsi, %r13                      /* the end: first + count, at most count of cache */
+    add     %rdx, %r13
+    jc      1f
+    cmp     %rax, %r13
+    jbe     2f
+1:  mov     %rax, %r13
+2:  cmp     %r13, %rbp
+    jae     9f
+    mov     %rbp, %r14
+    imul    CRYPTO_BLS_CACHE_KEY_STRIDE(%r12), %r14
+    add     %rbx, %r14
+    imul    $CRYPTO_BLS_ENTRY_BYTES, %rbp, %r15
+    add     CRYPTO_BLS_CACHE_OFFSET(%r12), %r15
+    add     %r12, %r15
+    cmpq    $0, CRYPTO_BLS_ENTRY_STATUS(%r15)
+    je      3f                              /* empty: check the key */
+    EQUAL   %r15, CRYPTO_BLS_ENTRY_KEY, %r14, 0, 48
+    jz      4f                              /* the entry of this key stays */
+3:  mov     %r14, %rdi                      /* KeyValidate, then the entry */
+    lea     KF_P(%rsp), %rsi
+    call    crypto_bls_key_validate_point
+    mov     %rax, %r8
+    COPY    %r15, CRYPTO_BLS_ENTRY_KEY, %r14, 0, 48
+    test    %r8, %r8
+    jnz     32f
+    COPY    %r15, CRYPTO_BLS_ENTRY_POINT, %rsp, KF_P, 96
+    movq    $1, CRYPTO_BLS_ENTRY_STATUS(%r15)
+    jmp     4f
+32: movq    $2, CRYPTO_BLS_ENTRY_STATUS(%r15)
+4:  inc     %rbp
+    jmp     2b
+9:  xor     %eax, %eax
+    LEAVE   KF_SIZE
+END_FUNCTION crypto_bls_key_cache_fill
+
 /* ---------------------------------------------------------------- Fr (Bls/Fr.lean), for KZG */
 
 .macro RMUL ra, oa, rb, ob, rc, oc

@@ -4057,6 +4057,56 @@ FUNCTION crypto_bls_fast_aggregate_verify_cached
     LEAVE   FC_SIZE
 END_FUNCTION crypto_bls_fast_aggregate_verify_cached
 
+/*
+ * crypto_bls_key_cache_fill(keys, first, count, cache) -> status: the entries of
+ * the indices first to first + count - 1 below count of cache, each written as
+ * crypto_bls_fast_aggregate_verify_cached writes it. s1 keys, s2 the index,
+ * s3 cache, s4 the end, s9 key i, s10 entry i, s11 a status. Stack: a point
+ * (G1Point) at 0.
+ */
+.set KF_P, 0
+.set KF_SIZE, 144
+FUNCTION crypto_bls_key_cache_fill
+    ENTER   KF_SIZE
+    mv      s1, a0
+    mv      s2, a1
+    mv      s3, a3
+    ld      t0, CRYPTO_BLS_CACHE_COUNT(s3)
+    add     s4, a1, a2                      # the end: first + count, at most count of cache
+    bltu    s4, a1, 1f
+    bleu    s4, t0, 2f
+1:  mv      s4, t0
+2:  bgeu    s2, s4, 9f
+    ld      t1, CRYPTO_BLS_CACHE_KEY_STRIDE(s3)
+    mul     s9, s2, t1
+    add     s9, s9, s1
+    li      t1, CRYPTO_BLS_ENTRY_BYTES
+    mul     s10, s2, t1
+    ld      t1, CRYPTO_BLS_CACHE_OFFSET(s3)
+    add     s10, s10, t1
+    add     s10, s10, s3
+    ld      t0, CRYPTO_BLS_ENTRY_STATUS(s10)
+    beqz    t0, 3f                          # empty: check the key
+    EQUAL   s10, CRYPTO_BLS_ENTRY_KEY, s9, 0, 48
+    beqz    t0, 4f                          # the entry of this key stays
+3:  mv      a0, s9                          # KeyValidate, then the entry
+    ADDR    a1, sp, KF_P
+    call    crypto_bls_key_validate_point
+    mv      s11, a0
+    COPY    s10, CRYPTO_BLS_ENTRY_KEY, s9, 0, 48
+    bnez    s11, 32f
+    COPY    s10, CRYPTO_BLS_ENTRY_POINT, sp, KF_P, 96
+    li      t0, 1
+    sd      t0, CRYPTO_BLS_ENTRY_STATUS(s10)
+    j       4f
+32: li      t0, 2
+    sd      t0, CRYPTO_BLS_ENTRY_STATUS(s10)
+4:  addi    s2, s2, 1
+    j       2b
+9:  li      a0, CRYPTO_OK
+    LEAVE   KF_SIZE
+END_FUNCTION crypto_bls_key_cache_fill
+
 
 
 /* ---------------------------------------------------------------- Fr (Bls/Fr.lean), for KZG */

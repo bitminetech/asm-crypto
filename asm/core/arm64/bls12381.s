@@ -4893,6 +4893,52 @@ FUNCTION crypto_bls_fast_aggregate_verify_cached
     LEAVE   0, FC_SIZE
 END_FUNCTION crypto_bls_fast_aggregate_verify_cached
 
+/*
+ * crypto_bls_key_cache_fill(keys, first, count, cache) -> status: the entries of
+ * the indices first to first + count - 1 below count of cache, each written as
+ * crypto_bls_fast_aggregate_verify_cached writes it. x19 keys, x20 the index,
+ * x21 the end, x22 cache, x23 key i, x24 entry i. Stack: a point (G1Point) at 0.
+ */
+.set KF_P, 0
+.set KF_SIZE, 144
+FUNCTION crypto_bls_key_cache_fill
+    ENTER   0, KF_SIZE
+    mov     x19, x0
+    mov     x20, x1
+    mov     x22, x3
+    ldr     x9, [x22, #CRYPTO_BLS_CACHE_COUNT]
+    adds    x21, x1, x2                     /* the end: first + count, at most count of cache */
+    b.cs    1f
+    cmp     x21, x9
+    b.ls    2f
+1:  mov     x21, x9
+2:  cmp     x20, x21
+    b.hs    9f
+    ldr     x10, [x22, #CRYPTO_BLS_CACHE_KEY_STRIDE]
+    madd    x23, x20, x10, x19
+    ldr     x10, [x22, #CRYPTO_BLS_CACHE_OFFSET]
+    add     x10, x22, x10
+    mov     x11, #CRYPTO_BLS_ENTRY_BYTES
+    madd    x24, x20, x11, x10
+    ldr     x9, [x24, #CRYPTO_BLS_ENTRY_STATUS]
+    cbz     x9, 3f                          /* empty: check the key */
+    EQUAL   x24, CRYPTO_BLS_ENTRY_KEY, x23, 0, 48
+    b.eq    4f                              /* the entry of this key stays */
+3:  mov     x0, x23                         /* KeyValidate, then the entry */
+    add     x1, sp, #KF_P
+    bl      crypto_bls_key_validate_point
+    mov     x9, #2
+    cbnz    x0, 31f
+    COPY    x24, CRYPTO_BLS_ENTRY_POINT, sp, KF_P, 96
+    mov     x9, #1
+31: str     x9, [x24, #CRYPTO_BLS_ENTRY_STATUS]
+    COPY    x24, CRYPTO_BLS_ENTRY_KEY, x23, 0, 48
+4:  add     x20, x20, #1
+    b       2b
+9:  mov     x0, #CRYPTO_OK
+    LEAVE   0, KF_SIZE
+END_FUNCTION crypto_bls_key_cache_fill
+
 
 /* ---------------------------------------------------------------- Fr (Bls/Fr.lean), for KZG */
 

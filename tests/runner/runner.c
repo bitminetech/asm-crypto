@@ -111,6 +111,7 @@ CRYPTO_ABI uint64_t crypto_bls_eth_fast_aggregate_verify(const void *public_keys
 CRYPTO_ABI uint64_t crypto_bls_fast_aggregate_verify_cached(const void *keys, const void *indices, void *cache,
                                                             const void *message, const void *signature, void *scratch,
                                                             void *valid);
+CRYPTO_ABI uint64_t crypto_bls_key_cache_fill(const void *keys, uint64_t first, uint64_t count, void *cache);
 CRYPTO_ABI uint64_t crypto_bls_g1_decode(const void *bytes, void *point);
 CRYPTO_ABI uint64_t crypto_bls_g1_compress(const void *point, void *bytes);
 CRYPTO_ABI uint64_t crypto_bls_g1_add(const void *first, const void *second, void *point);
@@ -174,7 +175,7 @@ enum { F_SHA256, F_KECCAK, F_HMAC, F_EXTRACT, F_EXPAND, F_CTR, F_GCM_AE, F_GCM_A
        F_BLS_KEY_VALIDATE, F_BLS_ETH_AGGREGATE, F_BLS_ETH_FAST, F_BLS_G1_DECODE, F_BLS_G1_COMPRESS, F_BLS_G1_ADD,
        F_BLS_G1_NEG, F_BLS_G2_DECODE, F_BLS_G2_COMPRESS, F_BLS_XMD, F_BLS_HASH_TO_G2, F_KZG_SETUP, F_KZG_COMMIT,
        F_KZG_PROOF, F_KZG_VERIFY, F_KZG_BLOB_PROOF, F_KZG_BLOB_VERIFY, F_KZG_BLOB_BATCH, F_KZG_CHALLENGE, F_KZG_CELLS,
-       F_KZG_CELLS_PROOFS, F_KZG_CELL_BATCH, F_KZG_RECOVER, F_KZG_CELL_CHALLENGE, F_BLS_FAST_CACHED, F_COUNT };
+       F_KZG_CELLS_PROOFS, F_KZG_CELL_BATCH, F_KZG_RECOVER, F_KZG_CELL_CHALLENGE, F_BLS_FAST_CACHED, F_BLS_CACHE_FILL, F_COUNT };
 static const char *const fn_name[F_COUNT] = {
     "crypto_sha256", "crypto_keccak256", "crypto_hmac_sha256", "crypto_hkdf_extract", "crypto_hkdf_expand",
     "crypto_aes128_ctr", "crypto_aes128_gcm_ae", "crypto_aes128_gcm_ad", "crypto_secp256k1_public_key",
@@ -192,7 +193,7 @@ static const char *const fn_name[F_COUNT] = {
     "crypto_kzg_verify_blob_kzg_proof", "crypto_kzg_verify_blob_kzg_proof_batch", "crypto_kzg_compute_challenge",
     "crypto_kzg_compute_cells", "crypto_kzg_compute_cells_and_kzg_proofs", "crypto_kzg_verify_cell_kzg_proof_batch",
     "crypto_kzg_recover_cells_and_kzg_proofs", "crypto_kzg_compute_verify_cell_kzg_proof_batch_challenge",
-    "crypto_bls_fast_aggregate_verify_cached",
+    "crypto_bls_fast_aggregate_verify_cached", "crypto_bls_key_cache_fill",
 };
 static uint64_t stack_peak[F_COUNT], abi_fault[F_COUNT], fn_cases[F_COUNT], fn_bad[F_COUNT];
 
@@ -224,7 +225,7 @@ static uint64_t checked_call(int fn, const void *const *args, size_t n) {
         (const void *)crypto_kzg_compute_cells, (const void *)crypto_kzg_compute_cells_and_kzg_proofs,
         (const void *)crypto_kzg_verify_cell_kzg_proof_batch, (const void *)crypto_kzg_recover_cells_and_kzg_proofs,
         (const void *)crypto_kzg_compute_verify_cell_kzg_proof_batch_challenge,
-        (const void *)crypto_bls_fast_aggregate_verify_cached,
+        (const void *)crypto_bls_fast_aggregate_verify_cached, (const void *)crypto_bls_key_cache_fill,
     };
     abi_ctx c;
     memset(&c, 0, sizeof c);
@@ -943,6 +944,52 @@ static int cached_run(const uint8_t *keys, size_t keys_n, const uint64_t *idx, u
     return ok;
 }
 
+/*
+ * crypto_bls_key_cache_fill (ARCHITECTURE.md section 5: the vectors of the functions it stands for):
+ * entries 0 to n - 1 of a new cache of count n, filled in two calls that split the range at n / 2,
+ * the second asking past the count, and a third call with no indices. Each entry: status 1 when
+ * crypto_bls_key_validate gives 1 for its key, else 2, and its key; then
+ * crypto_bls_fast_aggregate_verify_cached on that cache gives the case's result and changes no
+ * entry of a key that passes. A fill of the cache again changes no byte; one of an entry holding
+ * another key writes this key.
+ */
+static int fill_run(const uint8_t *keys, uint64_t n, blob msg, const uint8_t *sig, uint64_t want) {
+    output cache = new_key_cache(48, n);
+    input k = in_bytes(keys, (size_t)(48 * n));
+    uint64_t half = n / 2;
+    uint8_t head[32];
+    memcpy(head, cache.p, 32);
+    int ok = CALL(F_BLS_CACHE_FILL, k.p, (const void *)(uintptr_t)0, (const void *)(uintptr_t)half, cache.p) == 0;
+    ok &= CALL(F_BLS_CACHE_FILL, k.p, (const void *)(uintptr_t)half, (const void *)(uintptr_t)(n - half + 7), cache.p) == 0;
+    ok &= CALL(F_BLS_CACHE_FILL, k.p, (const void *)(uintptr_t)n, (const void *)(uintptr_t)UINT64_MAX, cache.p) == 0;
+    ok &= out_guards(&cache) && memcmp(head, cache.p, 32) == 0;
+    for (uint64_t e = 0; e < n && ok; e++) {
+        const uint8_t *en = cache.p + 32 + CACHE_ENTRY * e;
+        uint8_t v[8];
+        crypto_bls_key_validate(keys + 48 * e, v);
+        ok &= rd64(en) == (rd64(v) ? 1u : 2u) && memcmp(en + 8, keys + 48 * e, 48) == 0;
+    }
+    uint8_t *before = xmalloc(cache.n);
+    memcpy(before, cache.p, cache.n);
+    ok &= CALL(F_BLS_CACHE_FILL, k.p, (const void *)(uintptr_t)0, (const void *)(uintptr_t)n, cache.p) == 0 &&
+          memcmp(before, cache.p, cache.n) == 0;
+    if (ok && n > 1) { /* entry 0 holding key 1: the fill writes key 0 back */
+        memcpy(cache.p + 32 + 8, keys + 48, 48);
+        ok &= CALL(F_BLS_CACHE_FILL, k.p, (const void *)(uintptr_t)0, (const void *)(uintptr_t)1, cache.p) == 0 &&
+              memcmp(before, cache.p, cache.n) == 0;
+    }
+    ok &= in_done(&k);
+    uint64_t *idx = xmalloc((size_t)(8 * n));
+    for (uint64_t e = 0; e < n; e++) idx[e] = e;
+    ok &= cached_run(keys, (size_t)(48 * n), idx, n, &cache, msg, sig, want, 0, n);
+    for (uint64_t e = 0; e < n && ok; e++)
+        if (rd64(before + 32 + CACHE_ENTRY * e) == 1) ok &= memcmp(before + 32 + CACHE_ENTRY * e, cache.p + 32 + CACHE_ENTRY * e, CACHE_ENTRY) == 0;
+    free(idx);
+    free(before);
+    out_free(&cache);
+    return ok;
+}
+
 static int case_bls_cached(blob keys, blob msg, const uint8_t *sig, uint64_t want, const char *file,
                            const char *name) {
     static output shared;
@@ -985,7 +1032,8 @@ static int case_bls_cached(blob keys, blob msg, const uint8_t *sig, uint64_t wan
     free(slot);
     free(wide);
     free(idx);
-    return note(F_BLS_FAST_CACHED, ok, file, name);
+    ok = note(F_BLS_FAST_CACHED, ok, file, name);
+    return note(F_BLS_CACHE_FILL, fill_run(keys.p, n, msg, sig, want), file, name) & ok;
 }
 
 /* A list function: aggregate (96-byte entries) or eth_aggregate_pubkeys (48-byte entries). */
@@ -1401,6 +1449,15 @@ static int run_primitives(cursor *c, uint64_t n) {
             uint8_t want[8];
             wr64(want, take64(c));
             ok = case_fixed(F_BLS_KEY_VALIDATE, pk, 48, NULL, 0, 0, want, 8, c->name, name);
+            { /* crypto_bls_key_cache_fill of the key: status 1 when it is valid, else 2 */
+                output kc = new_key_cache(48, 1);
+                input kk = in_bytes(pk, 48);
+                int fok = CALL(F_BLS_CACHE_FILL, kk.p, (const void *)(uintptr_t)0, (const void *)(uintptr_t)1, kc.p) == 0 &&
+                          out_guards(&kc) && rd64(kc.p + 32) == (rd64(want) ? 1u : 2u) && memcmp(kc.p + 40, pk, 48) == 0;
+                fok &= in_done(&kk);
+                out_free(&kc);
+                ok &= note(F_BLS_CACHE_FILL, fok, c->name, name);
+            }
         } else if (kind == K_BLS_G1_DECODE) {
             const uint8_t *b = take(c, 48);
             uint64_t st = take64(c);
