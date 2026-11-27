@@ -258,22 +258,22 @@ CI requires the external statement and source pin, fresh kernel replay, the axio
 
 | ISA | Linux | Windows | macOS | `equal` |
 |---|---|---|---|---|
-| x86-64 | ✅ | ✅ | ✅ |  |
-| ARM64 | ✅ | ✅ | ✅ |  |
-| RISC-V | ✅ |  |  |  |
+| x86-64 | ✅ | ✅ | ✅ | ✅ |
+| ARM64 | ✅ | ✅ | ✅ | ✅ |
+| RISC-V | ✅ |  |  | ✅ |
 
 ### `crypto_hmac_key`
 
 | ISA | Linux | Windows | macOS | `equal` |
 |---|---|---|---|---|
-| x86-64 | ✅ | ✅ | ✅ |  |
-| ARM64 | ✅ | ✅ | ✅ |  |
-| RISC-V | ✅ |  |  |  |
+| x86-64 | ✅ | ✅ | ✅ | ✅ |
+| ARM64 | ✅ | ✅ | ✅ | ✅ |
+| RISC-V | ✅ |  |  | ✅ |
 
 ### `crypto_hmac_finish`
 
 | ISA | Linux | Windows | macOS | `equal` |
 |---|---|---|---|---|
-| x86-64 | ✅ | ✅ | ✅ |  |
-| ARM64 | ✅ | ✅ | ✅ |  |
-| RISC-V | ✅ |  |  |  |
+| x86-64 | ✅ | ✅ | ✅ | ✅ |
+| ARM64 | ✅ | ✅ | ✅ | ✅ |
+| RISC-V | ✅ |  |  | ✅ |
