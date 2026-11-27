@@ -507,7 +507,7 @@ crypto_bls_fast_aggregate_verify_cached(keys, indices, cache, message, signature
 - Pass a well formed `BlsIndexList` and `BlsKeyCache`, and a valid `ByteList` in `message`. They are not checked.
 - Hold key i at `keys` for each index i of `indices` below `count` of `cache`, with `keys` at a multiple of 8.
 - Start each entry of `cache` with status 0. After that, only this function and `crypto_bls_key_cache_fill` write the entries.
-- Not pass one `cache` to two calls at the same time, but calls of `crypto_bls_key_cache_fill` as that function allows.
+- Not pass one `cache` to two calls at the same time, but calls of `crypto_bls_key_cache_fill` as that function allows, and calls of this function that read only: in each, the entry of every index below `count` of `cache` has a status other than 0 and the same 48 bytes of key, and no call writes those entries meanwhile.
 - Set the `size` field of `scratch` to its buffer size.
 - Keep `cache`, `scratch` and `valid` apart from each other and from the inputs.
 - Check a proof of possession of each key before it uses the key here: the scheme is safe from rogue keys only then (draft section 3.3).
@@ -518,6 +518,7 @@ crypto_bls_fast_aggregate_verify_cached(keys, indices, cache, message, signature
 - Checks `scratch` first.
 - Writes 0 when `indices` is empty, or an index is at or past `count` of `cache`.
 - Takes the point of a key from the entry of its index when the entry's status is not 0 and its key is the same 48 bytes. Else checks the key with `crypto_bls_key_validate_point` and writes the entry: status 1 with the key and its point, or status 2 with the key.
+- Writes no entry when the entry of every index below `count` of `cache` has a status other than 0 and the same 48 bytes of key.
 - Writes 0 for a key of status 2.
 - On x86-64 and ARM64, before it takes a key, gives the CPU a prefetch hint (`prefetcht0`, `prfm`) for the key and the entry of the next index, when that index is below `count` of `cache`. A hint reads and writes nothing.
 - Adds the points with `crypto_bls_g1_add_affine`, and writes 0 when the sum is the point at infinity. The sum is the one `crypto_bls_g1_add` gives, coordinate for coordinate.
@@ -571,7 +572,7 @@ crypto_bls_key_cache_fill(keys, first, count, cache) -> status
 - Hold key i at `keys` for each index i of the range below `count` of `cache`, with `keys` at a multiple of 8.
 - Start each entry of `cache` with status 0, as for `crypto_bls_fast_aggregate_verify_cached`.
 - Keep `cache` apart from `keys`.
-- Run calls on one `cache` at the same time only when their ranges hold no index in common and no `crypto_bls_fast_aggregate_verify_cached` call runs on it.
+- Run calls on one `cache` at the same time only when their ranges hold no index in common and no `crypto_bls_fast_aggregate_verify_cached` call that reads an entry of their ranges runs on it.
 - Check a proof of possession of each key before it uses the key in a signature check (draft section 3.3).
 
 ### Function does
