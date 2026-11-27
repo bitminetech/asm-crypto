@@ -1147,6 +1147,14 @@ A list that needs at least one entry has none.
 | ARM64 | ✅ | ✅ | ✅ |  |
 | RISC-V | ✅ |  |  |  |
 
+### `crypto_bls_key_cache_fill`
+
+| ISA | Linux | Windows | macOS | `equal` |
+|---|---|---|---|---|
+| x86-64 | ✅ | ✅ | ✅ |  |
+| ARM64 | ✅ | ✅ | ✅ |  |
+| RISC-V | ✅ |  |  |  |
+
 ### `crypto_bls_secret_key`
 
 | ISA | Linux | Windows | macOS | `equal` |
