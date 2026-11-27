@@ -28,5 +28,11 @@ llvm-ar --format=darwin rcs "$out/libasm-crypto.a" $objects
 # The sha variant (sha-256.md, The sha variant): sha256x.s in place of sha256.s.
 clang --target=$target -I"$root/include" -I"$root/platform/macos" \
     -c "$root/asm/core/$isa/sha256x.s" -o "$out/sha256x.o"
+xobjects=$(echo "$objects" | sed "s#$out/sha256\.o#$out/sha256x.o#")
+if [ "$isa" = x86_64 ]; then   # and bls12381x.s (bls12-381.md, The x variant): mulx, adcx and adox
+    clang --target=$target -I"$root/include" -I"$root/platform/macos" -I"$root/asm/core/$isa" \
+        -c "$root/asm/core/$isa/bls12381x.s" -o "$out/bls12381x.o"
+    xobjects=$(echo "$xobjects" | sed "s#$out/bls12381\.o#$out/bls12381x.o#")
+fi
 rm -f "$out/libasm-crypto-sha.a"
-llvm-ar --format=darwin rcs "$out/libasm-crypto-sha.a" $(echo "$objects" | sed "s#$out/sha256\.o#$out/sha256x.o#")
+llvm-ar --format=darwin rcs "$out/libasm-crypto-sha.a" $xobjects

@@ -39,7 +39,7 @@ static int sha_variant_supported(void) {
     unsigned a, b, c, d;
     if (!__get_cpuid(1, &a, &b, &c, &d) || !(c & bit_SSSE3)) return 0;
     if (!__get_cpuid_count(7, 0, &a, &b, &c, &d)) return 0;
-    return (b & bit_SHA) != 0;
+    return (b & bit_SHA) != 0 && (b & bit_BMI2) != 0 && (b & bit_ADX) != 0;   /* and bls12381x.s */
 }
 #elif defined(_WIN32)
 static int sha_variant_supported(void) { return IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE) != 0; }

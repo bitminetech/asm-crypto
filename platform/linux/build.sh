@@ -32,8 +32,14 @@ clang --target=$target $march -std=c11 -O2 -Wall -Wextra -Werror -static -fuse-l
 if [ "$isa" != riscv64 ]; then
     clang --target=$target $march -I"$root/include" -I"$root/platform/linux" \
         -c "$root/asm/core/$isa/sha256x.s" -o "$out/sha256x.o"
+    xobjects=$(echo "$objects" | sed "s#$out/sha256\.o#$out/sha256x.o#")
+    if [ "$isa" = x86_64 ]; then   # and bls12381x.s (bls12-381.md, The x variant): mulx, adcx and adox
+        clang --target=$target $march -I"$root/include" -I"$root/platform/linux" -I"$root/asm/core/$isa" \
+            -c "$root/asm/core/$isa/bls12381x.s" -o "$out/bls12381x.o"
+        xobjects=$(echo "$xobjects" | sed "s#$out/bls12381\.o#$out/bls12381x.o#")
+    fi
     rm -f "$out/libasm-crypto-sha.a"
-    llvm-ar rcs "$out/libasm-crypto-sha.a" $(echo "$objects" | sed "s#$out/sha256\.o#$out/sha256x.o#")
+    llvm-ar rcs "$out/libasm-crypto-sha.a" $xobjects
     clang --target=$target $march -std=c11 -O2 -Wall -Wextra -Werror -static -fuse-ld=lld -DCRYPTO_SHA_VARIANT \
         "$root/tests/runner/runner.c" -I"$root/platform/linux" "$root/tests/runner/abi_$isa.s" "$out/libasm-crypto-sha.a" -o "$out/runner-sha"
 fi

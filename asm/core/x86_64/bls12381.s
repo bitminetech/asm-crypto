@@ -200,6 +200,66 @@ LOCAL_FUNCTION crypto_bls_fp_mul
     xor     %r12d, %r12d
     xor     %r13d, %r13d
     xor     %r14d, %r14d
+.ifdef CRYPTO_ADX
+    .irp off, 0, 8, 16, 24, 32, 40          /* the x variant: mulx, and the carry chains of adcx and adox */
+    mov     \off(%rbx), %rdx                /* T += a * b_i */
+    xor     %r15d, %r15d                    /* CF and OF clear */
+    mulx    (%rsi), %rax, %rbp
+    adcx    %rax, %r8
+    adox    %rbp, %r9
+    mulx    8(%rsi), %rax, %rbp
+    adcx    %rax, %r9
+    adox    %rbp, %r10
+    mulx    16(%rsi), %rax, %rbp
+    adcx    %rax, %r10
+    adox    %rbp, %r11
+    mulx    24(%rsi), %rax, %rbp
+    adcx    %rax, %r11
+    adox    %rbp, %r12
+    mulx    32(%rsi), %rax, %rbp
+    adcx    %rax, %r12
+    adox    %rbp, %r13
+    mulx    40(%rsi), %rax, %rbp
+    adcx    %rax, %r13
+    adox    %rbp, %r14
+    mov     $0, %eax
+    adcx    %rax, %r14
+    adox    %rax, %r15
+    adcx    %rax, %r15
+    mov     %r8, %rdx                       /* q = T0 * -p^-1 mod 2^64 */
+    imul    900f+BLS_FP_RECORD_INVERSE(%rip), %rdx
+    xor     %eax, %eax                      /* T = (T + q * p) / 2^64 */
+    mulx    900f(%rip), %rax, %rbp
+    adcx    %rax, %r8
+    adox    %rbp, %r9
+    mulx    900f+8(%rip), %rax, %rbp
+    adcx    %rax, %r9
+    adox    %rbp, %r10
+    mulx    900f+16(%rip), %rax, %rbp
+    adcx    %rax, %r10
+    adox    %rbp, %r11
+    mulx    900f+24(%rip), %rax, %rbp
+    adcx    %rax, %r11
+    adox    %rbp, %r12
+    mulx    900f+32(%rip), %rax, %rbp
+    adcx    %rax, %r12
+    adox    %rbp, %r13
+    mulx    900f+40(%rip), %rax, %rbp
+    adcx    %rax, %r13
+    adox    %rbp, %r14
+    mov     $0, %eax
+    adcx    %rax, %r14
+    adox    %rax, %r15
+    adcx    %rax, %r15
+    mov     %r9, %r8
+    mov     %r10, %r9
+    mov     %r11, %r10
+    mov     %r12, %r11
+    mov     %r13, %r12
+    mov     %r14, %r13
+    mov     %r15, %r14
+    .endr
+.else
     .irp off, 0, 8, 16, 24, 32, 40
     xor     %r15d, %r15d
     mov     \off(%rbx), %rcx                /* T += a * b_i */
@@ -295,6 +355,7 @@ LOCAL_FUNCTION crypto_bls_fp_mul
     adc     $0, %r15
     mov     %r15, %r14
     .endr
+.endif
     mov     %r8, %rax                       /* T - p when T >= p */
     sub     900f(%rip), %rax
     mov     %r9, %rcx
